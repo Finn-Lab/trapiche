@@ -8,7 +8,7 @@ Trapiche is a hybrid method designed to classify metagenomic samples into specif
 To ensure a smooth installation process and avoid conflicts with other packages, we highly recommend installing Trapiche in a dedicated virtual environment. Follow these steps to install Trapiche:
 
 ```sh
-pip install trapiche
+pip install .
 ```
 
 ## Basic usage
