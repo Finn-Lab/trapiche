@@ -1,0 +1,3 @@
+trapiche/data/deep_pred/full_final_taxonomy.model.keras
+trapiche/data/deep_pred/taxonomy_quant_model.tflite
+trapiche/data/biome2vec/comm2vecs.h5

@@ -43,7 +43,7 @@ setuptools.setup(
     include_package_data = True,
     install_requires = requirements,
     extras_require={ 'dev': dev_requirements },
-    dependency_links = cfg.get('dep_links','').split(),
+    ggdependency_links = cfg.get('dep_links','').split(),
     python_requires  = '>=' + cfg['min_python'],
     long_description = open('README.md', encoding='utf-8').read(),
     long_description_content_type = 'text/markdown',

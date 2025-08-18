@@ -1,0 +1,992 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <graph edgedefault="directed">
+    <node id="root" />
+    <node id="root:Control" />
+    <node id="root:Engineered" />
+    <node id="root:Environmental" />
+    <node id="root:Host-associated" />
+    <node id="root:Mixed" />
+    <node id="root:Engineered:Biogas plant" />
+    <node id="root:Engineered:Bioreactor" />
+    <node id="root:Engineered:Bioremediation" />
+    <node id="root:Engineered:Biotransformation" />
+    <node id="root:Engineered:Built environment" />
+    <node id="root:Engineered:Food production" />
+    <node id="root:Engineered:Industrial production" />
+    <node id="root:Engineered:Lab Synthesis" />
+    <node id="root:Engineered:Lab enrichment" />
+    <node id="root:Engineered:Modeled" />
+    <node id="root:Engineered:Solid waste" />
+    <node id="root:Engineered:Wastewater" />
+    <node id="root:Environmental:Air" />
+    <node id="root:Environmental:Aquatic" />
+    <node id="root:Environmental:Terrestrial" />
+    <node id="root:Host-associated:Algae" />
+    <node id="root:Host-associated:Animal" />
+    <node id="root:Host-associated:Animal:Vertebrates" />
+    <node id="root:Host-associated:Animal:Vertebrates:Amphibia" />
+    <node id="root:Host-associated:Animal:Non-Defined" />
+    <node id="root:Host-associated:Animal:Invertebrates" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds" />
+    <node id="root:Host-associated:Animal:Invertebrates:Cnidaria" />
+    <node id="root:Host-associated:Echinodermata" />
+    <node id="root:Host-associated:Endosymbionts" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish" />
+    <node id="root:Host-associated:Fungi" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Insecta" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" />
+    <node id="root:Host-associated:Microbial" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca" />
+    <node id="root:Host-associated:Plants" />
+    <node id="root:Host-associated:Animal:Porifera" />
+    <node id="root:Host-associated:Protists" />
+    <node id="root:Host-associated:Protozoa" />
+    <node id="root:Host-associated:Animal:Vertebrates:Reptile" />
+    <node id="root:Host-associated:Animal:Invertebrates:Tunicates" />
+    <node id="root:Engineered:Biogas plant:Wet fermentation" />
+    <node id="root:Engineered:Bioreactor:Continuous culture" />
+    <node id="root:Engineered:Bioremediation:Hydrocarbon" />
+    <node id="root:Engineered:Bioremediation:Metal" />
+    <node id="root:Engineered:Bioremediation:Persistent organic pollutants (POP)" />
+    <node id="root:Engineered:Bioremediation:Terephthalate" />
+    <node id="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives" />
+    <node id="root:Engineered:Biotransformation:Microbial enhanced oil recovery" />
+    <node id="root:Engineered:Biotransformation:Microbial solubilization of coal" />
+    <node id="root:Engineered:Biotransformation:Mixed alcohol bioreactor" />
+    <node id="root:Engineered:Food production:Dairy products" />
+    <node id="root:Engineered:Food production:Fermented beverages" />
+    <node id="root:Engineered:Food production:Fermented seafood" />
+    <node id="root:Engineered:Food production:Fermented vegetables" />
+    <node id="root:Engineered:Food production:Silage fermentation" />
+    <node id="root:Engineered:Industrial production:Engineered product" />
+    <node id="root:Engineered:Lab Synthesis:Genetic cross" />
+    <node id="root:Engineered:Lab enrichment:Defined media" />
+    <node id="root:Engineered:Lab enrichment:Undefined media" />
+    <node id="root:Engineered:Modeled:Simulated communities (DNA mixture)" />
+    <node id="root:Engineered:Modeled:Simulated communities (microbial mixture)" />
+    <node id="root:Engineered:Modeled:Simulated communities (sequence read mixture)" />
+    <node id="root:Engineered:Solid waste:Composting" />
+    <node id="root:Engineered:Solid waste:Landfill" />
+    <node id="root:Engineered:Solid waste:Solid animal waste" />
+    <node id="root:Engineered:Wastewater:Activated Sludge" />
+    <node id="root:Engineered:Wastewater:Industrial wastewater" />
+    <node id="root:Engineered:Wastewater:Nutrient removal" />
+    <node id="root:Engineered:Wastewater:Water and sludge" />
+    <node id="root:Environmental:Air:Indoor Air" />
+    <node id="root:Environmental:Air:Outdoor Air" />
+    <node id="root:Environmental:Aquatic:Aquaculture" />
+    <node id="root:Environmental:Aquatic:Estuary" />
+    <node id="root:Environmental:Aquatic:Freshwater" />
+    <node id="root:Environmental:Aquatic:Lentic" />
+    <node id="root:Environmental:Aquatic:Marine" />
+    <node id="root:Environmental:Aquatic:Meromictic lake" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline" />
+    <node id="root:Environmental:Aquatic:Sediment" />
+    <node id="root:Environmental:Aquatic:Thermal springs" />
+    <node id="root:Environmental:Terrestrial:Agricultural field" />
+    <node id="root:Environmental:Terrestrial:Asphalt lakes" />
+    <node id="root:Environmental:Terrestrial:Deep subsurface" />
+    <node id="root:Environmental:Terrestrial:Geologic" />
+    <node id="root:Environmental:Terrestrial:Oil reservoir" />
+    <node id="root:Environmental:Terrestrial:Rock-dwelling (subaerial biofilm)" />
+    <node id="root:Environmental:Terrestrial:Soil" />
+    <node id="root:Environmental:Terrestrial:Volcanic" />
+    <node id="root:Host-associated:Algae:Brown Algae" />
+    <node id="root:Host-associated:Algae:Green algae" />
+    <node id="root:Host-associated:Algae:Red algae" />
+    <node id="root:Host-associated:Animal:Vertebrates:Amphibia:Digestive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Amphibia:Excretory system" />
+    <node id="root:Host-associated:Animal:Non-Defined:Circulatory system" />
+    <node id="root:Host-associated:Animal:Non-Defined:Digestive system" />
+    <node id="root:Host-associated:Animal:Non-Defined:Fossil" />
+    <node id="root:Host-associated:Animal:Non-Defined:Reproductive system" />
+    <node id="root:Host-associated:Animal:Non-Defined:Respiratory system" />
+    <node id="root:Host-associated:Animal:Non-Defined:Skin" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Intracellular endosymbionts" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Oral" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Respiratory system" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Venom gland" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Circulatory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Reproductive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Respiratory system" />
+    <node id="root:Host-associated:Endosymbionts:Fungi" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Circulatory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Digestive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Excretory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Reproductive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Skin" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Circulatory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Fossil" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Lymphatic system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Milk" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Nervous system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Insecta:Digestive system" />
+    <node id="root:Host-associated:Animal:Invertebrates:Bryozoans" />
+    <node id="root:Host-associated:Animal:Invertebrates:Echinodermata" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Circulatory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Excretory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Lymphatic" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Milk" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Nervous system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Reproductive system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Skin" />
+    <node id="root:Host-associated:Microbial:Bacteria" />
+    <node id="root:Host-associated:Microbial:Dinoflagellates" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Shell" />
+    <node id="root:Host-associated:Plants:Phylloplane" />
+    <node id="root:Host-associated:Plants:Rhizome" />
+    <node id="root:Host-associated:Plants:Rhizoplane" />
+    <node id="root:Host-associated:Plants:Rhizosphere" />
+    <node id="root:Host-associated:Plants:Root" />
+    <node id="root:Host-associated:Animal:Vertebrates:Reptile:Oral" />
+    <node id="root:Host-associated:Animal:Invertebrates:Tunicates:Ascidians" />
+    <node id="root:Engineered:Bioreactor:Continuous culture:Marine intertidal flat sediment inoculum" />
+    <node id="root:Engineered:Bioreactor:Continuous culture:Marine sediment inoculum" />
+    <node id="root:Engineered:Bioremediation:Hydrocarbon:Benzene" />
+    <node id="root:Engineered:Bioremediation:Persistent organic pollutants (POP):Polycyclic aromatic hydrocarbons" />
+    <node id="root:Engineered:Bioremediation:Terephthalate:Wastewater" />
+    <node id="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Chloroethene" />
+    <node id="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Tetrachloroethylene" />
+    <node id="root:Engineered:Lab enrichment:Defined media:Aerobic media" />
+    <node id="root:Engineered:Lab enrichment:Defined media:Anaerobic media" />
+    <node id="root:Engineered:Lab enrichment:Defined media:Marine media" />
+    <node id="root:Engineered:Modeled:Simulated communities (sequence read mixture):Sanger" />
+    <node id="root:Engineered:Solid waste:Composting:Bioreactor" />
+    <node id="root:Engineered:Solid waste:Composting:Grass" />
+    <node id="root:Engineered:Solid waste:Composting:Wood" />
+    <node id="root:Engineered:Wastewater:Industrial wastewater:Agricultural wastewater" />
+    <node id="root:Engineered:Wastewater:Industrial wastewater:Landfill leachate" />
+    <node id="root:Engineered:Wastewater:Industrial wastewater:Mine water" />
+    <node id="root:Engineered:Wastewater:Industrial wastewater:Petrochemical" />
+    <node id="root:Engineered:Wastewater:Industrial wastewater:Pulp and paper wastewater" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (aerobic)" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (anaerobic)" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Nitrogen removal" />
+    <node id="root:Environmental:Aquatic:Estuary:Sediment" />
+    <node id="root:Environmental:Aquatic:Freshwater:Drinking water" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater" />
+    <node id="root:Environmental:Aquatic:Freshwater:Ice" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lake" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lentic" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lotic" />
+    <node id="root:Environmental:Aquatic:Freshwater:Microbialites" />
+    <node id="root:Environmental:Aquatic:Freshwater:Pond" />
+    <node id="root:Environmental:Aquatic:Freshwater:Sediment" />
+    <node id="root:Environmental:Aquatic:Freshwater:Storm water" />
+    <node id="root:Environmental:Aquatic:Freshwater:Subglacial lake" />
+    <node id="root:Environmental:Aquatic:Freshwater:Wetlands" />
+    <node id="root:Environmental:Aquatic:Lentic:Brackish" />
+    <node id="root:Environmental:Aquatic:Marine:Brackish" />
+    <node id="root:Environmental:Aquatic:Marine:Coastal" />
+    <node id="root:Environmental:Aquatic:Marine:Cold seeps" />
+    <node id="root:Environmental:Aquatic:Marine:Fossil" />
+    <node id="root:Environmental:Aquatic:Marine:Hydrothermal vents" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone" />
+    <node id="root:Environmental:Aquatic:Marine:Marginal Sea" />
+    <node id="root:Environmental:Aquatic:Marine:Neritic zone" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic" />
+    <node id="root:Environmental:Aquatic:Marine:Oil field" />
+    <node id="root:Environmental:Aquatic:Marine:Oil seeps" />
+    <node id="root:Environmental:Aquatic:Marine:Oil-contaminated sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Pelagic" />
+    <node id="root:Environmental:Aquatic:Marine:Sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Volcanic" />
+    <node id="root:Environmental:Aquatic:Marine:Wetlands" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Near-boiling (&gt;90C)" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Salt crystallizer pond" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Hot (42-90C)" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Near-boiling (&gt;90C)" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Sediment" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Tepid (25-34C)" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Warm (34-42C)" />
+    <node id="root:Environmental:Terrestrial:Asphalt lakes:Tar" />
+    <node id="root:Environmental:Terrestrial:Deep subsurface:Clay" />
+    <node id="root:Environmental:Terrestrial:Geologic:Mine" />
+    <node id="root:Environmental:Terrestrial:Soil:Agricultural" />
+    <node id="root:Environmental:Terrestrial:Soil:Boreal forest" />
+    <node id="root:Environmental:Terrestrial:Soil:Clay" />
+    <node id="root:Environmental:Terrestrial:Soil:Contaminated" />
+    <node id="root:Environmental:Terrestrial:Soil:Crop" />
+    <node id="root:Environmental:Terrestrial:Soil:Desert" />
+    <node id="root:Environmental:Terrestrial:Soil:Forest soil" />
+    <node id="root:Environmental:Terrestrial:Soil:Grasslands" />
+    <node id="root:Environmental:Terrestrial:Soil:Loam" />
+    <node id="root:Environmental:Terrestrial:Soil:Mine" />
+    <node id="root:Environmental:Terrestrial:Soil:Mine drainage" />
+    <node id="root:Environmental:Terrestrial:Soil:Oil-contaminated" />
+    <node id="root:Environmental:Terrestrial:Soil:Permafrost" />
+    <node id="root:Environmental:Terrestrial:Soil:Sand" />
+    <node id="root:Environmental:Terrestrial:Soil:Shrubland" />
+    <node id="root:Environmental:Terrestrial:Soil:Silt" />
+    <node id="root:Environmental:Terrestrial:Soil:Tropical rainforest" />
+    <node id="root:Environmental:Terrestrial:Soil:Uranium contaminated" />
+    <node id="root:Environmental:Terrestrial:Soil:Viriome" />
+    <node id="root:Environmental:Terrestrial:Soil:Wetlands" />
+    <node id="root:Environmental:Terrestrial:Volcanic:Fumaroles" />
+    <node id="root:Host-associated:Algae:Green algae:Ectosymbionts" />
+    <node id="root:Host-associated:Algae:Red algae:Ectosymbionts " />
+    <node id="root:Host-associated:Animal:Non-Defined:Digestive system:Fecal" />
+    <node id="root:Host-associated:Animal:Non-Defined:Fossil:Bone" />
+    <node id="root:Host-associated:Animal:Non-Defined:Fossil:Feces" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system:Digestive tube" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Cuticle" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Subcuticular space" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Intracellular endosymbionts:Trophosome" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system:Egg capsule" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Foregut" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Midgut" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Oral" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument:Cuticle" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts:Primary" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts:Secondary" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Respiratory system:Gills" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries:Fungus gallery" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries:Fungus garden" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Venom gland:Venom" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Circulatory system:Blood" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Ceca" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Crop" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Digestive tube" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Fecal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Small intestine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Respiratory system:Lungs" />
+    <node id="root:Host-associated:Endosymbionts:Fungi:Endosymbionts" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Circulatory system:Blood" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Digestive system:Foregut" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Digestive system:Intestine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Excretory system:Kidneys" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Skin:Slime" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Circulatory system:Blood" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Hindgut" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Intestine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system:Urethra" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Fossil:Bone" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Lymphatic system:Lymph nodes" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Nervous system:Cerebrospinal fluid" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Female" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Axilla" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Medial distal leg" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Naris" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Umbilicus" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Volar forearm" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:retroauricular crease" />
+    <node id="root:Host-associated:Animal:Invertebrates:Bryozoans:Gymnolaemates" />
+    <node id="root:Host-associated:Animal:Invertebrates:Cnidaria:Coral" />
+    <node id="root:Host-associated:Animal:Invertebrates:Echinodermata:Sea Urchin" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Circulatory system:Blood" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Fecal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Foregut" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Midgut" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Oral" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Excretory system:Urine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract:Intestine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Lymphatic:Lymph nodes" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Nervous system:Brain" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Nasopharyngeal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Pulmonary system" />
+    <node id="root:Host-associated:Microbial:Dinoflagellates:Endosymbionts" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system:Ceca" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system:Glands" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills" />
+    <node id="root:Host-associated:Plants:Phylloplane:Endophytes" />
+    <node id="root:Host-associated:Plants:Phylloplane:Epiphytes" />
+    <node id="root:Host-associated:Plants:Rhizome:Epiphytes" />
+    <node id="root:Host-associated:Plants:Rhizoplane:Endophytes" />
+    <node id="root:Host-associated:Plants:Rhizoplane:Epiphytes" />
+    <node id="root:Host-associated:Plants:Rhizoplane:Soil" />
+    <node id="root:Host-associated:Plants:Rhizosphere:Epiphytes" />
+    <node id="root:Host-associated:Plants:Rhizosphere:Forest soil" />
+    <node id="root:Host-associated:Plants:Rhizosphere:Soil" />
+    <node id="root:Host-associated:Animal:Vertebrates:Reptile:Oral:Venom gland" />
+    <node id="root:Engineered:Bioreactor:Continuous culture:Marine intertidal flat sediment inoculum:Wadden Sea-Germany" />
+    <node id="root:Engineered:Bioreactor:Continuous culture:Marine sediment inoculum:Wadden Sea-Germany" />
+    <node id="root:Engineered:Bioremediation:Hydrocarbon:Benzene:Bioreactor" />
+    <node id="root:Engineered:Bioremediation:Terephthalate:Wastewater:Activated sludge" />
+    <node id="root:Engineered:Bioremediation:Terephthalate:Wastewater:Bioreactor" />
+    <node id="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Chloroethene:Bioreactor" />
+    <node id="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Tetrachloroethylene:Bioreactor" />
+    <node id="root:Engineered:Lab enrichment:Defined media:Marine media:Algoconsortia" />
+    <node id="root:Engineered:Solid waste:Composting:Grass:Bioreactor" />
+    <node id="root:Engineered:Solid waste:Composting:Wood:Bioreactor" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal:Activated sludge" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal:Bioreactor" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (aerobic):Activated sludge" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (anaerobic):Activated sludge" />
+    <node id="root:Engineered:Wastewater:Nutrient removal:Nitrogen removal:Anammox" />
+    <node id="root:Environmental:Aquatic:Freshwater:Drinking water:Chlorinated" />
+    <node id="root:Environmental:Aquatic:Freshwater:Drinking water:Delivery networks" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater:Acid Mine Drainage" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater:Biofilm" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater:Cave water" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater:Coalbed water" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater:Contaminated" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater:Mine" />
+    <node id="root:Environmental:Aquatic:Freshwater:Groundwater:Mine drainage" />
+    <node id="root:Environmental:Aquatic:Freshwater:Ice:Glacial lake" />
+    <node id="root:Environmental:Aquatic:Freshwater:Ice:Glacier" />
+    <node id="root:Environmental:Aquatic:Freshwater:Ice:Ice accretions" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lentic:Epilimnion" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lentic:Hypolimnion" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lentic:Limnetic zone" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lentic:Littoral zone" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lentic:Sediment" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lotic:Acidic" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lotic:Low land river systems" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lotic:Microbial mats" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lotic:Mid stream" />
+    <node id="root:Environmental:Aquatic:Freshwater:Lotic:Sediment" />
+    <node id="root:Environmental:Aquatic:Freshwater:Pond:Sediment" />
+    <node id="root:Environmental:Aquatic:Freshwater:Storm water:Drainage pipe biofilm" />
+    <node id="root:Environmental:Aquatic:Freshwater:Wetlands:Bog" />
+    <node id="root:Environmental:Aquatic:Freshwater:Wetlands:Marsh" />
+    <node id="root:Environmental:Aquatic:Freshwater:Wetlands:Sediment" />
+    <node id="root:Environmental:Aquatic:Freshwater:Wetlands:Swamp" />
+    <node id="root:Environmental:Aquatic:Marine:Coastal:Sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Cold seeps:Sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Fossil:Whale fall" />
+    <node id="root:Environmental:Aquatic:Marine:Hydrothermal vents:Black smokers" />
+    <node id="root:Environmental:Aquatic:Marine:Hydrothermal vents:Diffuse flow" />
+    <node id="root:Environmental:Aquatic:Marine:Hydrothermal vents:Microbial mats" />
+    <node id="root:Environmental:Aquatic:Marine:Hydrothermal vents:Sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Beach" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Coral reef" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Estuary" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Mangrove swamp" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Microbialites" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Oil-contaminated" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Salt marsh" />
+    <node id="root:Environmental:Aquatic:Marine:Intertidal zone:Sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Neritic zone:Oil-contaminated sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Neritic zone:Sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic:Abyssal plane" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic:Aphotic zone" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic:Benthic" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic:Oil-contaminated" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic:Oil-contaminated sediments" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic:Photic zone" />
+    <node id="root:Environmental:Aquatic:Marine:Oceanic:Sediment" />
+    <node id="root:Environmental:Aquatic:Marine:Oil field:bore hole" />
+    <node id="root:Environmental:Aquatic:Marine:Wetlands:Sediment" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline:Carbonate" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline:Microbial mats" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline:Sediment" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline:Microbial mats" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline:Sediment" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Near-boiling (&gt;90C):Alkaline" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Athalassic" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Epilimnion" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Hypolimnion" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Microbial mats" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Sediment" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Thalassic" />
+    <node id="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Salt crystallizer pond:Microbial mats" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Acidic" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Alkaline" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Neutral" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Sediment" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Near-boiling (&gt;90C):Alkaline" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Tepid (25-34C):Sediment" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Warm (34-42C):Neutral" />
+    <node id="root:Environmental:Aquatic:Thermal springs:Warm (34-42C):Sediment" />
+    <node id="root:Environmental:Terrestrial:Soil:Clay:Agricultural land" />
+    <node id="root:Environmental:Terrestrial:Soil:Clay:Contaminated" />
+    <node id="root:Environmental:Terrestrial:Soil:Clay:Grasslands" />
+    <node id="root:Environmental:Terrestrial:Soil:Clay:Oil-contaminated" />
+    <node id="root:Environmental:Terrestrial:Soil:Crop:Agricultural land" />
+    <node id="root:Environmental:Terrestrial:Soil:Loam:Agricultural" />
+    <node id="root:Environmental:Terrestrial:Soil:Loam:Contaminated" />
+    <node id="root:Environmental:Terrestrial:Soil:Loam:Forest soil" />
+    <node id="root:Environmental:Terrestrial:Soil:Loam:Grasslands" />
+    <node id="root:Environmental:Terrestrial:Soil:Sand:Desert" />
+    <node id="root:Environmental:Terrestrial:Soil:Sand:Forest soil" />
+    <node id="root:Environmental:Terrestrial:Soil:Sand:Grasslands" />
+    <node id="root:Environmental:Terrestrial:Soil:Sand:Oil-contaminated" />
+    <node id="root:Environmental:Terrestrial:Soil:Wetlands:Permafrost" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system:Digestive tube:Extracellular symbionts" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Cuticle:Epibionts" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Subcuticular space:Extracellular symbionts" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system:Egg capsule:Extracellular" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut:P3 segment" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut:Proctodeal segment" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut:P1 segment" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut:P3 segment" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Oral:Saliva" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument:Cuticle:Thoracic segments" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts:Primary:Bacteriomes" />
+    <node id="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries:Fungus garden:Garden dump" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Ceca:Lumen" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Crop:Lumen" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Digestive tube:Cecum" />
+    <node id="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Small intestine:Duodenal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Fish:Digestive system:Foregut:Uncharacterized" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Hindgut:Rectum" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine:Fecal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine:Sigmoid colon" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Attached Keratinized gingiva" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Palatine tonsils" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Periodontal pockets" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Saliva" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Subgingival plaque" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Supragingival plaque" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Throat" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:buccal mucosa" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:hard palate" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:tongue dorsum" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system:Urethra:Urine" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina:Introitus" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina:Midpoint vagina" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina:posterior fornix" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal:Nasal cavity" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal:Pharynx" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal:anterior nares" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Lung" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Sputum" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Trachea" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Viriome" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Medial distal leg:Venous leg ulcers" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Fecal:Uncharacterized" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Foregut:Rumen" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine:Cecum" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine:Fecal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Oral:Buccal mucosa" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach:Endoperitrophic space" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach:Rumen" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract:Intestine:Fecal" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Nasopharyngeal:Nasal cavity" />
+    <node id="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Pulmonary system:Viriome" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system:Ceca:Uncharacterized" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills:Extracellular" />
+    <node id="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills:Intracellular" />
+    <node id="root:Host-associated:Animal:Vertebrates:Reptile:Oral:Venom gland:Venom" />
+    <edge source="root" target="root:Control" />
+    <edge source="root" target="root:Engineered" />
+    <edge source="root" target="root:Environmental" />
+    <edge source="root" target="root:Host-associated" />
+    <edge source="root" target="root:Mixed" />
+    <edge source="root:Engineered" target="root:Engineered:Biogas plant" />
+    <edge source="root:Engineered" target="root:Engineered:Bioreactor" />
+    <edge source="root:Engineered" target="root:Engineered:Bioremediation" />
+    <edge source="root:Engineered" target="root:Engineered:Biotransformation" />
+    <edge source="root:Engineered" target="root:Engineered:Built environment" />
+    <edge source="root:Engineered" target="root:Engineered:Food production" />
+    <edge source="root:Engineered" target="root:Engineered:Industrial production" />
+    <edge source="root:Engineered" target="root:Engineered:Lab Synthesis" />
+    <edge source="root:Engineered" target="root:Engineered:Lab enrichment" />
+    <edge source="root:Engineered" target="root:Engineered:Modeled" />
+    <edge source="root:Engineered" target="root:Engineered:Solid waste" />
+    <edge source="root:Engineered" target="root:Engineered:Wastewater" />
+    <edge source="root:Environmental" target="root:Environmental:Air" />
+    <edge source="root:Environmental" target="root:Environmental:Aquatic" />
+    <edge source="root:Environmental" target="root:Environmental:Terrestrial" />
+    <edge source="root:Host-associated" target="root:Host-associated:Algae" />
+    <edge source="root:Host-associated" target="root:Host-associated:Animal" />
+    <edge source="root:Host-associated" target="root:Host-associated:Echinodermata" />
+    <edge source="root:Host-associated" target="root:Host-associated:Endosymbionts" />
+    <edge source="root:Host-associated" target="root:Host-associated:Fungi" />
+    <edge source="root:Host-associated" target="root:Host-associated:Microbial" />
+    <edge source="root:Host-associated" target="root:Host-associated:Plants" />
+    <edge source="root:Host-associated" target="root:Host-associated:Protists" />
+    <edge source="root:Host-associated" target="root:Host-associated:Protozoa" />
+    <edge source="root:Engineered:Biogas plant" target="root:Engineered:Biogas plant:Wet fermentation" />
+    <edge source="root:Engineered:Bioreactor" target="root:Engineered:Bioreactor:Continuous culture" />
+    <edge source="root:Engineered:Bioremediation" target="root:Engineered:Bioremediation:Hydrocarbon" />
+    <edge source="root:Engineered:Bioremediation" target="root:Engineered:Bioremediation:Metal" />
+    <edge source="root:Engineered:Bioremediation" target="root:Engineered:Bioremediation:Persistent organic pollutants (POP)" />
+    <edge source="root:Engineered:Bioremediation" target="root:Engineered:Bioremediation:Terephthalate" />
+    <edge source="root:Engineered:Bioremediation" target="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives" />
+    <edge source="root:Engineered:Biotransformation" target="root:Engineered:Biotransformation:Microbial enhanced oil recovery" />
+    <edge source="root:Engineered:Biotransformation" target="root:Engineered:Biotransformation:Microbial solubilization of coal" />
+    <edge source="root:Engineered:Biotransformation" target="root:Engineered:Biotransformation:Mixed alcohol bioreactor" />
+    <edge source="root:Engineered:Food production" target="root:Engineered:Food production:Dairy products" />
+    <edge source="root:Engineered:Food production" target="root:Engineered:Food production:Fermented beverages" />
+    <edge source="root:Engineered:Food production" target="root:Engineered:Food production:Fermented seafood" />
+    <edge source="root:Engineered:Food production" target="root:Engineered:Food production:Fermented vegetables" />
+    <edge source="root:Engineered:Food production" target="root:Engineered:Food production:Silage fermentation" />
+    <edge source="root:Engineered:Industrial production" target="root:Engineered:Industrial production:Engineered product" />
+    <edge source="root:Engineered:Lab Synthesis" target="root:Engineered:Lab Synthesis:Genetic cross" />
+    <edge source="root:Engineered:Lab enrichment" target="root:Engineered:Lab enrichment:Defined media" />
+    <edge source="root:Engineered:Lab enrichment" target="root:Engineered:Lab enrichment:Undefined media" />
+    <edge source="root:Engineered:Modeled" target="root:Engineered:Modeled:Simulated communities (DNA mixture)" />
+    <edge source="root:Engineered:Modeled" target="root:Engineered:Modeled:Simulated communities (microbial mixture)" />
+    <edge source="root:Engineered:Modeled" target="root:Engineered:Modeled:Simulated communities (sequence read mixture)" />
+    <edge source="root:Engineered:Solid waste" target="root:Engineered:Solid waste:Composting" />
+    <edge source="root:Engineered:Solid waste" target="root:Engineered:Solid waste:Landfill" />
+    <edge source="root:Engineered:Solid waste" target="root:Engineered:Solid waste:Solid animal waste" />
+    <edge source="root:Engineered:Wastewater" target="root:Engineered:Wastewater:Activated Sludge" />
+    <edge source="root:Engineered:Wastewater" target="root:Engineered:Wastewater:Industrial wastewater" />
+    <edge source="root:Engineered:Wastewater" target="root:Engineered:Wastewater:Nutrient removal" />
+    <edge source="root:Engineered:Wastewater" target="root:Engineered:Wastewater:Water and sludge" />
+    <edge source="root:Environmental:Air" target="root:Environmental:Air:Indoor Air" />
+    <edge source="root:Environmental:Air" target="root:Environmental:Air:Outdoor Air" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Aquaculture" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Estuary" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Freshwater" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Lentic" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Marine" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Meromictic lake" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Sediment" />
+    <edge source="root:Environmental:Aquatic" target="root:Environmental:Aquatic:Thermal springs" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Agricultural field" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Asphalt lakes" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Deep subsurface" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Geologic" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Oil reservoir" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Rock-dwelling (subaerial biofilm)" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Soil" />
+    <edge source="root:Environmental:Terrestrial" target="root:Environmental:Terrestrial:Volcanic" />
+    <edge source="root:Host-associated:Algae" target="root:Host-associated:Algae:Brown Algae" />
+    <edge source="root:Host-associated:Algae" target="root:Host-associated:Algae:Green algae" />
+    <edge source="root:Host-associated:Algae" target="root:Host-associated:Algae:Red algae" />
+    <edge source="root:Host-associated:Animal" target="root:Host-associated:Animal:Vertebrates" />
+    <edge source="root:Host-associated:Animal" target="root:Host-associated:Animal:Non-Defined" />
+    <edge source="root:Host-associated:Animal" target="root:Host-associated:Animal:Invertebrates" />
+    <edge source="root:Host-associated:Animal" target="root:Host-associated:Animal:Porifera" />
+    <edge source="root:Host-associated:Animal:Vertebrates" target="root:Host-associated:Animal:Vertebrates:Amphibia" />
+    <edge source="root:Host-associated:Animal:Vertebrates" target="root:Host-associated:Animal:Vertebrates:Birds" />
+    <edge source="root:Host-associated:Animal:Vertebrates" target="root:Host-associated:Animal:Vertebrates:Fish" />
+    <edge source="root:Host-associated:Animal:Vertebrates" target="root:Host-associated:Animal:Vertebrates:Mammals" />
+    <edge source="root:Host-associated:Animal:Vertebrates" target="root:Host-associated:Animal:Vertebrates:Reptile" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Amphibia" target="root:Host-associated:Animal:Vertebrates:Amphibia:Digestive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Amphibia" target="root:Host-associated:Animal:Vertebrates:Amphibia:Excretory system" />
+    <edge source="root:Host-associated:Animal:Non-Defined" target="root:Host-associated:Animal:Non-Defined:Circulatory system" />
+    <edge source="root:Host-associated:Animal:Non-Defined" target="root:Host-associated:Animal:Non-Defined:Digestive system" />
+    <edge source="root:Host-associated:Animal:Non-Defined" target="root:Host-associated:Animal:Non-Defined:Fossil" />
+    <edge source="root:Host-associated:Animal:Non-Defined" target="root:Host-associated:Animal:Non-Defined:Reproductive system" />
+    <edge source="root:Host-associated:Animal:Non-Defined" target="root:Host-associated:Animal:Non-Defined:Respiratory system" />
+    <edge source="root:Host-associated:Animal:Non-Defined" target="root:Host-associated:Animal:Non-Defined:Skin" />
+    <edge source="root:Host-associated:Animal:Invertebrates" target="root:Host-associated:Animal:Invertebrates:Spiralia" />
+    <edge source="root:Host-associated:Animal:Invertebrates" target="root:Host-associated:Animal:Invertebrates:Arthropoda" />
+    <edge source="root:Host-associated:Animal:Invertebrates" target="root:Host-associated:Animal:Invertebrates:Cnidaria" />
+    <edge source="root:Host-associated:Animal:Invertebrates" target="root:Host-associated:Animal:Invertebrates:Tunicates" />
+    <edge source="root:Host-associated:Animal:Invertebrates" target="root:Host-associated:Animal:Invertebrates:Bryozoans" />
+    <edge source="root:Host-associated:Animal:Invertebrates" target="root:Host-associated:Animal:Invertebrates:Echinodermata" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Intracellular endosymbionts" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Insecta" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Oral" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Respiratory system" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Venom gland" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds" target="root:Host-associated:Animal:Vertebrates:Birds:Circulatory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds" target="root:Host-associated:Animal:Vertebrates:Birds:Reproductive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds" target="root:Host-associated:Animal:Vertebrates:Birds:Respiratory system" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Cnidaria" target="root:Host-associated:Animal:Invertebrates:Cnidaria:Coral" />
+    <edge source="root:Host-associated:Endosymbionts" target="root:Host-associated:Endosymbionts:Fungi" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish" target="root:Host-associated:Animal:Vertebrates:Fish:Circulatory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish" target="root:Host-associated:Animal:Vertebrates:Fish:Digestive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish" target="root:Host-associated:Animal:Vertebrates:Fish:Excretory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish" target="root:Host-associated:Animal:Vertebrates:Fish:Reproductive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish" target="root:Host-associated:Animal:Vertebrates:Fish:Skin" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals" target="root:Host-associated:Animal:Vertebrates:Mammals:Human" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Circulatory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Fossil" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Lymphatic system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Milk" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Nervous system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Insecta" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Insecta:Digestive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Circulatory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Excretory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Lymphatic" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Milk" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Nervous system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Reproductive system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Skin" />
+    <edge source="root:Host-associated:Microbial" target="root:Host-associated:Microbial:Bacteria" />
+    <edge source="root:Host-associated:Microbial" target="root:Host-associated:Microbial:Dinoflagellates" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Shell" />
+    <edge source="root:Host-associated:Plants" target="root:Host-associated:Plants:Phylloplane" />
+    <edge source="root:Host-associated:Plants" target="root:Host-associated:Plants:Rhizome" />
+    <edge source="root:Host-associated:Plants" target="root:Host-associated:Plants:Rhizoplane" />
+    <edge source="root:Host-associated:Plants" target="root:Host-associated:Plants:Rhizosphere" />
+    <edge source="root:Host-associated:Plants" target="root:Host-associated:Plants:Root" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Reptile" target="root:Host-associated:Animal:Vertebrates:Reptile:Oral" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Tunicates" target="root:Host-associated:Animal:Invertebrates:Tunicates:Ascidians" />
+    <edge source="root:Engineered:Bioreactor:Continuous culture" target="root:Engineered:Bioreactor:Continuous culture:Marine intertidal flat sediment inoculum" />
+    <edge source="root:Engineered:Bioreactor:Continuous culture" target="root:Engineered:Bioreactor:Continuous culture:Marine sediment inoculum" />
+    <edge source="root:Engineered:Bioremediation:Hydrocarbon" target="root:Engineered:Bioremediation:Hydrocarbon:Benzene" />
+    <edge source="root:Engineered:Bioremediation:Persistent organic pollutants (POP)" target="root:Engineered:Bioremediation:Persistent organic pollutants (POP):Polycyclic aromatic hydrocarbons" />
+    <edge source="root:Engineered:Bioremediation:Terephthalate" target="root:Engineered:Bioremediation:Terephthalate:Wastewater" />
+    <edge source="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives" target="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Chloroethene" />
+    <edge source="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives" target="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Tetrachloroethylene" />
+    <edge source="root:Engineered:Lab enrichment:Defined media" target="root:Engineered:Lab enrichment:Defined media:Aerobic media" />
+    <edge source="root:Engineered:Lab enrichment:Defined media" target="root:Engineered:Lab enrichment:Defined media:Anaerobic media" />
+    <edge source="root:Engineered:Lab enrichment:Defined media" target="root:Engineered:Lab enrichment:Defined media:Marine media" />
+    <edge source="root:Engineered:Modeled:Simulated communities (sequence read mixture)" target="root:Engineered:Modeled:Simulated communities (sequence read mixture):Sanger" />
+    <edge source="root:Engineered:Solid waste:Composting" target="root:Engineered:Solid waste:Composting:Bioreactor" />
+    <edge source="root:Engineered:Solid waste:Composting" target="root:Engineered:Solid waste:Composting:Grass" />
+    <edge source="root:Engineered:Solid waste:Composting" target="root:Engineered:Solid waste:Composting:Wood" />
+    <edge source="root:Engineered:Wastewater:Industrial wastewater" target="root:Engineered:Wastewater:Industrial wastewater:Agricultural wastewater" />
+    <edge source="root:Engineered:Wastewater:Industrial wastewater" target="root:Engineered:Wastewater:Industrial wastewater:Landfill leachate" />
+    <edge source="root:Engineered:Wastewater:Industrial wastewater" target="root:Engineered:Wastewater:Industrial wastewater:Mine water" />
+    <edge source="root:Engineered:Wastewater:Industrial wastewater" target="root:Engineered:Wastewater:Industrial wastewater:Petrochemical" />
+    <edge source="root:Engineered:Wastewater:Industrial wastewater" target="root:Engineered:Wastewater:Industrial wastewater:Pulp and paper wastewater" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal" target="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal" target="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (aerobic)" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal" target="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (anaerobic)" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal" target="root:Engineered:Wastewater:Nutrient removal:Nitrogen removal" />
+    <edge source="root:Environmental:Aquatic:Estuary" target="root:Environmental:Aquatic:Estuary:Sediment" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Drinking water" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Groundwater" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Ice" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Lake" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Lentic" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Lotic" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Microbialites" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Pond" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Sediment" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Storm water" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Subglacial lake" />
+    <edge source="root:Environmental:Aquatic:Freshwater" target="root:Environmental:Aquatic:Freshwater:Wetlands" />
+    <edge source="root:Environmental:Aquatic:Lentic" target="root:Environmental:Aquatic:Lentic:Brackish" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Brackish" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Coastal" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Cold seeps" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Fossil" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Hydrothermal vents" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Intertidal zone" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Marginal Sea" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Neritic zone" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Oceanic" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Oil field" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Oil seeps" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Oil-contaminated sediment" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Pelagic" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Sediment" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Volcanic" />
+    <edge source="root:Environmental:Aquatic:Marine" target="root:Environmental:Aquatic:Marine:Wetlands" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Near-boiling (&gt;90C)" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Salt crystallizer pond" />
+    <edge source="root:Environmental:Aquatic:Thermal springs" target="root:Environmental:Aquatic:Thermal springs:Hot (42-90C)" />
+    <edge source="root:Environmental:Aquatic:Thermal springs" target="root:Environmental:Aquatic:Thermal springs:Near-boiling (&gt;90C)" />
+    <edge source="root:Environmental:Aquatic:Thermal springs" target="root:Environmental:Aquatic:Thermal springs:Sediment" />
+    <edge source="root:Environmental:Aquatic:Thermal springs" target="root:Environmental:Aquatic:Thermal springs:Tepid (25-34C)" />
+    <edge source="root:Environmental:Aquatic:Thermal springs" target="root:Environmental:Aquatic:Thermal springs:Warm (34-42C)" />
+    <edge source="root:Environmental:Terrestrial:Asphalt lakes" target="root:Environmental:Terrestrial:Asphalt lakes:Tar" />
+    <edge source="root:Environmental:Terrestrial:Deep subsurface" target="root:Environmental:Terrestrial:Deep subsurface:Clay" />
+    <edge source="root:Environmental:Terrestrial:Geologic" target="root:Environmental:Terrestrial:Geologic:Mine" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Agricultural" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Boreal forest" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Clay" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Contaminated" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Crop" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Desert" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Forest soil" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Grasslands" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Loam" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Mine" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Mine drainage" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Oil-contaminated" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Permafrost" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Sand" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Shrubland" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Silt" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Tropical rainforest" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Uranium contaminated" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Viriome" />
+    <edge source="root:Environmental:Terrestrial:Soil" target="root:Environmental:Terrestrial:Soil:Wetlands" />
+    <edge source="root:Environmental:Terrestrial:Volcanic" target="root:Environmental:Terrestrial:Volcanic:Fumaroles" />
+    <edge source="root:Host-associated:Algae:Green algae" target="root:Host-associated:Algae:Green algae:Ectosymbionts" />
+    <edge source="root:Host-associated:Algae:Red algae" target="root:Host-associated:Algae:Red algae:Ectosymbionts " />
+    <edge source="root:Host-associated:Animal:Non-Defined:Digestive system" target="root:Host-associated:Animal:Non-Defined:Digestive system:Fecal" />
+    <edge source="root:Host-associated:Animal:Non-Defined:Fossil" target="root:Host-associated:Animal:Non-Defined:Fossil:Bone" />
+    <edge source="root:Host-associated:Animal:Non-Defined:Fossil" target="root:Host-associated:Animal:Non-Defined:Fossil:Feces" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system:Digestive tube" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Cuticle" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Subcuticular space" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Intracellular endosymbionts" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Intracellular endosymbionts:Trophosome" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system:Egg capsule" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Foregut" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Midgut" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Oral" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument:Cuticle" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts:Primary" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts:Secondary" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Respiratory system" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Respiratory system:Gills" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries:Fungus gallery" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries:Fungus garden" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Venom gland" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Venom gland:Venom" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Circulatory system" target="root:Host-associated:Animal:Vertebrates:Birds:Circulatory system:Blood" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Ceca" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Crop" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Digestive tube" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Fecal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Small intestine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Respiratory system" target="root:Host-associated:Animal:Vertebrates:Birds:Respiratory system:Lungs" />
+    <edge source="root:Host-associated:Endosymbionts:Fungi" target="root:Host-associated:Endosymbionts:Fungi:Endosymbionts" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish:Circulatory system" target="root:Host-associated:Animal:Vertebrates:Fish:Circulatory system:Blood" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish:Digestive system" target="root:Host-associated:Animal:Vertebrates:Fish:Digestive system:Foregut" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish:Digestive system" target="root:Host-associated:Animal:Vertebrates:Fish:Digestive system:Intestine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish:Excretory system" target="root:Host-associated:Animal:Vertebrates:Fish:Excretory system:Kidneys" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish:Skin" target="root:Host-associated:Animal:Vertebrates:Fish:Skin:Slime" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Circulatory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Circulatory system:Blood" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Hindgut" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Intestine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system:Urethra" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Fossil" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Fossil:Bone" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Lymphatic system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Lymphatic system:Lymph nodes" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Nervous system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Nervous system:Cerebrospinal fluid" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Female" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Axilla" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Medial distal leg" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Naris" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Umbilicus" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Volar forearm" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:retroauricular crease" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Bryozoans" target="root:Host-associated:Animal:Invertebrates:Bryozoans:Gymnolaemates" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Echinodermata" target="root:Host-associated:Animal:Invertebrates:Echinodermata:Sea Urchin" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Circulatory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Circulatory system:Blood" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Fecal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Foregut" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Midgut" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Oral" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Excretory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Excretory system:Urine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract:Intestine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Lymphatic" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Lymphatic:Lymph nodes" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Nervous system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Nervous system:Brain" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Nasopharyngeal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Pulmonary system" />
+    <edge source="root:Host-associated:Microbial:Dinoflagellates" target="root:Host-associated:Microbial:Dinoflagellates:Endosymbionts" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system:Ceca" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system:Glands" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills" />
+    <edge source="root:Host-associated:Plants:Phylloplane" target="root:Host-associated:Plants:Phylloplane:Endophytes" />
+    <edge source="root:Host-associated:Plants:Phylloplane" target="root:Host-associated:Plants:Phylloplane:Epiphytes" />
+    <edge source="root:Host-associated:Plants:Rhizome" target="root:Host-associated:Plants:Rhizome:Epiphytes" />
+    <edge source="root:Host-associated:Plants:Rhizoplane" target="root:Host-associated:Plants:Rhizoplane:Endophytes" />
+    <edge source="root:Host-associated:Plants:Rhizoplane" target="root:Host-associated:Plants:Rhizoplane:Epiphytes" />
+    <edge source="root:Host-associated:Plants:Rhizoplane" target="root:Host-associated:Plants:Rhizoplane:Soil" />
+    <edge source="root:Host-associated:Plants:Rhizosphere" target="root:Host-associated:Plants:Rhizosphere:Epiphytes" />
+    <edge source="root:Host-associated:Plants:Rhizosphere" target="root:Host-associated:Plants:Rhizosphere:Forest soil" />
+    <edge source="root:Host-associated:Plants:Rhizosphere" target="root:Host-associated:Plants:Rhizosphere:Soil" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Reptile:Oral" target="root:Host-associated:Animal:Vertebrates:Reptile:Oral:Venom gland" />
+    <edge source="root:Engineered:Bioreactor:Continuous culture:Marine intertidal flat sediment inoculum" target="root:Engineered:Bioreactor:Continuous culture:Marine intertidal flat sediment inoculum:Wadden Sea-Germany" />
+    <edge source="root:Engineered:Bioreactor:Continuous culture:Marine sediment inoculum" target="root:Engineered:Bioreactor:Continuous culture:Marine sediment inoculum:Wadden Sea-Germany" />
+    <edge source="root:Engineered:Bioremediation:Hydrocarbon:Benzene" target="root:Engineered:Bioremediation:Hydrocarbon:Benzene:Bioreactor" />
+    <edge source="root:Engineered:Bioremediation:Terephthalate:Wastewater" target="root:Engineered:Bioremediation:Terephthalate:Wastewater:Activated sludge" />
+    <edge source="root:Engineered:Bioremediation:Terephthalate:Wastewater" target="root:Engineered:Bioremediation:Terephthalate:Wastewater:Bioreactor" />
+    <edge source="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Chloroethene" target="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Chloroethene:Bioreactor" />
+    <edge source="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Tetrachloroethylene" target="root:Engineered:Bioremediation:Tetrachloroethylene and derivatives:Tetrachloroethylene:Bioreactor" />
+    <edge source="root:Engineered:Lab enrichment:Defined media:Marine media" target="root:Engineered:Lab enrichment:Defined media:Marine media:Algoconsortia" />
+    <edge source="root:Engineered:Solid waste:Composting:Grass" target="root:Engineered:Solid waste:Composting:Grass:Bioreactor" />
+    <edge source="root:Engineered:Solid waste:Composting:Wood" target="root:Engineered:Solid waste:Composting:Wood:Bioreactor" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal" target="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal:Activated sludge" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal" target="root:Engineered:Wastewater:Nutrient removal:Biological phosphorus removal:Bioreactor" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (aerobic)" target="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (aerobic):Activated sludge" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (anaerobic)" target="root:Engineered:Wastewater:Nutrient removal:Dissolved organics (anaerobic):Activated sludge" />
+    <edge source="root:Engineered:Wastewater:Nutrient removal:Nitrogen removal" target="root:Engineered:Wastewater:Nutrient removal:Nitrogen removal:Anammox" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Drinking water" target="root:Environmental:Aquatic:Freshwater:Drinking water:Chlorinated" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Drinking water" target="root:Environmental:Aquatic:Freshwater:Drinking water:Delivery networks" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Groundwater" target="root:Environmental:Aquatic:Freshwater:Groundwater:Acid Mine Drainage" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Groundwater" target="root:Environmental:Aquatic:Freshwater:Groundwater:Biofilm" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Groundwater" target="root:Environmental:Aquatic:Freshwater:Groundwater:Cave water" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Groundwater" target="root:Environmental:Aquatic:Freshwater:Groundwater:Coalbed water" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Groundwater" target="root:Environmental:Aquatic:Freshwater:Groundwater:Contaminated" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Groundwater" target="root:Environmental:Aquatic:Freshwater:Groundwater:Mine" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Groundwater" target="root:Environmental:Aquatic:Freshwater:Groundwater:Mine drainage" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Ice" target="root:Environmental:Aquatic:Freshwater:Ice:Glacial lake" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Ice" target="root:Environmental:Aquatic:Freshwater:Ice:Glacier" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Ice" target="root:Environmental:Aquatic:Freshwater:Ice:Ice accretions" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lentic" target="root:Environmental:Aquatic:Freshwater:Lentic:Epilimnion" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lentic" target="root:Environmental:Aquatic:Freshwater:Lentic:Hypolimnion" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lentic" target="root:Environmental:Aquatic:Freshwater:Lentic:Limnetic zone" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lentic" target="root:Environmental:Aquatic:Freshwater:Lentic:Littoral zone" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lentic" target="root:Environmental:Aquatic:Freshwater:Lentic:Sediment" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lotic" target="root:Environmental:Aquatic:Freshwater:Lotic:Acidic" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lotic" target="root:Environmental:Aquatic:Freshwater:Lotic:Low land river systems" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lotic" target="root:Environmental:Aquatic:Freshwater:Lotic:Microbial mats" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lotic" target="root:Environmental:Aquatic:Freshwater:Lotic:Mid stream" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Lotic" target="root:Environmental:Aquatic:Freshwater:Lotic:Sediment" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Pond" target="root:Environmental:Aquatic:Freshwater:Pond:Sediment" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Storm water" target="root:Environmental:Aquatic:Freshwater:Storm water:Drainage pipe biofilm" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Wetlands" target="root:Environmental:Aquatic:Freshwater:Wetlands:Bog" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Wetlands" target="root:Environmental:Aquatic:Freshwater:Wetlands:Marsh" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Wetlands" target="root:Environmental:Aquatic:Freshwater:Wetlands:Sediment" />
+    <edge source="root:Environmental:Aquatic:Freshwater:Wetlands" target="root:Environmental:Aquatic:Freshwater:Wetlands:Swamp" />
+    <edge source="root:Environmental:Aquatic:Marine:Coastal" target="root:Environmental:Aquatic:Marine:Coastal:Sediment" />
+    <edge source="root:Environmental:Aquatic:Marine:Cold seeps" target="root:Environmental:Aquatic:Marine:Cold seeps:Sediment" />
+    <edge source="root:Environmental:Aquatic:Marine:Fossil" target="root:Environmental:Aquatic:Marine:Fossil:Whale fall" />
+    <edge source="root:Environmental:Aquatic:Marine:Hydrothermal vents" target="root:Environmental:Aquatic:Marine:Hydrothermal vents:Black smokers" />
+    <edge source="root:Environmental:Aquatic:Marine:Hydrothermal vents" target="root:Environmental:Aquatic:Marine:Hydrothermal vents:Diffuse flow" />
+    <edge source="root:Environmental:Aquatic:Marine:Hydrothermal vents" target="root:Environmental:Aquatic:Marine:Hydrothermal vents:Microbial mats" />
+    <edge source="root:Environmental:Aquatic:Marine:Hydrothermal vents" target="root:Environmental:Aquatic:Marine:Hydrothermal vents:Sediment" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Beach" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Coral reef" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Estuary" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Mangrove swamp" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Microbialites" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Oil-contaminated" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Salt marsh" />
+    <edge source="root:Environmental:Aquatic:Marine:Intertidal zone" target="root:Environmental:Aquatic:Marine:Intertidal zone:Sediment" />
+    <edge source="root:Environmental:Aquatic:Marine:Neritic zone" target="root:Environmental:Aquatic:Marine:Neritic zone:Oil-contaminated sediment" />
+    <edge source="root:Environmental:Aquatic:Marine:Neritic zone" target="root:Environmental:Aquatic:Marine:Neritic zone:Sediment" />
+    <edge source="root:Environmental:Aquatic:Marine:Oceanic" target="root:Environmental:Aquatic:Marine:Oceanic:Abyssal plane" />
+    <edge source="root:Environmental:Aquatic:Marine:Oceanic" target="root:Environmental:Aquatic:Marine:Oceanic:Aphotic zone" />
+    <edge source="root:Environmental:Aquatic:Marine:Oceanic" target="root:Environmental:Aquatic:Marine:Oceanic:Benthic" />
+    <edge source="root:Environmental:Aquatic:Marine:Oceanic" target="root:Environmental:Aquatic:Marine:Oceanic:Oil-contaminated" />
+    <edge source="root:Environmental:Aquatic:Marine:Oceanic" target="root:Environmental:Aquatic:Marine:Oceanic:Oil-contaminated sediments" />
+    <edge source="root:Environmental:Aquatic:Marine:Oceanic" target="root:Environmental:Aquatic:Marine:Oceanic:Photic zone" />
+    <edge source="root:Environmental:Aquatic:Marine:Oceanic" target="root:Environmental:Aquatic:Marine:Oceanic:Sediment" />
+    <edge source="root:Environmental:Aquatic:Marine:Oil field" target="root:Environmental:Aquatic:Marine:Oil field:bore hole" />
+    <edge source="root:Environmental:Aquatic:Marine:Wetlands" target="root:Environmental:Aquatic:Marine:Wetlands:Sediment" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline:Carbonate" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline:Microbial mats" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Alkaline:Sediment" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline:Microbial mats" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Hypersaline:Sediment" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Near-boiling (&gt;90C)" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Near-boiling (&gt;90C):Alkaline" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Athalassic" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Epilimnion" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Hypolimnion" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Microbial mats" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Sediment" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Saline:Thalassic" />
+    <edge source="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Salt crystallizer pond" target="root:Environmental:Aquatic:Non-marine Saline and Alkaline:Salt crystallizer pond:Microbial mats" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Hot (42-90C)" target="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Acidic" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Hot (42-90C)" target="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Alkaline" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Hot (42-90C)" target="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Neutral" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Hot (42-90C)" target="root:Environmental:Aquatic:Thermal springs:Hot (42-90C):Sediment" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Near-boiling (&gt;90C)" target="root:Environmental:Aquatic:Thermal springs:Near-boiling (&gt;90C):Alkaline" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Tepid (25-34C)" target="root:Environmental:Aquatic:Thermal springs:Tepid (25-34C):Sediment" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Warm (34-42C)" target="root:Environmental:Aquatic:Thermal springs:Warm (34-42C):Neutral" />
+    <edge source="root:Environmental:Aquatic:Thermal springs:Warm (34-42C)" target="root:Environmental:Aquatic:Thermal springs:Warm (34-42C):Sediment" />
+    <edge source="root:Environmental:Terrestrial:Soil:Clay" target="root:Environmental:Terrestrial:Soil:Clay:Agricultural land" />
+    <edge source="root:Environmental:Terrestrial:Soil:Clay" target="root:Environmental:Terrestrial:Soil:Clay:Contaminated" />
+    <edge source="root:Environmental:Terrestrial:Soil:Clay" target="root:Environmental:Terrestrial:Soil:Clay:Grasslands" />
+    <edge source="root:Environmental:Terrestrial:Soil:Clay" target="root:Environmental:Terrestrial:Soil:Clay:Oil-contaminated" />
+    <edge source="root:Environmental:Terrestrial:Soil:Crop" target="root:Environmental:Terrestrial:Soil:Crop:Agricultural land" />
+    <edge source="root:Environmental:Terrestrial:Soil:Loam" target="root:Environmental:Terrestrial:Soil:Loam:Agricultural" />
+    <edge source="root:Environmental:Terrestrial:Soil:Loam" target="root:Environmental:Terrestrial:Soil:Loam:Contaminated" />
+    <edge source="root:Environmental:Terrestrial:Soil:Loam" target="root:Environmental:Terrestrial:Soil:Loam:Forest soil" />
+    <edge source="root:Environmental:Terrestrial:Soil:Loam" target="root:Environmental:Terrestrial:Soil:Loam:Grasslands" />
+    <edge source="root:Environmental:Terrestrial:Soil:Sand" target="root:Environmental:Terrestrial:Soil:Sand:Desert" />
+    <edge source="root:Environmental:Terrestrial:Soil:Sand" target="root:Environmental:Terrestrial:Soil:Sand:Forest soil" />
+    <edge source="root:Environmental:Terrestrial:Soil:Sand" target="root:Environmental:Terrestrial:Soil:Sand:Grasslands" />
+    <edge source="root:Environmental:Terrestrial:Soil:Sand" target="root:Environmental:Terrestrial:Soil:Sand:Oil-contaminated" />
+    <edge source="root:Environmental:Terrestrial:Soil:Wetlands" target="root:Environmental:Terrestrial:Soil:Wetlands:Permafrost" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system:Digestive tube" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Digestive system:Digestive tube:Extracellular symbionts" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Cuticle" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Cuticle:Epibionts" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Subcuticular space" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Integument:Subcuticular space:Extracellular symbionts" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system:Egg capsule" target="root:Host-associated:Animal:Invertebrates:Spiralia:Annelida:Reproductive system:Egg capsule:Extracellular" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut:P3 segment" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Gut:Proctodeal segment" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut:P1 segment" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Hindgut:P3 segment" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Oral" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Digestive system:Oral:Saliva" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument:Cuticle" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Integument:Cuticle:Thoracic segments" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts:Primary" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Intracellular endosymbionts:Primary:Bacteriomes" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries:Fungus garden" target="root:Host-associated:Animal:Invertebrates:Arthropoda:Symbiotic fungal gardens and galleries:Fungus garden:Garden dump" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Ceca" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Ceca:Lumen" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Crop" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Crop:Lumen" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Digestive tube" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Digestive tube:Cecum" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Small intestine" target="root:Host-associated:Animal:Vertebrates:Birds:Digestive system:Small intestine:Duodenal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Fish:Digestive system:Foregut" target="root:Host-associated:Animal:Vertebrates:Fish:Digestive system:Foregut:Uncharacterized" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Hindgut" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Hindgut:Rectum" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine:Fecal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Large intestine:Sigmoid colon" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Attached Keratinized gingiva" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Palatine tonsils" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Periodontal pockets" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Saliva" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Subgingival plaque" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Supragingival plaque" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:Throat" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:buccal mucosa" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:hard palate" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Digestive system:Oral:tongue dorsum" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system:Urethra" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Excretory system:Urethra:Urine" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina:Introitus" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina:Midpoint vagina" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Reproductive system:Vagina:posterior fornix" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal:Nasal cavity" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal:Pharynx" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Nasopharyngeal:anterior nares" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Lung" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Sputum" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Trachea" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Respiratory system:Pulmonary system:Viriome" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Medial distal leg" target="root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin:Medial distal leg:Venous leg ulcers" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Fecal" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Fecal:Uncharacterized" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Foregut" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Foregut:Rumen" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine:Cecum" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Large intestine:Fecal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Oral" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Oral:Buccal mucosa" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach:Endoperitrophic space" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Digestive system:Stomach:Rumen" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract:Intestine" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Gastrointestinal tract:Intestine:Fecal" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Nasopharyngeal" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Nasopharyngeal:Nasal cavity" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Pulmonary system" target="root:Host-associated:Animal:Vertebrates:Mammals:Non-Human:Respiratory system:Pulmonary system:Viriome" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system:Ceca" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Digestive system:Ceca:Uncharacterized" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills:Extracellular" />
+    <edge source="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills" target="root:Host-associated:Animal:Invertebrates:Spiralia:Mollusca:Respiratory system:Gills:Intracellular" />
+    <edge source="root:Host-associated:Animal:Vertebrates:Reptile:Oral:Venom gland" target="root:Host-associated:Animal:Vertebrates:Reptile:Oral:Venom gland:Venom" />
+  </graph>
+</graphml>
