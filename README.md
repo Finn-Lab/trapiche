@@ -1,32 +1,31 @@
-# Trapiche
-> A Biome Classification Tool for Metagenomic Datasets
+Trapiche CLI Tool Help:
 
-Trapiche is a hybrid method designed to classify metagenomic samples into specific biomes according to the [GOLD Ecosystem Classification](https://doi.org/10.1093/nar/gkaa983). It can utilize either text or taxonomy information independently to classify samples. However, integrating both text and taxonomy information yields the most accurate results.
+Usage:
+    python trapiche.py sample_dir <path> [options]
 
-## Installation
+Options:
+    --input_file <path>          Required. Specify the path to a TSV file (without a header). Each row in the file corresponds to a sample. 
+                                  Column 1 should contain the directory path where the taxonomy files are located. Expected file extensions for taxonomy predictions are *.mseq.txt and *.diamond.tsv.gz.
+                                  and Column 2 should contain the path to a text file with the study description. Expected file extension for text files is *.txt.
+    --taxonomy_prediction <bool> Optional. Perform taxonomy-based prediction using files in the provided directories.
+                                  Default is True. Set to False if you do not want to perform this analysis.
+                                  Expected file extensions for taxonomy predictions are *.mseq.txt and *.diamond.tsv.gz.
+    --text_prediction <bool>     Optional. Perform text-based prediction using study description files in the directories.
+                                  Default is True. Set to False if you do not want to perform this analysis.
+                                  Expected file extension for text files is *.STUDY_DESCRIPTION.txt.
+    --save_comm2vec <bool>       Optional. Save the embedding of the microbial community if set to True.
+                                  Default is False.
+    --output_dir <path>          Optional. Specify the directory where results should be saved. If not provided,
+                                  results will be saved in a directory named <current_directory>_TRAPICHE.
+    --help_extended              Show this help message and exit.
 
-To ensure a smooth installation process and avoid conflicts with other packages, we highly recommend installing Trapiche in a dedicated virtual environment. Follow these steps to install Trapiche:
+Description:
+    The Trapiche CLI tool processes directories containing taxonomy annotation and text annotation files,
+    performs predictions based on these files, logs the activities, and outputs the results. The tool is designed
+    to handle either a single directory or multiple directories listed in a text file. The directories should contain
+    files relevant to the analysis types enabled via options.
 
-```sh
-pip install .
-```
-
-## Basic usage
-
-```py
-
-import glob
-
-with open(file_with_text_description_of_project) as h: # 
-    prj_desc = h.read()
-
-
-from trapiche.llm_layer import lineages_from_text
-from trapiche.deep_pred import predict_runs as deep_predict_runs
-
-text_prediction = lineages_from_text(prj_desc)
-
-taxonomy_files = glob.glob(f"{directory_with_taxonomy_annotations_files}/*mseq.txt")
-
-result_dataframe = deep_predict_runs([[f] for f in taxonomy_files],return_full_preds=True,constrain=[prj_desc for _ in taxonomy_files])
-```
+Examples:
+    trapiche --input_file test/files/input_file.tsv
+    trapiche --input_file test/files/input_file.tsv --save_comm2vec True --output_dir /path/to/output
+    trapiche --input_file test/files/input_file.tsv --text_prediction False --taxonomy_prediction True
