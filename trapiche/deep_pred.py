@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'comm2vecs', 'comm2vecs_metadata', 'k', 'min_projects_vote', 'dominance_thres', 'k2',
            'dominance_thres2', 'tags_dct_file', 'tags_li', 'bioms', 'tag_biomes', 'tnp_core_df_file', 'slim_core_df',
-           'best_params', 'final_model_file', 'bnn_model2gg', 'tflite_model_quant_file', 'generate_all_combinations',
+           'best_params', 'final_model_file', 'bnn_model2gg', 'get_bnn_model', 'tflite_model_quant_file', 'generate_all_combinations',
            'focal_loss_fixed', 'load_custom_model', 'pc_deviation_consensus', 'find_best_path', 'from_probs_to_pred',
            'get_lineage_frquencies', 'refine_predictions_knn', 'full_stack_prediction', 'chunked_fuzzy_prediction',
            'vectorise_run', 'predict_runs']
@@ -12,11 +12,11 @@ __all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'comm2vecs', 'comm2vecs_metadata', 'k',
 import os
 import json
 import re
+import importlib
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from more_itertools import chunked
-import tensorflow as tf
 
 from . import config
 
@@ -34,7 +34,6 @@ TAG = 'deep_pred'
 DATA_DIR = f"{config.datadir}/{TAG}"
 TMP_DIR = f"{DATA_DIR}/temp"
 os.makedirs(TMP_DIR,exist_ok=True)
-DATA_DIR
 
 # %% ../nbs/01.00.04_deep_pred.ipynb 10
 from . import taxonomyTree
@@ -130,7 +129,6 @@ best_params = {'complex': 450.0,
  'val_aucpr': 0.546550914645195,
  'test_aucpr': 0.5262038260698318,
  'epochs': 87}
-best_params
 
 # %% ../nbs/01.00.04_deep_pred.ipynb 124
 final_model_file = f"{DATA_DIR}/full_final_taxonomy.model.keras"
@@ -140,23 +138,59 @@ def focal_loss_fixed(y_true, y_pred):
     # Your implementation of the focal loss
     pass
 
+# Lazy TensorFlow import helper and model accessors
+
+def _get_tensorflow():
+    """Lazily import TensorFlow with a clear error if unavailable."""
+    try:
+        return importlib.import_module("tensorflow")
+    except Exception as e:
+        raise RuntimeError(
+            "TensorFlow is required for deep prediction but could not be imported. "
+            "Install TensorFlow (for CPU-only environments: pip install tensorflow) and ensure it matches your Python version. "
+            f"Original error: {e}"
+        ) from e
+
 # Load the model, including the custom loss function
-def load_custom_model(_model_file):
-    _bnn_model2gg = tf.keras.models.load_model(
-        final_model_file,
-        custom_objects={'focal_loss_fixed': focal_loss_fixed},
-        compile=False
+
+def load_custom_model(model_file: str):
+    """Load and compile the Keras model on demand with robust error handling."""
+    if not os.path.exists(model_file):
+        raise FileNotFoundError(f"Model file not found: {model_file}")
+    tf = _get_tensorflow()
+    try:
+        model = tf.keras.models.load_model(
+            model_file,
+            custom_objects={'focal_loss_fixed': focal_loss_fixed},
+            compile=False
         )
-    _bnn_model2gg.compile(
-        optimizer=tf.keras.optimizers.Adam(),
-        loss='categorical_crossentropy',
-        metrics=[tf.keras.metrics.AUC()]
-    )
-    return _bnn_model2gg
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(),
+            loss='categorical_crossentropy',
+            metrics=[tf.keras.metrics.AUC()]
+        )
+        return model
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to load the TensorFlow model. Ensure the model file is compatible with your installed TensorFlow/Keras version "
+            f"and that custom objects are provided. File: {model_file}. Original error: {e}"
+        ) from e
 
+# Cached accessor for the model
+_bnn_model_cache = None
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 133
-bnn_model2gg = load_custom_model(final_model_file)
+def get_bnn_model():
+    """Get a cached instance of the model, loading it on first use."""
+    global _bnn_model_cache
+    if _bnn_model_cache is None:
+        _bnn_model_cache = load_custom_model(final_model_file)
+    return _bnn_model_cache
+
+# Backwards-compatible callable used in this module
+# Acts like the original model variable but resolves lazily.
+
+def bnn_model2gg(*args, **kwargs):
+    return get_bnn_model()(*args, **kwargs)
 
 # %% ../nbs/01.00.04_deep_pred.ipynb 135
 tflite_model_quant_file = f"{DATA_DIR}/taxonomy_quant_model.tflite"
@@ -238,7 +272,10 @@ def refine_predictions_knn(prediction,query_vector,full_subject_df,tru_column = 
     if prediction==None:
         prediction=''
     _subject_df = full_subject_df[full_subject_df[tru_column].str.contains(prediction)]
-    subject_vector = comm2vecs.loc[_subject_df.index] if vector_space=='g' else genus_plus_sp_vec[_subject_df.index]
+    if vector_space=='g':
+        subject_vector = comm2vecs.loc[_subject_df.index]
+    else:
+        raise ValueError("Only vector_space='g' is supported in refine_predictions_knn")
     sims = cosine_similarity_pairwise(query_vector,subject_vector)
     sims[np.isnan(sims)] = 0
     argsort_sims = np.argsort(sims)
