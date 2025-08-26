@@ -17,6 +17,7 @@ from tqdm import tqdm
 
 from . import config
 from . import taxonomyTree
+from . import model_registry
 
 import networkx as nx
 
@@ -151,13 +152,25 @@ def genre_to_comm2vec(genres_set):
 
 
 # %% ../nbs/01.00.03_biome2vec.ipynb 59
-comm2vecs_file = f"{DATA_DIR}/comm2vecs.h5"
+comm2vecs_file = f"{DATA_DIR}/comm2vecs.h5"  # legacy path (kept for backwards compatibility)
 comm2vecs_metadata_file = f"{DATA_DIR}/comm2vecs_metadata.tsv"
 
 
 # %% ../nbs/01.00.03_biome2vec.ipynb 61
+def _resolve_comm2vecs_file():
+    """Return a local path to comm2vecs.h5, using cached registry copy if needed.
+    Preference order: legacy packaged location -> registry cache.
+    """
+    if os.path.exists(comm2vecs_file):
+        return comm2vecs_file
+    # Use registry (auto download)
+    path = model_registry.get_model_path("comm2vecs.h5", auto_download=True)
+    return str(path)
+
+
 def load_mgnify_c2v():
-    __comm2vecs = pd.read_hdf(comm2vecs_file, key="df")
+    _c2v_file = _resolve_comm2vecs_file()
+    __comm2vecs = pd.read_hdf(_c2v_file, key="df")
     _comm2vecs_metadata = pd.read_csv(
         comm2vecs_metadata_file, sep="\t", index_col="SAMPLE_ID"
     )

@@ -11,6 +11,7 @@ trapiche/data/biome2vec/comm2vecs.h5
 __pycache__/
 *.py[cod]
 *$py.class
+*_tmp
 
 # C extensions
 *.so

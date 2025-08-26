@@ -29,3 +29,36 @@ Examples:
     trapiche --input_file test/files/input_file.tsv
     trapiche --input_file test/files/input_file.tsv --save_comm2vec True --output_dir /path/to/output
     trapiche --input_file test/files/input_file.tsv --text_prediction False --taxonomy_prediction True
+
+Model & Data Assets
+===================
+
+Large model/data artifacts are not shipped inside the Python package. They are fetched on demand and cached.
+
+Cache location:
+ - Default: ~/.cache/trapiche (override with TRAPICHE_CACHE env var)
+ - Layout: <cache>/<model_name>/<version>/
+
+Included models:
+ - full_final_taxonomy.model.keras (FTP, ~30 GB)
+ - comm2vecs.h5 (FTP, ~200 MB)
+ - trapiche-biome-classifier (HuggingFace Hub: SantiagoSanchezF/trapiche-biome-classifier)
+ - en_core_sci_sm (SciSpacy biomedical model)
+
+Download all models (may take significant time & disk space):
+
+```
+trapiche --download_models
+```
+
+Programmatic access:
+
+```python
+import trapiche
+path = trapiche.get_model("comm2vecs.h5", version="1.0", auto_download=True)
+```
+
+If a required model is missing during prediction, Trapiche will attempt to resolve it automatically (or raise with a helpful message).
+
+Environment variables:
+ - TRAPICHE_CACHE: set a custom cache directory.

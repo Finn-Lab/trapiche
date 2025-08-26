@@ -25,6 +25,7 @@ from .goldOntologyAmendments import gold_categories,biome_graph,biome_original_g
 
 # %% ../nbs/01.00.04_deep_pred.ipynb 7
 from .biome2vec import load_mgnify_c2v
+from . import model_registry
 from .goldOntologyAmendments import biome_herarchy_dct
 
 # %% ../nbs/01.00.04_deep_pred.ipynb 8
@@ -131,7 +132,7 @@ best_params = {'complex': 450.0,
  'epochs': 87}
 
 # %% ../nbs/01.00.04_deep_pred.ipynb 124
-final_model_file = f"{DATA_DIR}/full_final_taxonomy.model.keras"
+final_model_file = f"{DATA_DIR}/full_final_taxonomy.model.keras"  # legacy path if packaged
 
 # %% ../nbs/01.00.04_deep_pred.ipynb 132
 def focal_loss_fixed(y_true, y_pred):
@@ -153,10 +154,22 @@ def _get_tensorflow():
 
 # Load the model, including the custom loss function
 
-def load_custom_model(model_file: str):
-    """Load and compile the Keras model on demand with robust error handling."""
-    if not os.path.exists(model_file):
-        raise FileNotFoundError(f"Model file not found: {model_file}")
+def _resolve_final_model_file():
+    if os.path.exists(final_model_file):
+        return final_model_file
+    # Use registry (auto download)
+    p = model_registry.get_model_path("full_final_taxonomy.model.keras", auto_download=True)
+    return str(p)
+
+
+def load_custom_model(model_file: str | None = None):
+    """Load and compile the Keras model on demand with robust error handling.
+    model_file: optional explicit path; if None, resolve via registry/legacy path.
+    """
+    if model_file is None:
+        model_file = _resolve_final_model_file()
+    if not os.path.exists(model_file):  # defensive
+        raise FileNotFoundError(f"Model file not found after resolution: {model_file}")
     tf = _get_tensorflow()
     try:
         model = tf.keras.models.load_model(
@@ -183,7 +196,7 @@ def get_bnn_model():
     """Get a cached instance of the model, loading it on first use."""
     global _bnn_model_cache
     if _bnn_model_cache is None:
-        _bnn_model_cache = load_custom_model(final_model_file)
+        _bnn_model_cache = load_custom_model()
     return _bnn_model_cache
 
 # Backwards-compatible callable used in this module

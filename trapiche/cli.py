@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from fastcore.script import *
 from .deep_pred import predict_runs
+from . import model_registry
 from .goldOntologyAmendments import biome_herarchy_dct
 from .trapiche_text import TextClassifier
 
@@ -114,14 +115,25 @@ def main(
     no_text_prediction: bool = False,  # Perform prediction based on text annotation. If False, provide dummy path.
     save_comm2vec: bool = False,  # Write the embedding of the microbial community.
     log_file: str = "trapiche.log",  # Log file name.
+    download_models: bool = False,  # If True, download (or verify) all required models and exit.
 ):
-    """
-    Main function of CLI
+    """Main entry point for Trapiche CLI.
+    Supports: predictions workflow or a standalone model download step via --download_models.
     """
 
     if help_extended:
         print_help_extended()
         sys.exit(0)
+
+    if download_models:
+        print("Downloading/validating models into cache ...")
+        try:
+            model_registry.download_models()
+            print(f"Models ready under {model_registry.cache_root()}")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Model download failed: {e}")
+            sys.exit(1)
     
     if input_file == 'None':
         print("input_file is needed for prediction")

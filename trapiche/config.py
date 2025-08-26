@@ -1,9 +1,8 @@
-import importlib.resources as resources
-import pathlib
 import os
+import pathlib
 
-import trapiche
+import trapiche as _trapiche_pkg
 
-basedir = pathlib.Path(resources.files(trapiche))
-datadir = path.join(basedir, "data")
-os.makedirs(datadir, exist_ok=True)
+basedir = pathlib.Path(os.path.dirname(_trapiche_pkg.__file__))
+datadir = basedir / "data"
+datadir.mkdir(parents=True, exist_ok=True)
