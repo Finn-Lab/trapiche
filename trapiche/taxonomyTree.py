@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """Taxonomy tree loading and traversal helpers."""
 
 # %% auto 0
@@ -30,7 +32,9 @@ taxonomy_graph_file = f"{DATA_DIR}/taxonomy_graph.graphml"
 
 
 # %% ../nbs/01.00.02_taxonomyTree.ipynb 29
+logger.info(f"Loading taxonomy graph from file={taxonomy_graph_file}")
 taxonomy_graph = nx.read_graphml(taxonomy_graph_file, node_type=str)
+logger.info(f"taxonomy_graph loaded n_nodes={taxonomy_graph.number_of_nodes()} n_edges={taxonomy_graph.number_of_edges()}")
 
 
 # %% ../nbs/01.00.02_taxonomyTree.ipynb 30

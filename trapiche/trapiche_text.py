@@ -17,6 +17,10 @@ import numpy as np
 import torch
 from transformers import BertConfig, BertForSequenceClassification, BertTokenizerFast
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 __all__ = ["TextClassifier", "main"]
 
 

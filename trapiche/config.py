@@ -1,3 +1,9 @@
+import logging
+logger = logging.getLogger(__name__)
+def load_config():
+	logger.info("load_config called")
+	# ...existing code...
+	logger.info("config loaded")
 import os
 import pathlib
 

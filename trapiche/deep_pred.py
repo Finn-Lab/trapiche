@@ -13,15 +13,27 @@ __all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'comm2vecs', 'comm2vecs_metadata', 'k',
            'get_lineage_frquencies', 'refine_predictions_knn', 'full_stack_prediction', 'chunked_fuzzy_prediction',
            'vectorise_run', 'predict_runs']
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 5
 import os
 import json
 import re
 import importlib
+import logging
 from typing import List, Sequence
 
 import numpy as np
 import pandas as pd
+import sys
+import json
+import numpy as np
+import pandas as pd
+from .utils import cosine_similarity_pairwise
+from .baseData import tax_annotations_from_file
+from .biome2vec import genus_from_edges_subgraph, genre_to_comm2vec
+import networkx as nx
+from .goldOntologyAmendments import biome_graph
+
+logger = logging.getLogger(__name__)
+
 try:  # prefer external helper if available
     from more_itertools import chunked  # type: ignore
 except Exception:  # simple local fallback
@@ -38,43 +50,33 @@ from tqdm import tqdm
 
 from . import config
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 6
 from .goldOntologyAmendments import gold_categories,biome_graph,biome_original_graph
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 7
 from .biome2vec import load_mgnify_c2v
 from . import model_registry
 from .goldOntologyAmendments import biome_herarchy_dct
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 8
 TAG = 'deep_pred'
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 9
 DATA_DIR = f"{config.datadir}/{TAG}"
 TMP_DIR = f"{DATA_DIR}/temp"
 os.makedirs(TMP_DIR,exist_ok=True)
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 10
 from . import taxonomyTree
 from .baseData import analysis_df
 # from trapiche.baseData import load_taxonomy_sets
 # from trapiche.baseData import RESULTS_BASE_DIR
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 11
 from .utils import cosine_similarity,jaccard_similarity,cosine_similarity_pairwise
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 14
 from .biome2vec import taxo_ids
 from .taxonomyTree import taxonomy_graph
 from . import baseData
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 15
 comm2vecs, comm2vecs_metadata = load_mgnify_c2v()
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 21
 comm2vecs_metadata['BIOME_AMEND'] = comm2vecs_metadata.LINEAGE.map(lambda x: biome_herarchy_dct.get(x, x))
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 24
 """ PARAMS
 """
 k = 100
@@ -83,29 +85,20 @@ dominance_thres = 0.5  # fraction threshold in top k for consideration
 k2 = 33
 dominance_thres2 = 0.5
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 26
 from .biome2vec import comm2vecs_file,load_mgnify_c2v
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 40
 from .goldOntologyAmendments import biome_herarchy_dct
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 62
-# set_piority_terms = ({xx for x in core_df[~core_df.min_annots_amended.isna()].min_annots_amended.unique() for xx in x.split(":")[-2:]}-{'Environmental','Host-associated','Gastrointestinal tract'})|{'Agricultural', 'Agricultural field', 'Amphibia', 'Asphalt lakes', 'Boreal forest', 'Bryozoans', 'Clay', 'Contaminated', 'Crop', 'Desert', 'Forest soil', 'Fossil', 'Grasslands', 'Loam', 'Lymph nodes', 'Milk', 'Mine', 'Mine drainage', 'Nasopharyngeal', 'Nervous system', 'Oil-contaminated', 'Permafrost', 'Pulmonary system', 'Rhizome', 'Rock-dwelling', 'Sand', 'Shrubland', 'Silt', 'Tar', 'Tropical rainforest', 'Tunicates', 'Uranium contaminated', 'Urethra', 'Vagina', 'Wetlands'}
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 64
 tags_dct_file =f"{DATA_DIR}/tags_dct_file.json"
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 66
 with open(tags_dct_file) as h:
     tags_dct = json.load(h)
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 67
 tags_li = list(tags_dct)
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 68
 from itertools import combinations
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 69
 def generate_all_combinations(s: Sequence[str]):
     """Generate all combinations (powerset) of an iterable sequence."""
     result = []
@@ -113,7 +106,6 @@ def generate_all_combinations(s: Sequence[str]):
         result.extend(combinations(s, r))
     return result
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 70
 bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
 tag_biomes = {}
 for _prediction in tags_li:
@@ -132,14 +124,10 @@ for _prediction in tags_li:
         sel = sorted(sels, key=lambda x: x[1])[0][0]
         tag_biomes["|".join(sorted(comb))] = sel
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 85
 tnp_core_df_file = f"{DATA_DIR}/core_df_file_2.tsv"
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 87
 slim_core_df = pd.read_csv(tnp_core_df_file, sep='\t', index_col='SAMPLE_ID')
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 120
-# best_params['epochs'] = hist.val_aucpr.argmax()
 best_params = {
     'complex': 450.0,
     'gamma': 0.5,
@@ -150,10 +138,8 @@ best_params = {
     'epochs': 87,
 }
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 124
 final_model_file = f"{DATA_DIR}/full_final_taxonomy.model.keras"  # legacy path if packaged
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 132
 def focal_loss_fixed(y_true, y_pred):
     # Your implementation of the focal loss
     pass
@@ -224,11 +210,8 @@ def get_bnn_model():
 def bnn_model2gg(*args, **kwargs):
     return get_bnn_model()(*args, **kwargs)
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 135
 tflite_model_quant_file = f"{DATA_DIR}/taxonomy_quant_model.tflite"
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 154
-# def pc_deviation_consensus(pr,three = 0.66):
 def pc_deviation_consensus(pr, three=1.0):
     asp = np.argsort(pr)
     topp = pr[asp[-1]]
@@ -243,7 +226,6 @@ def pc_deviation_consensus(pr, three=1.0):
     res = tag_biomes[_c]
     return res, sum(_dct.values())
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 159
 bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
 
 def find_best_path(_prediction: str):
@@ -252,7 +234,6 @@ def find_best_path(_prediction: str):
     sel = sorted(sels, key=lambda x: x[1])[0][0]
     return sel
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 160
 def from_probs_to_pred(_probs, potential_space=None):
     """Predict biome, optionally constrained to a candidate potential space (mixed prediction)."""
     result = []
@@ -277,7 +258,6 @@ def from_probs_to_pred(_probs, potential_space=None):
 
     return result
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 163
 def get_lineage_frquencies(co):  # spelling retained for backwards compatibility
     """ Calculate fuzzy array for each sample
     The idea is that each node in the BIOME_AMEND space is a fuzzy category that can be calculated via the frequency of the node in the lineage of the KNN samples:
@@ -294,8 +274,6 @@ def get_lineage_frquencies(co):  # spelling retained for backwards compatibility
     node_frequencies = {k: sum(v) / total_samples for k, v in _node_frquencies.items()}
     return node_frequencies
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 164
-# def refine_predictions_knn(prediction,query_vector,full_subject_df,tru_column = 'BIOME_AMEND',k=10,vector_space='g'):
 def refine_predictions_knn(prediction, query_vector, full_subject_df, tru_column='BIOME_AMEND', k=10, vector_space='g'):
     """ Function that given a previous prediction from the deepL model, finds close relatives
     """
@@ -321,25 +299,13 @@ def refine_predictions_knn(prediction, query_vector, full_subject_df, tru_column
         result.append(f"{prediction}{'' if len(_so)==0 else _so[0][0]}")
     return result
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 189
-import sys
-import json
-import numpy as np
-import pandas as pd
-from .utils import cosine_similarity_pairwise
-from .baseData import tax_annotations_from_file
-from .biome2vec import genus_from_edges_subgraph, genre_to_comm2vec
-import networkx as nx
-from .goldOntologyAmendments import biome_graph
 
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 190
 np.seterr(
     divide="ignore", invalid="ignore"
 )  # handle bad files == divition by zero error
 
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 191
 def full_stack_prediction(query_vector, constrain, vector_space="g"):
     """Function for prediction of biome based on taxonomic compositon"""
     # prediction baded on deep learning model
@@ -372,7 +338,6 @@ def full_stack_prediction(query_vector, constrain, vector_space="g"):
 
     return pred_df
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 192
 def chunked_fuzzy_prediction(query_vector, constrain, chunk_size=200, vector_space="g"):
     """Process prediction in chunks to limit memory usage."""
 
@@ -387,7 +352,6 @@ def chunked_fuzzy_prediction(query_vector, constrain, chunk_size=200, vector_spa
         results.append(_results)
     return pd.concat(results).reset_index()
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 193
 def vectorise_run(list_of_tax_files, vector_space="g"):
     """Vectorise a run based on multiple taxonomy files (e.g. diamond + LSU + SSU)."""
     samples_annots = {}
@@ -419,7 +383,6 @@ def vectorise_run(list_of_tax_files, vector_space="g"):
     vec = np.stack(ordered, axis=0)
     return vec
 
-# %% ../nbs/01.00.04_deep_pred.ipynb 194
 def predict_runs(
     list_of_list,
     vector_space="g",
@@ -427,12 +390,14 @@ def predict_runs(
     constrain=None,
 ):
     """Predict lineage of runs based on multiple taxonomy files (diamond/SSU/LSU mix)."""
-    # _vec_size = vec_size*(1 if vector_space=='g' else 2)
-
-    # full_vec= np.zeros((len(list_of_list),_vec_size))
+    logger.info(f"predict_runs called n_samples={len(list_of_list)} return_full_preds={return_full_preds} vector_space={vector_space}")
+    if constrain is not None:
+        logger.debug(f"constrain={constrain}")
     full_vec = vectorise_run(list_of_list)
+    logger.info(f"vectorise_run output shape={full_vec.shape}")
 
     if full_vec.shape[1] == 0:  # no features extracted
+        logger.warning(f"No features extracted from input; returning empty DataFrame n_samples={len(list_of_list)}")
         empty_df = pd.DataFrame({
             "refined_prediction": [None]*len(list_of_list),
             "lineage_pred_prob": [np.nan]*len(list_of_list),
@@ -445,7 +410,10 @@ def predict_runs(
         constrain = [[] for _ in list_of_list]
 
     result = chunked_fuzzy_prediction(full_vec, constrain, vector_space=vector_space)
+    logger.info(f"chunked_fuzzy_prediction output shape={result.shape if hasattr(result, 'shape') else None}")
+    logger.debug(f"result columns={getattr(result, 'columns', None)} head={result.head().to_dict() if hasattr(result, 'head') else None}")
 
     if not return_full_preds:
         result = result[["refined_prediction", "lineage_pred_prob"]]
+    logger.info(f"predict_runs returning result shape={result.shape if hasattr(result, 'shape') else None}")
     return result, full_vec

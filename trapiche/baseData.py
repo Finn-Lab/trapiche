@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """Base dataset utilities and taxonomy file parsing helpers for Trapiche.
 
 Previously generated via notebooks; cleaned for distribution. Provides
@@ -32,6 +34,16 @@ analysis_df_file = f"{DATA_DIR}/analysis_df.tsv.gz"
 
 
 analysis_df = pd.read_csv(analysis_df_file, sep="\t")
+logger.info(f"Loaded analysis_df shape={analysis_df.shape} columns={analysis_df.columns.tolist()}")
+logger.debug(f"analysis_df dtypes={analysis_df.dtypes.to_dict()}")
+null_counts = analysis_df.isnull().sum().to_dict()
+logger.info(f"analysis_df null_counts={null_counts}")
+logger.info(f"analysis_df feature_count={len(analysis_df.columns)}")
+try:
+    stats = analysis_df.describe(include='all').to_dict()
+    logger.debug(f"analysis_df describe={stats}")
+except Exception as e:
+    logger.warning(f"analysis_df describe failed error={e}")
 
 
 @contextmanager
@@ -131,21 +143,24 @@ def krona_read(content):
 
 
 def tax_annotations_from_file(f):
-    """fiunction to extract taxo_annots from file"""
+    """Function to extract taxo_annots from file"""
     d = None
+    logger.info(f"tax_annotations_from_file called file={f}")
     if "diamond" in f:
         try:
             d = diamond_read(f)
         except Exception as e:
-            print(f"An error occurred when loading diamond file: {e}")
+            logger.error(f"diamond_read failed file={f} error={e}")
     else:
         try:
             with open(f) as content:
                 d = krona_read(content)
-        except:
+        except Exception as e:
+            logger.warning(f"open krona failed file={f} error={e}")
             try:
                 with gzip.open(f, "rt") as content:  # 'rt' mode for reading text
                     d = krona_read(content)
-            except Exception as e:
-                print(f"An error occurred when loading diamond krona: {e}")
+            except Exception as e2:
+                logger.error(f"gzip krona failed file={f} error={e2}")
+    logger.info(f"tax_annotations_from_file result n_edges={len(d) if d is not None else 0}")
     return d

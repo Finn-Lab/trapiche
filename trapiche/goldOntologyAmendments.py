@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """GOLD ontology amendments: amended biome hierarchy and helper constants."""
 
 # %% auto 0
@@ -28,7 +30,9 @@ biome_herarchy_file = f"{DATA_DIR}/biome_herarchy_df.tsv"
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 11
+logger.info(f"Loading biome_herarchy_df from file={biome_herarchy_file}")
 biome_herarchy_df = pd.read_csv(biome_herarchy_file, sep="\t")
+logger.info(f"biome_herarchy_df loaded shape={biome_herarchy_df.shape} columns={biome_herarchy_df.columns.tolist()}")
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 17
@@ -36,7 +40,9 @@ biome_herarchy_amended_file = f"{DATA_DIR}/biome_herarchy_amended.json.gz"
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 20
+logger.info(f"Loading biome_herarchy_dct from file={biome_herarchy_amended_file}")
 biome_herarchy_dct = jsonCompressed.read(biome_herarchy_amended_file)
+logger.info(f"biome_herarchy_dct loaded n_keys={len(biome_herarchy_dct) if biome_herarchy_dct else 0}")
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 23
@@ -44,7 +50,9 @@ biome_original_graph_file = f"{DATA_DIR}/biome_original_graph.graphml"
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 25
+logger.info(f"Loading biome_original_graph from file={biome_original_graph_file}")
 biome_original_graph = nx.read_graphml(biome_original_graph_file)
+logger.info(f"biome_original_graph loaded n_nodes={biome_original_graph.number_of_nodes()} n_edges={biome_original_graph.number_of_edges()}")
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 28
@@ -52,7 +60,9 @@ biome_graph_file = f"{DATA_DIR}/biome_graph.graphml"
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 30
+logger.info(f"Loading biome_graph from file={biome_graph_file}")
 biome_graph = nx.read_graphml(biome_graph_file)
+logger.info(f"biome_graph loaded n_nodes={biome_graph.number_of_nodes()} n_edges={biome_graph.number_of_edges()}")
 
 
 # %% ../nbs/01.00.00_goldOntologyAmendments.ipynb 33

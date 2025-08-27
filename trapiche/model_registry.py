@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import os
 import sys
+import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,7 @@ from tqdm import tqdm
 
 DEFAULT_VERSION = "1.0"
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelMeta:
@@ -81,11 +83,13 @@ MODEL_REGISTRY: Dict[Tuple[str, str], ModelMeta] = {
 
 
 def cache_root() -> Path:
+    logger.debug("cache_root called")
     root = os.environ.get("TRAPICHE_CACHE")
     if not root:
         root = os.path.join(Path.home(), ".cache", "trapiche")
     p = Path(root)
     p.mkdir(parents=True, exist_ok=True)
+    logger.info(f"cache_root path={p}")
     return p
 
 
@@ -242,4 +246,6 @@ def download_all(progress: bool = True):
 
 # Convenience aliases for external consumption
 def download_models():  # simple, stable public API
+    logger.info("download_models called")
     download_all()
+    logger.info("download_models finished")
