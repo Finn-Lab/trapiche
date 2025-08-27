@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trapiche"
+version = "0.0.4"
+description = "Trapiche biome prediction toolkit"
+readme = "README.md"
+authors = [{name="Trapiche Developers"}]
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+  "pandas",
+  "numpy",
+  "tqdm",
+  "requests",
+  "networkx",
+  "fastcore",
+  "gensim",
+  "transformers",
+]
+
+[project.optional-dependencies]
+text = ["spacy", "scispacy"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39","py310"]
+
+[tool.ruff]
+line-length = 100
+select = ["E","F","I","UP","B","SIM","C4"]
+ignore = ["E203","E501"]
+
+[tool.ruff.isort]
+combine-as-imports = true
+force-single-line = false
+

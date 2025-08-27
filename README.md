@@ -5,11 +5,11 @@ Usage:
 
 Options:
     --input_file <path>          Required. Specify the path to a TSV file (without a header). Each row in the file corresponds to a sample. 
-                                  Column 1 should contain the directory path where the taxonomy files are located. Expected file extensions for taxonomy predictions are *.mseq.txt and *.diamond.tsv.gz.
+                                  Column 1 should contain the directory path where the taxonomy files are located. Expected file extensions for taxonomy predictions are *.mseq.txt and *.diamond.tsv[.gz].
                                   and Column 2 should contain the path to a text file with the study description. Expected file extension for text files is *.txt.
     --taxonomy_prediction <bool> Optional. Perform taxonomy-based prediction using files in the provided directories.
                                   Default is True. Set to False if you do not want to perform this analysis.
-                                  Expected file extensions for taxonomy predictions are *.mseq.txt and *.diamond.tsv.gz.
+                                  Expected file extensions for taxonomy predictions are *.mseq.txt and *.diamond.tsv[.gz].
     --text_prediction <bool>     Optional. Perform text-based prediction using study description files in the directories.
                                   Default is True. Set to False if you do not want to perform this analysis.
                                   Expected file extension for text files is *.STUDY_DESCRIPTION.txt.
