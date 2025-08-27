@@ -1,0 +1,13 @@
+- name: trapiche_text_help
+  command: trapiche_text --help
+  exit_code: 0
+  stdout:
+    contains:
+      - "usage"
+        
+- name: trapiche_text_prediction
+  command: trapiche_text --input_text test_text.json --output_file test_results.json
+  files:
+    - path: "test_results.json"
+      contains:
+        - "root:"
