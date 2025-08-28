@@ -1,14 +1,19 @@
-import logging
-logger = logging.getLogger(__name__)
-def load_config():
-	logger.info("load_config called")
-	# ...existing code...
-	logger.info("config loaded")
-import os
-import pathlib
+from __future__ import annotations
+from dataclasses import dataclass
 
-import trapiche as _trapiche_pkg
+@dataclass
+class TaxonomyToBiomeParams:
+    """Configuration parameters for deep lineage prediction.
 
-basedir = pathlib.Path(os.path.dirname(_trapiche_pkg.__file__))
-datadir = basedir / "data"
-datadir.mkdir(parents=True, exist_ok=True)
+    Attributes
+    ----------
+    batch_size : int
+        Chunk size for model forward passes.
+    k_knn : int
+        Number of nearest neighbours used during refinement.
+    dominance_threshold : float
+        Frequency threshold for accepting lineage extensions in KNN refinement.
+    """
+    batch_size: int = 200
+    k_knn: int = 10
+    dominance_threshold: float = 0.5

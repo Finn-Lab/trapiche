@@ -4,11 +4,12 @@ Includes model loading (lazy), vectorisation, consensus heuristics and
 prediction refinement utilities.
 """
 from __future__ import annotations
+from functools import lru_cache
 
 from .api import Community2vec
 
 # %% auto 0
-__all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'comm2vecs', 'comm2vecs_metadata', 'k', 'min_projects_vote', 'dominance_thres', 'k2',
+__all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'mgnify_sample_vectors', 'mgnify_sample_vectors_metadata', 'k', 'min_projects_vote', 'dominance_thres', 'k2',
            'dominance_thres2', 'tags_dct_file', 'tags_li', 'bioms', 'tag_biomes', 'tnp_core_df_file', 'slim_core_df',
            'best_params', 'final_model_file', 'bnn_model2gg', 'get_bnn_model', 'tflite_model_quant_file', 'generate_all_combinations',
            'focal_loss_fixed', 'load_custom_model', 'pc_deviation_consensus', 'find_best_path', 'from_probs_to_pred',
@@ -28,30 +29,20 @@ import sys
 import json
 import numpy as np
 import pandas as pd
-from .utils import cosine_similarity_pairwise,tax_annotations_from_file, load_biome_herarchy_dict
-from .biome2vec import genus_from_edges_subgraph, genre_to_comm2vec
+from .utils import cosine_similarity_pairwise, get_path,tax_annotations_from_file, load_biome_herarchy_dict
+from .community2vec import genus_from_edges_subgraph, genre_to_comm2vec
 import networkx as nx
+from more_itertools import chunked
 
 logger = logging.getLogger(__name__)
 
-try:  # prefer external helper if available
-    from more_itertools import chunked  # type: ignore
-except Exception:  # simple local fallback
-    def chunked(iterable, size):
-        buf = []
-        for x in iterable:
-            buf.append(x)
-            if len(buf) == size:
-                yield buf
-                buf = []
-        if buf:
-            yield buf
+
 from tqdm import tqdm
 
 from . import config
 
 
-from .biome2vec import load_mgnify_c2v
+from .community2vec import load_mgnify_c2v
 from . import model_registry
 
 biome_herarchy_dct = load_biome_herarchy_dict()
@@ -65,28 +56,23 @@ os.makedirs(TMP_DIR,exist_ok=True)
 from .utils import cosine_similarity_pairwise
 
 
-comm2vecs, comm2vecs_metadata = load_mgnify_c2v()
-
-comm2vecs_metadata['BIOME_AMEND'] = comm2vecs_metadata.LINEAGE.map(lambda x: biome_herarchy_dct.get(x, x))
-
-""" PARAMS
-"""
-k = 100
-min_projects_vote = 3  # minimum number of project votes for consideration
-dominance_thres = 0.5  # fraction threshold in top k for consideration
-k2 = 33
-dominance_thres2 = 0.5
-
-from .biome2vec import load_mgnify_c2v
+from .community2vec import load_mgnify_c2v
 
 
 
-tags_dct_file =f"{DATA_DIR}/tags_dct_file.json"
-
-with open(tags_dct_file) as h:
-    tags_dct = json.load(h)
-
-tags_li = list(tags_dct)
+@lru_cache
+def load_biome_tags_list():
+    tags_dct_file = get_path("resources/taxonomy/biome_tags_dct_file.json")
+    if not os.path.exists(tags_dct_file):
+        raise FileNotFoundError(
+            f"Biome tags dictionary file not found: {tags_dct_file}\n"
+            "Download using trapiche-download-models"
+            )
+    logger.debug(f"Loading biome tags dictionary from file={tags_dct_file}")
+    with open(tags_dct_file) as h:
+        tags_dct = json.load(h)
+    tags_li = list(tags_dct)
+    return tags_li
 
 from itertools import combinations
 
@@ -97,39 +83,29 @@ def generate_all_combinations(s: Sequence[str]):
         result.extend(combinations(s, r))
     return result
 
-bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
-tag_biomes = {}
-for _prediction in tags_li:
-    _n_pots = _prediction.split("|")
-    for comb in generate_all_combinations(_n_pots):
-        comb = set(comb)
-        sels = [(k, size) for k, (se, size) in bioms.items() if len(comb) == len(comb & se)]
-        if not sels:
-            _comb = comb - set("Soil|Terrestrial|Non-Defined".split("|"))
-            sels = [(k, size) for k, (se, size) in bioms.items() if len(_comb) == len(_comb & se)]
+@lru_cache
+def load_tag_biomes():
+    biome_herarchy_dct = load_biome_herarchy_dict() 
+    tags_li = load_biome_tags_list()
+    bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
+    tag_biomes = {}
+    for _prediction in tags_li:
+        _n_pots = _prediction.split("|")
+        for comb in generate_all_combinations(_n_pots):
+            comb = set(comb)
+            sels = [(k, size) for k, (se, size) in bioms.items() if len(comb) == len(comb & se)]
             if not sels:
-                _comb = _comb - {"Rhizosphere"}
+                _comb = comb - set("Soil|Terrestrial|Non-Defined".split("|"))
                 sels = [(k, size) for k, (se, size) in bioms.items() if len(_comb) == len(_comb & se)]
-        if not sels:
-            continue
-        sel = sorted(sels, key=lambda x: x[1])[0][0]
-        tag_biomes["|".join(sorted(comb))] = sel
+                if not sels:
+                    _comb = _comb - {"Rhizosphere"}
+                    sels = [(k, size) for k, (se, size) in bioms.items() if len(_comb) == len(_comb & se)]
+            if not sels:
+                continue
+            sel = sorted(sels, key=lambda x: x[1])[0][0]
+            tag_biomes["|".join(sorted(comb))] = sel
+    return tag_biomes, bioms
 
-tnp_core_df_file = f"{DATA_DIR}/core_df_file_2.tsv"
-
-slim_core_df = pd.read_csv(tnp_core_df_file, sep='\t', index_col='SAMPLE_ID')
-
-best_params = {
-    'complex': 450.0,
-    'gamma': 0.5,
-    'for_validation': 'NoAug.histo.json',
-    'random_state': 1.5,
-    'val_aucpr': 0.546550914645195,
-    'test_aucpr': 0.5262038260698318,
-    'epochs': 87,
-}
-
-final_model_file = f"{DATA_DIR}/full_final_taxonomy.model.keras"  # legacy path if packaged
 
 def focal_loss_fixed(y_true, y_pred):
     # Your implementation of the focal loss
@@ -149,27 +125,21 @@ def _get_tensorflow():
         ) from e
 
 # Load the model, including the custom loss function
-
-def _resolve_final_model_file():
-    if os.path.exists(final_model_file):
-        return final_model_file
-    # Use registry (auto download)
-    p = model_registry.get_model_path("full_final_taxonomy.model.keras", auto_download=True)
-    return str(p)
-
-
+@lru_cache
 def load_custom_model(model_file: str | None = None):
     """Load and compile the Keras model on demand with robust error handling.
     model_file: optional explicit path; if None, resolve via registry/legacy path.
     """
-    if model_file is None:
-        model_file = _resolve_final_model_file()
-    if not os.path.exists(model_file):  # defensive
-        raise FileNotFoundError(f"Model file not found after resolution: {model_file}")
+    model_path = get_path("models/taxonomy/taxonomy_to_biome/1.0/taxonomy_to_biome_v1.0.model.keras")
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found: {model_path}\n"
+                                "Download using trapiche-download-models")
+    logger.debug(f"Loading model from file={model_path}")
+
     tf = _get_tensorflow()
     try:
         model = tf.keras.models.load_model(
-            model_file,
+            model_path,
             custom_objects={'focal_loss_fixed': focal_loss_fixed},
             compile=False
         )
@@ -185,25 +155,17 @@ def load_custom_model(model_file: str | None = None):
             f"and that custom objects are provided. File: {model_file}. Original error: {e}"
         ) from e
 
-# Cached accessor for the model
-_bnn_model_cache = None
-
-def get_bnn_model():
-    """Get a cached instance of the model, loading it on first use."""
-    global _bnn_model_cache
-    if _bnn_model_cache is None:
-        _bnn_model_cache = load_custom_model()
-    return _bnn_model_cache
 
 # Backwards-compatible callable used in this module
 # Acts like the original model variable but resolves lazily.
 
 def bnn_model2gg(*args, **kwargs):
-    return get_bnn_model()(*args, **kwargs)
+    return load_custom_model()(*args, **kwargs)
 
-tflite_model_quant_file = f"{DATA_DIR}/taxonomy_quant_model.tflite"
 
 def pc_deviation_consensus(pr, three=1.0):
+    tag_biomes,_ = load_tag_biomes()
+    tags_li = load_biome_tags_list()
     asp = np.argsort(pr)
     topp = pr[asp[-1]]
     _dct = {tags_li[ix]: pr[ix] for ix in asp if pr[ix] / topp >= three}
@@ -217,9 +179,10 @@ def pc_deviation_consensus(pr, three=1.0):
     res = tag_biomes[_c]
     return res, sum(_dct.values())
 
-bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
+
 
 def find_best_path(_prediction: str):
+    _, bioms = load_tag_biomes()
     _n_pots = set(_prediction.split("|"))
     sels = [(k, size) for k, (se, size) in bioms.items() if len(_n_pots) == len(_n_pots & se)]
     sel = sorted(sels, key=lambda x: x[1])[0][0]
@@ -227,6 +190,8 @@ def find_best_path(_prediction: str):
 
 def from_probs_to_pred(_probs, potential_space=None):
     """Predict biome, optionally constrained to a candidate potential space (mixed prediction)."""
+    tag_biomes,_ = load_tag_biomes()
+    tags_li = load_biome_tags_list()
     result = []
     if potential_space is None:
         potential_space = [[] for _ in _probs]
@@ -265,14 +230,15 @@ def get_lineage_frquencies(co):  # spelling retained for backwards compatibility
     node_frequencies = {k: sum(v) / total_samples for k, v in _node_frquencies.items()}
     return node_frequencies
 
-def refine_predictions_knn(prediction, query_vector, full_subject_df, tru_column='BIOME_AMEND', k=10, vector_space='g'):
+def refine_predictions_knn(prediction, query_vector, full_subject_df, tru_column='BIOME_AMEND', k_knn=10, dominance_threshold=0.5, vector_space='g'):
     """ Function that given a previous prediction from the deepL model, finds close relatives
     """
+    mgnify_sample_vectors, _ = load_mgnify_c2v()
     if prediction is None:
         prediction = ''
     _subject_df = full_subject_df[full_subject_df[tru_column].str.contains(prediction)]
     if vector_space == 'g':
-        subject_vector = comm2vecs.loc[_subject_df.index]
+        subject_vector = mgnify_sample_vectors.loc[_subject_df.index]
     else:
         raise ValueError("Only vector_space='g' is supported in refine_predictions_knn")
     sims = cosine_similarity_pairwise(query_vector,subject_vector)
@@ -282,10 +248,10 @@ def refine_predictions_knn(prediction, query_vector, full_subject_df, tru_column
     result =  []
     
     for ix, ass in enumerate(argsort_sims):
-        _co = _subject_df.iloc[ass[-k:]][tru_column].value_counts()
+        _co = _subject_df.iloc[ass[-k_knn:]][tru_column].value_counts()
         _co.index = [x.replace(prediction, '') for x in _co.index]
         _node_freqs = get_lineage_frquencies(_co)
-        _filtered = [(k, len(k.split(":"))) for k, v in _node_freqs.items() if v > 0.5 and k != '']
+        _filtered = [(k, len(k.split(":"))) for k, v in _node_freqs.items() if v > dominance_threshold and k != '']
         _so = sorted(_filtered, key=lambda x: x[1], reverse=True)
         result.append(f"{prediction}{'' if len(_so)==0 else _so[0][0]}")
     return result
@@ -297,10 +263,16 @@ np.seterr(
 )  # handle bad files == divition by zero error
 
 
-def full_stack_prediction(query_vector, constrain, vector_space="g"):
+def full_stack_prediction(query_vector, constrain,k_knn=10, dominance_threshold=0.5, vector_space="g"):
     """Function for prediction of biome based on taxonomic compositon"""
     # prediction baded on deep learning model
     # deep_l_probs = tflite_prediction(taxo_qunat_interpreter, query_vector)
+    _, mgnify_sample_vectors_metadata = load_mgnify_c2v()
+    tag_biomes,_ = load_tag_biomes()
+    tags_li = load_biome_tags_list()
+
+    mgnify_sample_vectors_metadata['BIOME_AMEND'] = mgnify_sample_vectors_metadata.LINEAGE.map(lambda x: biome_herarchy_dct.get(x, x))
+    
     deep_l_probs = bnn_model2gg(query_vector).numpy()
 
     predicted_lineages = from_probs_to_pred(deep_l_probs, potential_space=constrain)
@@ -314,43 +286,43 @@ def full_stack_prediction(query_vector, constrain, vector_space="g"):
 
     for pred, gr in pred_df.groupby("lineage_pred"):
         query_array = query_vector[gr.index]
-        # refs = refine_predictions_knn(pred,query_array,slim_core_df,vector_space=vector_space)
         refs = refine_predictions_knn(
-            pred, query_array, comm2vecs_metadata, vector_space=vector_space
+            pred, query_array, mgnify_sample_vectors_metadata, k_knn=k_knn, dominance_threshold=dominance_threshold, vector_space=vector_space
         )
         for ix, pp in zip(gr.index, refs):
             refined[ix] = pp
     pred_df["refined_prediction"] = refined
     pred_df["unbiased_taxo_prediction"] = [tag_biomes.get(tags_li[idx], None) for idx in np.argsort(deep_l_probs)[:, -1]]
-    
 
     for ix, t in enumerate(tags_li):
         pred_df[t] = deep_l_probs[:, ix]
 
     return pred_df
 
-def chunked_fuzzy_prediction(query_vector, constrain, chunk_size=200, vector_space="g"):
+def chunked_fuzzy_prediction(query_vector, constrain,k_knn=10, dominance_threshold=0.5, batch_size=200, vector_space="g"):
     """Process prediction in chunks to limit memory usage."""
 
-    splits = chunked(range(query_vector.shape[0]), chunk_size)
+    splits = chunked(range(query_vector.shape[0]), batch_size)
 
     results = []
 
     for spl in tqdm(splits, desc=TAG):
         _results = full_stack_prediction(
-            query_vector[spl], [constrain[ix] for ix in spl], vector_space=vector_space
+            query_vector[spl], [constrain[ix] for ix in spl],k_knn=k_knn,dominance_threshold=dominance_threshold, vector_space=vector_space
         )
         results.append(_results)
     return pd.concat(results).reset_index()
 
 def predict_runs(
     list_of_list,
-    vector_space="g",
     return_full_preds=False,
     constrain=None,
+    batch_size=200,
+    k_knn=10,
+    dominance_threshold=0.5,
 ):
     """Predict lineage of runs based on multiple taxonomy files (diamond/SSU/LSU mix)."""
-    logger.info(f"predict_runs called n_samples={len(list_of_list)} return_full_preds={return_full_preds} vector_space={vector_space}")
+    logger.info(f"predict_runs called n_samples={len(list_of_list)} return_full_preds={return_full_preds}")
 
     comm2vec = Community2vec()
     if constrain is not None:
@@ -371,7 +343,7 @@ def predict_runs(
     if constrain is None:
         constrain = [[] for _ in list_of_list]
 
-    result = chunked_fuzzy_prediction(full_vec, constrain, vector_space=vector_space)
+    result = chunked_fuzzy_prediction(full_vec, constrain, k_knn=k_knn, dominance_threshold=dominance_threshold, batch_size=batch_size)
     logger.info(f"chunked_fuzzy_prediction output shape={result.shape if hasattr(result, 'shape') else None}")
     logger.debug(f"result columns={getattr(result, 'columns', None)} head={result.head().to_dict() if hasattr(result, 'head') else None}")
 

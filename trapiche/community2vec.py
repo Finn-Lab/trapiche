@@ -6,7 +6,6 @@ taxonomy subgraphs into community vectors.
 from __future__ import annotations
 
 __all__ = [
-    'TAG', 'DATA_DIR', 'TMP_DIR', 'SG', 'biome2vec_file', 'model_vocab_file', 'vec_file',
     'load_biome2vec', 'load_taxonomy_ids', 'sentence_vectorization', 'genus_from_edges_subgraph',
     'get_terminals', 'get_mean', 'genre_to_comm2vec', 'load_mgnify_c2v', 'vectorise_sample',
     'BiomeEmbeddings', 'load_biome_embeddings', 'get_model_vocab', 'get_vectors'
@@ -20,31 +19,13 @@ import os
 import numpy as np
 import pandas as pd
 
-from . import config, model_registry
 
 import networkx as nx
 from gensim.models import Word2Vec, KeyedVectors
-from .utils import cosine_similarity, get_path, tax_annotations_from_file
+from .utils import get_path, tax_annotations_from_file
 
 import logging
 logger = logging.getLogger(__name__)
-
-TAG = "biome2vec"
-
-
-DATA_DIR = f"{config.datadir}/{TAG}"
-TMP_DIR = f"{DATA_DIR}/temp"
-os.makedirs(TMP_DIR, exist_ok=True)
-
-
-
-
-SG = 1  # 1 for skip gram
-
-
-biome2vec_file = f"{DATA_DIR}/word2vec.sg_{SG}_full.model"
-model_vocab_file = f"{DATA_DIR}/model_vocab.json"
-vec_file = f"{biome2vec_file}.wv.vectors.npy"
 
 
 @dataclass(frozen=True)
@@ -78,7 +59,11 @@ def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
         If True load the full Word2Vec model (slower, more RAM). Otherwise only load KeyedVectors
         (lighter) when/if required.
     """
-    missing = [p for p in (biome2vec_file, model_vocab_file, vec_file) if not Path(p).exists()]
+    community2vec_model_path = get_path('models/biome/community2vec/1.0/community2vec_model_v1.0.model')
+    model_vocab_file = get_path('models/biome/community2vec/1.0/community2vec_model_vocab_v1.0.json')
+    vec_file = get_path('models/biome/community2vec/1.0/community2vec_model_vocab_v1.0.json')
+
+    missing = [p for p in (community2vec_model_path, model_vocab_file, vec_file) if not Path(p).exists()]
     if missing:
         raise FileNotFoundError(
             "Missing biome2vec model files: " + ", ".join(map(str, missing)) +
@@ -96,7 +81,7 @@ def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
     _keyed: KeyedVectors | None = None
     if load_full_model:
         # Load full model only when explicitly requested
-        _keyed = Word2Vec.load(biome2vec_file).wv
+        _keyed = Word2Vec.load(community2vec_model_path).wv
     return BiomeEmbeddings(keyed=_keyed, model_vocab=_model_vocab, vectors=_vectors, taxo_ids=_taxo_ids)
 
 
@@ -205,27 +190,27 @@ def genre_to_comm2vec(genres_set):
 
 @lru_cache
 def load_mgnify_c2v():
-    _c2v_file = get_path('models/biome/comm2vecs/1.0/comm2vecs_v1.0.h5')
+    _c2v_file = get_path('models/biome/mgnify_sample_vectors/1.0/mgnify_sample_vectors_v1.0.h5')
     if not _c2v_file.exists():
         # raise error and recomend to use trapiche-download-models
         raise FileNotFoundError(
-            f"comm2vecs file not found: {_c2v_file} (base dir: {get_path('')})\n"
+            f"mgnify_sample_vectors file not found: {_c2v_file} (base dir: {get_path('')})\n"
             "Please run `trapiche-download-models` to download the required models."
             )
-    logger.info("Loading comm2vecs file=%s", _c2v_file)
-    __comm2vecs = pd.read_hdf(_c2v_file, key="df")
+    logger.info("Loading mgnify_sample_vectors file=%s", _c2v_file)
+    __mgnify_sample_vectors = pd.read_hdf(_c2v_file, key="df")
 
-    _comm2vecs_metadata_file = get_path('resources/biome/comm2vecs_metadata.tsv')
-    if not _comm2vecs_metadata_file.exists():
+    _mgnify_sample_vectors_metadata_file = get_path('models/biome/mgnify_sample_vectors/1.0/mgnify_sample_vectors_metadata_v1.0.tsv')
+    if not _mgnify_sample_vectors_metadata_file.exists():
         raise FileNotFoundError(
-            f"comm2vecs metadata file not found: {_comm2vecs_metadata_file} (base dir: {get_path('')})\n"
+            f"mgnify_sample_vectors metadata file not found: {_mgnify_sample_vectors_metadata_file} (base dir: {get_path('')})\n"
             "Please run `trapiche-download-models` to download the required models."
             )
-    logger.info("Loading comm2vecs metadata file=%s", _comm2vecs_metadata_file)
-    _comm2vecs_metadata = pd.read_csv(
-        _comm2vecs_metadata_file, sep="\t", index_col="SAMPLE_ID"
+    logger.info("Loading mgnify_sample_vectors metadata file=%s", _mgnify_sample_vectors_metadata_file)
+    _mgnify_sample_vectors_metadata = pd.read_csv(
+        _mgnify_sample_vectors_metadata_file, sep="\t", index_col="SAMPLE_ID"
     )
-    return __comm2vecs, _comm2vecs_metadata
+    return __mgnify_sample_vectors, _mgnify_sample_vectors_metadata
 
 def vectorise_sample(list_of_tax_files):
     """Vectorise one or many samples from taxonomy annotation files.

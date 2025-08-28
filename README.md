@@ -41,7 +41,7 @@ Cache location:
 
 Included models:
  - full_final_taxonomy.model.keras (FTP, ~30 GB)
- - comm2vecs.h5 (FTP, ~200 MB)
+ - mgnify_sample_vectors.h5 (FTP, ~200 MB)
  - trapiche-biome-classifier (HuggingFace Hub: SantiagoSanchezF/trapiche-biome-classifier)
  - en_core_sci_sm (SciSpacy biomedical model)
 
@@ -55,7 +55,7 @@ Programmatic access:
 
 ```python
 import trapiche
-path = trapiche.get_model("comm2vecs.h5", version="1.0", auto_download=True)
+path = trapiche.get_model("mgnify_sample_vectors.h5", version="1.0", auto_download=True)
 ```
 
 If a required model is missing during prediction, Trapiche will attempt to resolve it automatically (or raise with a helpful message).
