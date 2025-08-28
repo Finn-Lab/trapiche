@@ -7,6 +7,8 @@ utilities for validating input files and reading study descriptions.
 
 from __future__ import annotations
 
+from .utils import load_biome_herarchy_dict
+
 __all__ = [
     "print_help_extended",
     "check_input_file_format",
@@ -26,7 +28,6 @@ import pandas as pd
 
 from . import model_registry
 from .deep_pred import predict_runs
-from .goldOntologyAmendments import biome_herarchy_dct
 from .trapiche_text import TextClassifier
 
 def print_help_extended() -> None:
@@ -197,6 +198,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     logger.debug(f"input_df columns={input_df.columns.tolist()} head={input_df.head().to_dict()}")
 
     # Text-based prediction (optional)
+    biome_herarchy_dct = load_biome_herarchy_dict()
     if not args.no_text_prediction:
         logger.info("Starting text-based prediction")
         text_classifier = TextClassifier(model_path="SantiagoSanchezF/trapiche-biome-classifier")

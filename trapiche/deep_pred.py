@@ -5,6 +5,8 @@ prediction refinement utilities.
 """
 from __future__ import annotations
 
+from .api import Community2vec
+
 # %% auto 0
 __all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'comm2vecs', 'comm2vecs_metadata', 'k', 'min_projects_vote', 'dominance_thres', 'k2',
            'dominance_thres2', 'tags_dct_file', 'tags_li', 'bioms', 'tag_biomes', 'tnp_core_df_file', 'slim_core_df',
@@ -26,11 +28,9 @@ import sys
 import json
 import numpy as np
 import pandas as pd
-from .utils import cosine_similarity_pairwise
-from .baseData import tax_annotations_from_file
+from .utils import cosine_similarity_pairwise,tax_annotations_from_file, load_biome_herarchy_dict
 from .biome2vec import genus_from_edges_subgraph, genre_to_comm2vec
 import networkx as nx
-from .goldOntologyAmendments import biome_graph
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +50,11 @@ from tqdm import tqdm
 
 from . import config
 
-from .goldOntologyAmendments import gold_categories,biome_graph,biome_original_graph
 
 from .biome2vec import load_mgnify_c2v
 from . import model_registry
-from .goldOntologyAmendments import biome_herarchy_dct
+
+biome_herarchy_dct = load_biome_herarchy_dict()
 
 TAG = 'deep_pred'
 
@@ -62,16 +62,8 @@ DATA_DIR = f"{config.datadir}/{TAG}"
 TMP_DIR = f"{DATA_DIR}/temp"
 os.makedirs(TMP_DIR,exist_ok=True)
 
-from . import taxonomyTree
-from .baseData import analysis_df
-# from trapiche.baseData import load_taxonomy_sets
-# from trapiche.baseData import RESULTS_BASE_DIR
+from .utils import cosine_similarity_pairwise
 
-from .utils import cosine_similarity,jaccard_similarity,cosine_similarity_pairwise
-
-from .biome2vec import taxo_ids
-from .taxonomyTree import taxonomy_graph
-from . import baseData
 
 comm2vecs, comm2vecs_metadata = load_mgnify_c2v()
 
@@ -85,9 +77,8 @@ dominance_thres = 0.5  # fraction threshold in top k for consideration
 k2 = 33
 dominance_thres2 = 0.5
 
-from .biome2vec import comm2vecs_file,load_mgnify_c2v
+from .biome2vec import load_mgnify_c2v
 
-from .goldOntologyAmendments import biome_herarchy_dct
 
 
 tags_dct_file =f"{DATA_DIR}/tags_dct_file.json"
@@ -352,37 +343,6 @@ def chunked_fuzzy_prediction(query_vector, constrain, chunk_size=200, vector_spa
         results.append(_results)
     return pd.concat(results).reset_index()
 
-def vectorise_run(list_of_tax_files, vector_space="g"):
-    """Vectorise a run based on multiple taxonomy files (e.g. diamond + LSU + SSU)."""
-    samples_annots = {}
-    for ix, samp_files in enumerate(list_of_tax_files):
-        if not samp_files:  # skip empty lists
-            continue
-        for f in samp_files:
-            try:
-                d = tax_annotations_from_file(f)
-            except Exception as e:  # defensive
-                print(f"Failed to parse taxonomy file {f}: {e}")
-                d = None
-            if d:
-                samples_annots.setdefault(ix, []).extend(d)
-    samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}
-    samples_vecs = {k: genre_to_comm2vec(gs) for k, gs in samples_genus.items()}
-    if not samples_vecs:  # no vectors parsed
-        # Return an empty array with zero rows; caller should handle
-        return np.zeros((len(list_of_tax_files), 0))
-    # Ensure every sample index has a vector (fill missing with zeros of correct length)
-    first_vec = next(iter(samples_vecs.values()))
-    vec_len = len(first_vec)
-    ordered = []
-    for i in range(len(list_of_tax_files)):
-        if i in samples_vecs:
-            ordered.append(samples_vecs[i])
-        else:
-            ordered.append(np.zeros(vec_len))
-    vec = np.stack(ordered, axis=0)
-    return vec
-
 def predict_runs(
     list_of_list,
     vector_space="g",
@@ -391,9 +351,11 @@ def predict_runs(
 ):
     """Predict lineage of runs based on multiple taxonomy files (diamond/SSU/LSU mix)."""
     logger.info(f"predict_runs called n_samples={len(list_of_list)} return_full_preds={return_full_preds} vector_space={vector_space}")
+
+    comm2vec = Community2vec()
     if constrain is not None:
         logger.debug(f"constrain={constrain}")
-    full_vec = vectorise_run(list_of_list)
+    full_vec = comm2vec.transform(list_of_list)
     logger.info(f"vectorise_run output shape={full_vec.shape}")
 
     if full_vec.shape[1] == 0:  # no features extracted

@@ -56,8 +56,8 @@ MODEL_REGISTRY: Dict[Tuple[str, str], ModelMeta] = {
         provider="ftp",
         note="Keras taxonomy deep model",
     ),
-    ("comm2vecs.h5", "1.0"): ModelMeta(
-        name="comm2vecs.h5",
+    ("comm2vecs_v1.0.h5", "1.0"): ModelMeta(
+        name="comm2vecs",
         version="1.0",
         url="https://ftp.ebi.ac.uk/pub/databases/metagenomics/trapiche/models/comm2vecs.h5",
         sha256="4bdd9bafdaa019b101d30322dbf2fd5f3dc787f284aac9ea942f645a92705aa3",

@@ -5,7 +5,6 @@ information-theoretic metrics, coloring utilities, dataset splitting,
 and lightweight web / XML helpers.
 """
 
-# %% auto 0
 __all__ = ['parse_diamond', 'sanity_check_otus_annot_file', 'parse_otus_count', 'sanity_check_diamond_annot_file',
            'cosine_similarity', 'cosine_similarity_pairwise', 'jaccard_similarity', 'find_common_lineage',
            'jsonCompressed', 'rand_cmap', 'split_tt', 'three_split', 'subsamp', 'longest_matching_string',
@@ -13,26 +12,185 @@ __all__ = ['parse_diamond', 'sanity_check_otus_annot_file', 'parse_otus_count', 
            'info_theoretic_metrics', 'fbeta_score', 'set_info_theoretic_metrics', 'fetch_data_from_ebi',
            'get_project_text_description']
 
-# %% ../nbs/00.00.1_utils.ipynb 3
+from functools import lru_cache
 import glob
 import gzip
 import json
 import logging
 import os
-import pickle
 import re
-import shutil
-import subprocess
+
+import os
+import re
+import gzip
+from pathlib import Path
+from contextlib import contextmanager
+
 import requests
 import xml.etree.ElementTree as ET
 import numpy as np
 from collections import Counter
 import pandas as pd
+from pathlib import Path
+from platformdirs import user_cache_dir
+import os
 
-from fastcore.script import call_parse  # retained for backwards compatibility (if any CLI exposure)
+import logging
+logger = logging.getLogger(__name__)
+
+# --- Path helpers ---
+
+APP_NAME = "trapiche"
+
+def get_cache_dir() -> Path:
+    env = os.getenv("TRAPICHE_CACHE")
+    if env:
+        path = Path(env).expanduser().resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    
+    path = Path(user_cache_dir("trapiche"))
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+def get_path(relative: str) -> Path:
+    """Join a path under the base data dir (no existence check)."""
+    return get_cache_dir() / relative
+
+# --- ---
+
+@contextmanager
+def _open_text_auto(path: str | os.PathLike, mode: str = "rt", encoding: str = "utf-8"):
+    """Open plain text or gzip-compressed text transparently.
+
+    Chooses gzip when the filename ends with .gz or the file starts with the
+    gzip magic bytes. Falls back to plain open otherwise.
+    """
+    p = Path(path)
+    use_gzip = p.suffix == ".gz"
+    if not use_gzip:
+        # Sniff first two bytes for gzip magic number 1f 8b
+        try:
+            with open(p, "rb") as _rb:
+                magic = _rb.read(2)
+            if magic == b"\x1f\x8b":
+                use_gzip = True
+        except OSError:
+            pass
+    opener = gzip.open if use_gzip else open
+    with opener(p, mode, encoding=encoding) as handle:  # type: ignore[arg-type]
+        yield handle
 
 
-# %% ../nbs/00.00.1_utils.ipynb 5
+def diamond_read(f):
+    """Extract taxonomy edges from a diamond functional annotation file (.tsv or .tsv.gz).
+
+    The diamond annotation schema places the taxonomy lineage (last taxon) in
+    column 15 (0-based index 14). We capture unique taxon strings, then build
+    simple genus->species style edges (capitalised first token -> full string).
+    """
+    with _open_text_auto(f, "rt", encoding="utf-8") as h:
+        try:
+            _diamonds = list({
+                line.split("\t")[14].split("=")[-1].replace("Candidatus ", "")
+                for line in h
+                if line and not line.startswith("#")
+            })
+        except IndexError as e:
+            raise ValueError(f"Diamond file appears malformed (missing expected columns): {f}") from e
+    edges = set()
+    for s in _diamonds:
+        spl = s.split()
+        if not spl:
+            continue
+    first_token = str(spl[0])
+    if first_token and first_token[0].isalpha() and first_token[0].isupper():
+            edge = (
+                spl[0],
+                s if len(spl) > 1 else "",  # pseudo-graph in diamond, connect gr with sp
+            )
+            edges.add(edge)
+    return list(edges)
+
+
+def krona_read(content):
+    """function to read mseq.txt files"""
+    edges = set()  # Use a set to avoid duplicate edges
+    for _line in content:
+        line = _line.replace("Candidatus ", "")
+        # Split line and filter out any empty strings or strings representing empty nodes like 'k__'
+        parts = [
+            part
+            for part in line.strip().split("\t")
+            if part and not part.endswith("__")
+        ]
+        # Skip the count at the beginning of each line
+        lineage = parts[1:]
+
+        # Initialize previous valid item variable
+        prev = None
+        for item in lineage:
+            # Skip empty taxonomy levels
+            if item.endswith("__"):
+                continue
+            if prev is not None:
+                # Create an edge between the previous valid item and the current item
+                prev1, prev2 = prev.split("__")
+                item1, item2 = item.split("__")
+                edges.add(
+                    (
+                        prev1
+                        + "__"
+                        + prev2.split("__")[-1]
+                        .replace("_", " ")
+                        .replace("Candidatus ", ""),
+                        item1
+                        + "__"
+                        + item2.split("__")[-1]
+                        .replace("_", " ")
+                        .replace("Candidatus ", ""),
+                    )
+                )
+            prev = item
+    return list(edges)
+
+
+def tax_annotations_from_file(f):
+    """Function to extract taxo_annots from file"""
+    d = None
+    logger.info(f"tax_annotations_from_file called file={f}")
+    if "diamond" in f:
+        try:
+            d = diamond_read(f)
+        except Exception as e:
+            logger.error(f"diamond_read failed file={f} error={e}")
+    else:
+        try:
+            with open(f) as content:
+                d = krona_read(content)
+        except Exception as e:
+            logger.warning(f"open krona failed file={f} error={e}")
+            try:
+                with gzip.open(f, "rt") as content:  # 'rt' mode for reading text
+                    d = krona_read(content)
+            except Exception as e2:
+                logger.error(f"gzip krona failed file={f} error={e2}")
+    logger.info(f"tax_annotations_from_file result n_edges={len(d) if d is not None else 0}")
+    return d
+
+
+# --- ---
+
+@lru_cache
+def load_biome_herarchy_dict():
+    p = get_path("resources/biome/biome_herarchy_amended.json.gz")
+    if not p.exists():
+        raise FileNotFoundError(f"biome_herarchy_amended.json.gz not found at {p}")
+    logger.debug(f"Loading biome_herarchy_dct from file={p}")
+    biome_herarchy_dct = jsonCompressed.read(p)
+    logger.debug(f"biome_herarchy_dct loaded n_keys={len(biome_herarchy_dct) if biome_herarchy_dct else 0}")
+    return biome_herarchy_dct
+
 def parse_diamond(
     content: list,  # diamond_taxo_annotation content. Usually is the result of list(open(PATH_FILE).read())
 ):
@@ -103,12 +261,10 @@ def sanity_check_diamond_annot_file(filepath):
         return content
 
 
-# %% ../nbs/00.00.1_utils.ipynb 7
 from numpy import dot
 from numpy.linalg import norm
 
 
-# %% ../nbs/00.00.1_utils.ipynb 8
 def cosine_similarity(a, b):
     cos_sim = dot(a, b) / (norm(a) * norm(b))
     return cos_sim
@@ -121,7 +277,6 @@ def cosine_similarity_pairwise(A, B):
     return dot_product / (np.outer(norm_a, norm_b))
 
 
-# %% ../nbs/00.00.1_utils.ipynb 9
 def jaccard_similarity(set1, set2):
     intersection = set1.intersection(set2)
     union = set1.union(set2)
@@ -131,7 +286,6 @@ def jaccard_similarity(set1, set2):
         return len(intersection) / len(union)
 
 
-# %% ../nbs/00.00.1_utils.ipynb 11
 def find_common_lineage(lineages):
     if not lineages:
         return ""
@@ -161,7 +315,6 @@ def find_common_lineage(lineages):
     return ":".join(common_lineage)
 
 
-# %% ../nbs/00.00.1_utils.ipynb 13
 class jsonCompressed:
     "dump and read data objects into a compressed json"
 
@@ -181,7 +334,6 @@ class jsonCompressed:
             return json.loads(fin.read())
 
 
-# %% ../nbs/00.00.1_utils.ipynb 15
 # Generate random colormap
 def rand_cmap(
     nlabels, type="bright", first_color_black=True, last_color_black=False, verbose=True
@@ -281,7 +433,6 @@ def rand_cmap(
     return random_colormap
 
 
-# %% ../nbs/00.00.1_utils.ipynb 17
 def split_tt(df, frac, rs, lin):
     "add a column to dataframe marking test samples, based on leaving out complete projects to better asses performance"
     test_samples = []
@@ -317,7 +468,6 @@ def split_tt(df, frac, rs, lin):
     df.loc[test_ixes, ("IS_TEST")] = True
 
 
-# %% ../nbs/00.00.1_utils.ipynb 18
 def three_split(df, random_state=None, frac_=0.2):
     "split a dataframe in tr,te,val using non,overlaping projects"
     gr = pd.DataFrame(df)
@@ -337,7 +487,6 @@ def three_split(df, random_state=None, frac_=0.2):
     return train_df, val_df, test_df
 
 
-# %% ../nbs/00.00.1_utils.ipynb 19
 def subsamp(df, random_state=None, top=1200):
     "subsample a dataframe to keep biome with less than K samples per biome"
     samps = []
@@ -350,11 +499,9 @@ def subsamp(df, random_state=None, top=1200):
     return new_df
 
 
-# %% ../nbs/00.00.1_utils.ipynb 22
 from difflib import SequenceMatcher
 
 
-# %% ../nbs/00.00.1_utils.ipynb 23
 def longest_matching_string(string1, string2):
     """
     find longest matching string
@@ -364,7 +511,6 @@ def longest_matching_string(string1, string2):
     return lm
 
 
-# %% ../nbs/00.00.1_utils.ipynb 25
 def match_metrics(_gt, _pred):
     """
     given two lineages return the leng of the max_matching string and the distance between biome nodes. Nedagtive means that is not an extention of the ground truth
@@ -376,11 +522,9 @@ def match_metrics(_gt, _pred):
     return recall, precision
 
 
-# %% ../nbs/00.00.1_utils.ipynb 29
 import networkx as nx
 
 
-# %% ../nbs/00.00.1_utils.ipynb 30
 """ Bayesian network of GOLD
 """
 
@@ -398,7 +542,6 @@ def build_bayesian_onto(onto_net):
         onto_net.nodes[node]["conditional_probability"] = 1 / n_siblings
 
 
-# %% ../nbs/00.00.1_utils.ipynb 31
 def ia_v(term, graph):
     "get information accretion of o node in ontology"
     cond_prob = graph.nodes[term]["conditional_probability"]
@@ -406,7 +549,6 @@ def ia_v(term, graph):
     return information_accretion
 
 
-# %% ../nbs/00.00.1_utils.ipynb 32
 def i_T(term, graph):
     """marginal probabilities that a protein is experimentally associated with a consistent subgraph T in the ontology.
     information content of a term (if str is provided) or a list of terms
@@ -419,19 +561,16 @@ def i_T(term, graph):
     return np.sum(_info_content)
 
 
-# %% ../nbs/00.00.1_utils.ipynb 34
 def roc_preds(true, path, probs, threshold):  # noqa: D401 (simple helper)
     "Return path elements whose probability >= threshold (simple ROC helper)."
     return path[np.where(probs >= threshold)[0]]
 
 
-# %% ../nbs/00.00.1_utils.ipynb 35
 def semantic_distance(ru, mi, k=2):
     "calculate diatnace"
     return ((ru**k) + (mi**k)) ** (1 / k)
 
 
-# %% ../nbs/00.00.1_utils.ipynb 36
 def info_theoretic_metrics(T, P, graph):
     "get metrics based on the paper"
     # get ancestors
@@ -472,7 +611,6 @@ def info_theoretic_metrics(T, P, graph):
     )
 
 
-# %% ../nbs/00.00.1_utils.ipynb 37
 def fbeta_score(precision, recall, beta=1):
     # Check if both precision and recall are 0 to prevent division by zero.
     # This can occur when there are no positive predictions or positive labels
@@ -482,7 +620,6 @@ def fbeta_score(precision, recall, beta=1):
     return fscore
 
 
-# %% ../nbs/00.00.1_utils.ipynb 38
 def set_info_theoretic_metrics(true, pred, graph, k=1):
     "calculate info_theoretical metrics for a set of predictions"
     (
@@ -532,7 +669,6 @@ def set_info_theoretic_metrics(true, pred, graph, k=1):
     return pr, rc, wpr, wrc, mi, ru, wmi, wru, f1, sd, wsd
 
 
-# %% ../nbs/00.00.1_utils.ipynb 41
 def fetch_data_from_ebi(acc):
     url = "https://www.ebi.ac.uk/ena/browser/api/xml/{}?download=false".format(acc)
     response = requests.get(url)

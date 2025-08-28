@@ -5,21 +5,29 @@ taxonomy subgraphs into community vectors.
 """
 from __future__ import annotations
 
-__all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'SG', 'biome2vec_file', 'model_vocab_file', 'vec_file', 'taxo_ids', 'vec',
-           'comm2vecs_file', 'comm2vecs_metadata_file', 'load_biome2vec', 'sentence_vectorization',
-           'genus_from_edges_subgraph', 'get_terminals', 'get_mean', 'genre_to_comm2vec', 'load_mgnify_c2v']
+__all__ = [
+    'TAG', 'DATA_DIR', 'TMP_DIR', 'SG', 'biome2vec_file', 'model_vocab_file', 'vec_file',
+    'load_biome2vec', 'load_taxonomy_ids', 'sentence_vectorization', 'genus_from_edges_subgraph',
+    'get_terminals', 'get_mean', 'genre_to_comm2vec', 'load_mgnify_c2v', 'vectorise_sample',
+    'BiomeEmbeddings', 'load_biome_embeddings', 'get_model_vocab', 'get_vectors'
+]
 
+from functools import lru_cache
+from dataclasses import dataclass
+from pathlib import Path
 import json
 import os
 import numpy as np
 import pandas as pd
 
-from . import config, taxonomyTree, model_registry
+from . import config, model_registry
 
 import networkx as nx
-from gensim.models import Word2Vec
-from .utils import cosine_similarity
+from gensim.models import Word2Vec, KeyedVectors
+from .utils import cosine_similarity, get_path, tax_annotations_from_file
 
+import logging
+logger = logging.getLogger(__name__)
 
 TAG = "biome2vec"
 
@@ -35,37 +43,100 @@ SG = 1  # 1 for skip gram
 
 
 biome2vec_file = f"{DATA_DIR}/word2vec.sg_{SG}_full.model"
-
-
 model_vocab_file = f"{DATA_DIR}/model_vocab.json"
-
-
-with open(model_vocab_file) as h:
-    model_vocab = json.load(h)
-
-
-def load_biome2vec():
-    """Load the word2vec model for biome embeddings."""
-    return Word2Vec.load(biome2vec_file)
-
-
 vec_file = f"{biome2vec_file}.wv.vectors.npy"
 
 
-taxo_ids = {x: ix for ix, x in enumerate(taxonomyTree.taxonomy_graph.nodes)}
+@dataclass(frozen=True)
+class BiomeEmbeddings:
+    """Container for biome2vec resources.
+
+    Attributes
+    ----------
+    keyed : KeyedVectors | None
+        The keyed vectors (if full model loaded) or None.
+    model_vocab : dict
+        Mapping from taxonomy numeric ID (as string) to vector index.
+    vectors : np.ndarray
+        Numpy array (memory mapped) with embedding vectors.
+    taxo_ids : dict
+        Mapping from taxonomy node label to numeric taxonomy ID used in model_vocab.
+    """
+    keyed: KeyedVectors | None
+    model_vocab: dict
+    vectors: np.ndarray
+    taxo_ids: dict
 
 
-model_vocab_file = f"{DATA_DIR}/model_vocab.json"
+@lru_cache
+def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
+    """Lazy load biome embedding assets with caching.
+
+    Parameters
+    ----------
+    load_full_model : bool
+        If True load the full Word2Vec model (slower, more RAM). Otherwise only load KeyedVectors
+        (lighter) when/if required.
+    """
+    missing = [p for p in (biome2vec_file, model_vocab_file, vec_file) if not Path(p).exists()]
+    if missing:
+        raise FileNotFoundError(
+            "Missing biome2vec model files: " + ", ".join(map(str, missing)) +
+            f" (base dir: {get_path('')}).\nPlease run `trapiche-download-models` to download the required models."
+        )
+
+    logger.info("Loading biome embeddings (full_model=%s)", load_full_model)
+    # Load vocab mapping
+    with open(model_vocab_file) as h:
+        _model_vocab = json.load(h)
+    # Memory-map vectors (fast, minimal RAM upfront)
+    _vectors = np.load(vec_file, mmap_mode='r')
+    # Load taxonomy ids (cached)
+    _taxo_ids = load_taxonomy_ids()
+    _keyed: KeyedVectors | None = None
+    if load_full_model:
+        # Load full model only when explicitly requested
+        _keyed = Word2Vec.load(biome2vec_file).wv
+    return BiomeEmbeddings(keyed=_keyed, model_vocab=_model_vocab, vectors=_vectors, taxo_ids=_taxo_ids)
 
 
-with open(model_vocab_file) as h:
-    model_vocab = json.load(h)
+def load_biome2vec(load_full_model: bool = True) -> KeyedVectors:
+    """Backward-compatible loader returning keyed vectors (full model subset).
+
+    Parameters
+    ----------
+    load_full_model : bool
+        Whether to force loading the full model (same behaviour as before). Provided for API stability.
+    """
+    emb = load_biome_embeddings(load_full_model=True if load_full_model else False)
+    # If user didn't request full but we didn't load, ensure keyed is available lazily.
+    if emb.keyed is None:
+        # Reload with full model (will overwrite cache). Simplicity > micro-optimisation.
+        load_biome_embeddings.cache_clear()  # type: ignore[attr-defined]
+        emb = load_biome_embeddings(load_full_model=True)
+    return emb.keyed  # type: ignore[return-value]
+
+@lru_cache
+def load_taxonomy_ids() -> dict:
+    """Lazy cached load of taxonomy_graph and taxo_ids dictionary."""
+    p = get_path("resources/taxonomy/taxonomy_graph.graphml")
+    if not p.exists():
+        raise FileNotFoundError(f"taxonomy_graph file not found: {p}")
+    logger.info("Loading taxonomy_graph file=%s", p)
+    taxonomy_graph = nx.read_graphml(p, node_type=str)
+    taxo_ids = {x: ix for ix, x in enumerate(taxonomy_graph.nodes)}
+    logger.debug("taxo_ids size=%s", len(taxo_ids))
+    return taxo_ids
 
 
-vec_file = f"{biome2vec_file}.wv.vectors.npy"
+def get_model_vocab() -> dict:
+    """Access the model vocabulary mapping lazily."""
+    return load_biome_embeddings().model_vocab
 
 
-vec = np.load(vec_file)
+def get_vectors() -> np.ndarray:
+    """Access the embedding vectors lazily (memory-mapped)."""
+    return load_biome_embeddings().vectors
 
 
 
@@ -73,11 +144,12 @@ vec = np.load(vec_file)
 def sentence_vectorization(terminals):
     """Compute mean vector from terminal nodes of a subgraph (community)."""
     # tax ='Laterosporus'
-    tix_ = [taxo_ids.get(tax) for tax in terminals]
-    tixs = [x for x in tix_ if x != None]
-    v_ixs_ = [model_vocab.get(str(tix)) for tix in tixs]
-    v_ixs = [x for x in v_ixs_ if x != None]
-    _t = [vec[v_ix] for v_ix in v_ixs]
+    emb = load_biome_embeddings()
+    tix_ = [emb.taxo_ids.get(tax) for tax in terminals]
+    tixs = [x for x in tix_ if x is not None]
+    v_ixs_ = [emb.model_vocab.get(str(tix)) for tix in tixs]
+    v_ixs = [x for x in v_ixs_ if x is not None]
+    _t = [emb.vectors[v_ix] for v_ix in v_ixs]
 
     # _t = [x for x in terminals if x in embs]
     mean = np.mean(_t, axis=0)
@@ -116,36 +188,126 @@ def get_mean(f):
 
 
 def genre_to_comm2vec(genres_set):
-    genres_in_vocab_vecs = [
-        vec[model_vocab.get(str(taxo_ids.get(x, None)), None)]
-        for x in genres_set
-        if model_vocab.get(str(taxo_ids.get(x, None)), None) != None
-    ]
-    c2v = np.mean(genres_in_vocab_vecs, axis=0)
-    return c2v
-    # genres_in_vocab = {taxo_ids[x] for x in genres_set if x in model_vocab.get(str(taxo_ids.get(x,None)),None) !=None }
+    emb = load_biome_embeddings()
+    _vectors = []
+    for x in genres_set:
+        tax_id = emb.taxo_ids.get(x)
+        if tax_id is None:
+            continue
+        mv_ix = emb.model_vocab.get(str(tax_id))
+        if mv_ix is None:
+            continue
+        _vectors.append(emb.vectors[mv_ix])
+    if not _vectors:
+        return np.zeros((0,), dtype=float)
+    return np.mean(_vectors, axis=0)
 
 
-comm2vecs_file = f"{DATA_DIR}/comm2vecs.h5"  # legacy path (kept for backwards compatibility)
-comm2vecs_metadata_file = f"{DATA_DIR}/comm2vecs_metadata.tsv"
-
-
-def _resolve_comm2vecs_file():
-    """Return a local path to comm2vecs.h5, using cached registry copy if needed.
-    Preference order: legacy packaged location -> registry cache.
-    """
-    if os.path.exists(comm2vecs_file):
-        return comm2vecs_file
-    # Use registry (auto download)
-    path = model_registry.get_model_path("comm2vecs.h5", auto_download=True)
-    return str(path)
-
-
+@lru_cache
 def load_mgnify_c2v():
-    _c2v_file = _resolve_comm2vecs_file()
+    _c2v_file = get_path('models/biome/comm2vecs/1.0/comm2vecs_v1.0.h5')
+    if not _c2v_file.exists():
+        # raise error and recomend to use trapiche-download-models
+        raise FileNotFoundError(
+            f"comm2vecs file not found: {_c2v_file} (base dir: {get_path('')})\n"
+            "Please run `trapiche-download-models` to download the required models."
+            )
+    logger.info("Loading comm2vecs file=%s", _c2v_file)
     __comm2vecs = pd.read_hdf(_c2v_file, key="df")
+
+    _comm2vecs_metadata_file = get_path('resources/biome/comm2vecs_metadata.tsv')
+    if not _comm2vecs_metadata_file.exists():
+        raise FileNotFoundError(
+            f"comm2vecs metadata file not found: {_comm2vecs_metadata_file} (base dir: {get_path('')})\n"
+            "Please run `trapiche-download-models` to download the required models."
+            )
+    logger.info("Loading comm2vecs metadata file=%s", _comm2vecs_metadata_file)
     _comm2vecs_metadata = pd.read_csv(
-        comm2vecs_metadata_file, sep="\t", index_col="SAMPLE_ID"
+        _comm2vecs_metadata_file, sep="\t", index_col="SAMPLE_ID"
     )
     return __comm2vecs, _comm2vecs_metadata
 
+def vectorise_sample(list_of_tax_files):
+    """Vectorise one or many samples from taxonomy annotation files.
+
+    Flexible input forms are accepted (all are normalised internally to the
+    original list-of-lists of file paths interface):
+
+    1. Single file path (str / Path): that file represents one sample.
+    2. Directory path: every *.tsv or *.tsv.gz file inside (non-recursive)
+       is treated as belonging to one sample.
+    3. Flat list of file paths: all those files together are one sample.
+    4. List of lists of file paths (original behaviour): each inner list is a sample.
+
+    Returns
+    -------
+    np.ndarray
+        Array with shape (n_samples, embedding_dim). If no vectors can be
+        produced an array with shape (n_samples, 0) is returned (or (0, 0) if
+        there are no samples at all).
+    """
+
+    from pathlib import Path
+
+    def _normalise(sources):  # -> list[list[str]]
+        """Normalise user input to list-of-lists of file paths.
+
+        See function docstring for accepted forms.
+        """
+        if isinstance(sources, (str, os.PathLike)):
+            p = Path(sources)
+            if p.is_dir():
+                files = sorted([
+                    str(f) for f in p.iterdir()
+                    if f.is_file() and (f.suffix in {'.tsv', '.gz'} or f.name.endswith('.tsv.gz'))
+                ])
+                return [files] if files else [[]]
+            elif p.is_file():
+                return [[str(p)]]
+            else:
+                raise FileNotFoundError(f"Path not found: {p}")
+        if isinstance(sources, list):
+            if not sources:
+                return []
+            # Detect list-of-lists (or other iterables) vs flat list
+            if all(isinstance(x, (list, tuple, set)) for x in sources):
+                return [[str(f) for f in sample] for sample in sources]
+            # Flat list of paths
+            if all(isinstance(x, (str, os.PathLike)) for x in sources):
+                return [[str(f) for f in sources]]
+        raise TypeError(
+            "Unsupported input for vectorise_run. Provide a path, a list of paths, or a list of list of paths."
+        )
+
+    samples_files = _normalise(list_of_tax_files)
+
+    n_samples = len(samples_files)
+    if n_samples == 0:
+        return np.zeros((0, 0))
+
+    samples_annots: dict[int, list] = {}
+    for ix, samp_files in enumerate(samples_files):
+        if not samp_files:  # skip empty lists (retain index for shape)
+            continue
+        for f in samp_files:
+            try:
+                d = tax_annotations_from_file(f)
+            except Exception as e:  # defensive: keep other files processing
+                print(f"Failed to parse taxonomy file {f}: {e}")
+                d = None
+            if d:
+                samples_annots.setdefault(ix, []).extend(d)
+
+    # Derive genus sets and vectors per sample
+    samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}
+    samples_vecs = {k: genre_to_comm2vec(gs) for k, gs in samples_genus.items() if gs}
+
+    if not samples_vecs:
+        # No sample produced a vector -> shape (n_samples, 0)
+        return np.zeros((n_samples, 0))
+
+    first_vec = next(iter(samples_vecs.values()))
+    vec_len = len(first_vec)
+
+    ordered = [samples_vecs.get(i, np.zeros(vec_len)) for i in range(n_samples)]
+    return np.stack(ordered, axis=0)
