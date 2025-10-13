@@ -130,7 +130,7 @@ def load_custom_model(model_file: str | None = None):
     """Load and compile the Keras model on demand with robust error handling.
     model_file: optional explicit path; if None, resolve via registry/legacy path.
     """
-    model_path = get_path("models/taxonomy/taxonomy_to_biome/1.0/taxonomy_to_biome_v1.0.model.keras")
+    model_path = get_path("models/taxonomy/taxonomy_to_biome/1.0/taxonomy_to_biome_v1.0.model.h5")
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found: {model_path}\n"
                                 "Download using trapiche-download-models")

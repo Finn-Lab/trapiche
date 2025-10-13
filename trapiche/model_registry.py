@@ -65,20 +65,6 @@ MODEL_REGISTRY: Dict[Tuple[str, str], ModelMeta] = {
         provider="ftp",
         note="Community embedding matrix",
     ),
-    # Logical / virtual entries for external providers
-    ("trapiche-biome-classifier", "1.0"): ModelMeta(
-        name="trapiche-biome-classifier",
-        version="1.0",
-        provider="huggingface",
-        note="HuggingFace model: SantiagoSanchezF/trapiche-biome-classifier",
-    ),
-    ("en_core_sci_sm", "0.5.4"): ModelMeta(
-        name="en_core_sci_sm",
-        version="0.5.4",
-        provider="pip",
-        url="https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
-        note="SciSpacy small English biomedical model",
-    ),
 }
 
 

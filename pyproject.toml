@@ -19,14 +19,15 @@ dependencies = [
   "fastcore",
   "gensim",
   "transformers",
+  "spacy",
+  "scispacy",
+  "https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
 ]
 
-[project.optional-dependencies]
-text = ["spacy", "scispacy"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39","py310"]
+target-version = ["py310"]
 
 [tool.ruff]
 line-length = 100
