@@ -4,7 +4,7 @@ Trapiche — Joint biome classification from text and taxonomy
 Trapiche is an open-source tool for biome classification in metagenomic studies. It combines two complementary signals:
 
 - Text-based context: an adapted Large Language Model (LLM) predicts candidate biomes from project/sample descriptions.
-- Taxonomy-based signal: a community2vec embedding of taxonomic profiles is fed to a feed‑forward model for deep biome lineage prediction.
+- Taxonomy-based signal: a taxonomy_vectorization embedding of taxonomic profiles is fed to a feed‑forward model for deep biome lineage prediction.
 
 By integrating both views, Trapiche improves accuracy and robustness in biome classification workflows.
 
@@ -29,7 +29,7 @@ Download models and resources
 trapiche-download-models
 ```
 
-This fetches the required community2vec resources, taxonomy graph, and other assets used at runtime.
+This fetches the required taxonomy_vectorization resources, taxonomy graph, and other assets used at runtime.
 
 
 ## Quick start (CLI)
@@ -181,7 +181,7 @@ Output record (typical keys)
 
 ## Data and models
 
-Trapiche ships code only. Run `trapiche-download-models` once to download required resources (community2vec embeddings, taxonomy graph, and companion assets). Files are stored under an internal cache path managed by the library.
+Trapiche ships code only. Run `trapiche-download-models` once to download required resources (taxonomy_vectorization embeddings, taxonomy graph, and companion assets). Files are stored under an internal cache path managed by the library.
 
 
 ## Benchmarks (placeholder)

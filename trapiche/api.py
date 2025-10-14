@@ -30,7 +30,7 @@ class Community2vec:
             produced an array with shape (n_samples, 0) is returned (or (0, 0) if
             there are no samples at all).
         """
-        from .community2vec import vectorise_sample
+        from .taxonomy_vectorization import vectorise_sample
 
         self.vectorised_samples = vectorise_sample(list_of_tax_files)
         return self.vectorised_samples
@@ -80,10 +80,10 @@ class TaxonomyToBiome:
             Predictions dataframe and the sample embedding matrix.
         """
         _params = params or self.params
-        # Local import to avoid circular dependency (deep_pred imports Community2vec from this module)
-        from . import deep_pred  # type: ignore
+        # Local import to avoid circular dependency (taxonomy_prediction imports Community2vec from this module)
+        from . import taxonomy_prediction  # type: ignore
 
-        self.df, self.vec = deep_pred.predict_runs(
+        self.df, self.vec = taxonomy_prediction.predict_runs(
             community_vectors=community_vectors,
             return_full_preds=return_full_preds,
             constrain=constrain,
@@ -128,7 +128,7 @@ class TextToBiome:
             Override instance parameters for this call only.
         """
         # Local import to defer transformers and friends until needed
-        from . import trapiche_text as tt  # type: ignore
+        from . import text_prediction as tt  # type: ignore
 
         _p = params or self.params
         preds = tt.predict(

@@ -2,24 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 @dataclass
-class TaxonomyToBiomeParams:
-    """Configuration parameters for deep lineage prediction.
-
-    Attributes
-    ----------
-    batch_size : int
-        Chunk size for model forward passes.
-    k_knn : int
-        Number of nearest neighbours used during refinement.
-    dominance_threshold : float
-        Frequency threshold for accepting lineage extensions in KNN refinement.
-    """
-    batch_size: int = 200
-    k_knn: int = 10
-    dominance_threshold: float = 0.5
-
-
-@dataclass
 class TextToBiomeParams:
     """Configuration parameters for text biome prediction.
 
@@ -37,11 +19,38 @@ class TextToBiomeParams:
         When True, split each input text into sentences and aggregate with max.
     """
 
-    model_path: str = "SantiagoSanchezF/trapiche-biome-classifier"
     device: str | None = None
     max_length: int = 256
     threshold_rule: float | int | str = 0.01
     split_sentences: bool = False
+    hf_model: str = "SantiagoSanchezF/trapiche-biome-classifier-text"
+    model_version: str = "1.0"
+
+@dataclass
+class TaxonomyToVectorParams:
+    """Configuration parameters for taxonomy vectorization.
+    """
+    hf_model: str = "SantiagoSanchezF/trapiche-biome-vectorizer-taxonomy"
+    model_version: str = "1.0"
+
+@dataclass
+class TaxonomyToBiomeParams:
+    """Configuration parameters for deep lineage prediction.
+
+    Attributes
+    ----------
+    batch_size : int
+        Chunk size for model forward passes.
+    k_knn : int
+        Number of nearest neighbours used during refinement.
+    dominance_threshold : float
+        Frequency threshold for accepting lineage extensions in KNN refinement.
+    """
+    batch_size: int = 200
+    k_knn: int = 10
+    dominance_threshold: float = 0.5
+    hf_model: str = "SantiagoSanchezF/trapiche-biome-classifier-taxonomy"
+    model_version: str = "1.0"
 
 @dataclass
 class TrapicheWorkflowParams:

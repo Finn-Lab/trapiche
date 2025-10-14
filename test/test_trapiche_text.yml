@@ -1,12 +1,12 @@
-- name: trapiche_text_help
-  command: trapiche_text --help
+- name: text_prediction_help
+  command: text_prediction --help
   exit_code: 0
   stdout:
     contains:
       - "usage"
         
-- name: trapiche_text_prediction
-  command: trapiche_text --input_text test_text.json --output_file test_results.json
+- name: text_prediction_prediction
+  command: text_prediction --input_text test_text.json --output_file test_results.json
   files:
     - path: "test_results.json"
       contains:

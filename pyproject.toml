@@ -1,28 +1,39 @@
+
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "trapiche"
-version = "0.0.4"
+version = "0.9.0"
 description = "Trapiche biome prediction toolkit"
 readme = "README.md"
-authors = [{name="Trapiche Developers"}]
-license = {text = "MIT"}
-requires-python = ">=3.9"
+authors = [{name = "Santiago Sanchez Fragoso", email = "fragoso@ebi.ac.uk"}]
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
 dependencies = [
-  "pandas",
-  "numpy",
-  "tqdm",
-  "requests",
-  "networkx",
-  "fastcore",
-  "gensim",
+  "torch",
   "transformers",
-  "spacy",
+  "safetensors",
+  "huggingface_hub",
+  "tensorflow",
   "scispacy",
-  "https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
+  "nltk",
+  "numpy",
+  "pandas",
+  "tables",
+  "requests",
+  "tqdm",
+  "networkx",
+  "gensim",
+  "more-itertools",
+  "spacy",
+  # Optional SciSpacy model (kept as convenience; installing may also require `scispacy` package)
+  # Use a PEP 508 direct reference: <name> @ <url>
+  "en_core_sci_sm @ https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
 ]
+
+urls = { Homepage = "https://github.com/Finn-Lab/trapiche" }
 
 
 [tool.black]

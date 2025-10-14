@@ -2,7 +2,7 @@
 
 This module implements a lightweight pipeline that runs the two main parts of
 the analysis described in the project: text-based biome prediction and
-taxonomy-based prediction (community2vec -> TaxonomyToBiome). The functions
+taxonomy-based prediction (taxonomy_vectorization -> TaxonomyToBiome). The functions
 are intentionally small and pure where possible to keep the tool maintainable.
 
 The public function is `run_workflow(samples, run_text=True, run_taxonomy=True)`
@@ -18,9 +18,9 @@ from typing import Any, Optional, Sequence, List, Dict
 from pathlib import Path
 import numpy as np
 
-from . import community2vec as c2v_mod
-from . import trapiche_text as tt
-from . import deep_pred
+from . import taxonomy_vectorization as c2v_mod
+from . import text_prediction as tt
+from . import taxonomy_prediction
 from .config import TextToBiomeParams, TaxonomyToBiomeParams
 
 
@@ -82,7 +82,7 @@ def run_text_step(samples: Sequence[Dict[str, Any]], model_path: Optional[str] =
             split_sentences=params_obj.split_sentences,
         )
     else:
-        # Let `trapiche_text.predict` use its own defaults
+        # Let `text_prediction.predict` use its own defaults
         preds_unique = tt.predict(unique_texts)
 
     # Map back to samples
@@ -130,10 +130,10 @@ def run_taxonomy_step(samples: Sequence[Dict[str, Any]], community_vectors: Opti
     # Constraints: pass text constraints as-is (list per sample) or None
     constrain = [c if c is not None else [] for c in (text_constraints or [None]*len(samples))]
 
-    # Use deep_pred.predict_runs directly and feed it default params from
+    # Use taxonomy_prediction.predict_runs directly and feed it default params from
     # TaxonomyToBiomeParams (this mirrors the behaviour of the API wrapper).
     _params = TaxonomyToBiomeParams()
-    df, _ = deep_pred.predict_runs(
+    df, _ = taxonomy_prediction.predict_runs(
         community_vectors=community_vectors,
         return_full_preds=True,
         constrain=constrain,
@@ -175,7 +175,7 @@ def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_v
     else:
         text_results = [None for _ in samples]
 
-    # If taxonomy is requested, but not comm2vec compute community vectors (used internally too)
+    # If taxonomy is requested, but not taxonomy_vectorization compute community vectors (used internally too)
     if run_vectorise or run_taxonomy:
         community_vectors = run_vectorise_step(samples)
     else:

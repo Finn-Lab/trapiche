@@ -20,12 +20,12 @@ from functools import lru_cache
 import numpy as np
 import torch
 from transformers import BertConfig, BertForSequenceClassification, BertTokenizerFast
+from safetensors.torch import load_file
 
+
+from .utils import _get_hf_model_path
 import logging
 logger = logging.getLogger(__name__)
-
-
-
 
 # ---------------------------------------------------------------------
 # Device selection and model loading
@@ -37,7 +37,7 @@ def choose_device(device: str | None = None) -> str:
     function selects CUDA when available, else CPU.
     """
     if device:
-        return device
+        return str(device)
     try:
         if torch.cuda.is_available():
             return "cuda"
@@ -47,7 +47,7 @@ def choose_device(device: str | None = None) -> str:
 
 
 @lru_cache(maxsize=2)
-def load_text_model(model_path: str, device: str | None = None) -> Tuple[
+def load_text_model(model_name: str, model_version:str, device: str | None = None) -> Tuple[
     BertTokenizerFast, BertConfig, Mapping[int, str], BertForSequenceClassification, Mapping[str, float]
 ]:
     """Lazily load and cache tokenizer, config, model, and thresholds.
@@ -56,23 +56,36 @@ def load_text_model(model_path: str, device: str | None = None) -> Tuple[
     """
     dev = choose_device(device)
 
-    # Load lightweight bits first
-    tokenizer = BertTokenizerFast.from_pretrained(model_path)
-    config = BertConfig.from_pretrained(model_path)
-    num_labels = getattr(config, "num_labels", 0)
-    id2label: Mapping[int, str] = getattr(
-        config, "id2label", {i: f"label_{i}" for i in range(num_labels)}
+    vocab_path = _get_hf_model_path(model_name, model_version, "vocab_*.txt")
+    tokenizer_json_path = _get_hf_model_path(model_name, model_version, "tokenizer_*.json")
+    tokenizer_config_path = _get_hf_model_path(model_name, model_version, "tokenizer_config_*.json")
+    special_tokens_map_path = _get_hf_model_path(model_name, model_version, "special_tokens_map_*.json")
+    config_path = _get_hf_model_path(model_name, model_version, "config_*.json")
+    model_weights_path = _get_hf_model_path(model_name, model_version, "model_*.safetensors")
+
+    with open(tokenizer_config_path) as h:
+        tokenizer_config = json.load(h)
+
+    tokenizer = BertTokenizerFast(
+        vocab_file=vocab_path,
     )
 
-    # Load model and move to device
-    model = BertForSequenceClassification.from_pretrained(model_path, config=config)
+    config = BertConfig.from_json_file(config_path)
+
+    id2label = {int(k):v for k,v in config.id2label.items()}
+
+    model = BertForSequenceClassification(config)
+
+    state_dict = load_file(model_weights_path)
+    model.load_state_dict(state_dict, strict=False)
+
     try:  # pragma: no cover - trivial
-        model.to(dev)  # type: ignore[call-arg]
+        model.to(dev)  
     except Exception:
         pass
     model.eval()
 
-    thresholds = _load_thresholds_multi_path(model_path, tokenizer, model)
+    thresholds = _load_thresholds_multi_path(model_name, tokenizer, model)
     return tokenizer, config, id2label, model, thresholds
 
 
@@ -159,13 +172,14 @@ def _split_sentences(text: str) -> List[str]:
 # ---------------------------------------------------------------------
 def predict_probability(
     texts: Sequence[str] | str,
-    model_path: str,
+    model_name: str,
+    model_version: str,
     device: str | None = None,
     max_length: int = 256,
 ) -> np.ndarray:
     if isinstance(texts, str):  # type: ignore
         texts = [texts]  # type: ignore
-    tokenizer, _config, _id2label, model, _thresholds = load_text_model(model_path, device)
+    tokenizer, _config, _id2label, model, _thresholds = load_text_model(model_name, model_version, device)
     enc = tokenizer(
         list(texts),
         padding=True,
@@ -216,7 +230,8 @@ def probabilities_to_mask(
 
 def predict(
     texts: Sequence[str] | str,
-    model_path: str = "SantiagoSanchezF/trapiche-biome-classifier",
+    model_name: str,
+    model_version: str,
     device: str | None = None,
     max_length: int = 256,
     threshold_rule: str | float | int = 0.01,
@@ -226,8 +241,7 @@ def predict(
         texts_list = [texts]
     else:
         texts_list = list(texts)
-
-    tokenizer, _config, id2label, _model, thresholds = load_text_model(model_path, device)
+    tokenizer, _config, id2label, _model, thresholds = load_text_model(model_name, model_version, device)
     # Unused tokenizer variable purposefully retained to ensure cache priming above
     _ = tokenizer  # pragma: no cover
 
@@ -236,11 +250,11 @@ def predict(
         for t in texts_list:
             parts = _split_sentences(t)
             parts.append(t)  # include full context
-            p = predict_probability(parts, model_path=model_path, device=device, max_length=max_length)
+            p = predict_probability(parts, model_name=model_name, model_version=model_version, device=device, max_length=max_length)
             agg.append(p.max(axis=0))
         probs = np.vstack(agg) if agg else np.zeros((0, len(id2label)))
     else:
-        probs = predict_probability(texts_list, model_path=model_path, device=device, max_length=max_length)
+        probs = predict_probability(texts_list, model_name=model_name, model_version=model_version, device=device, max_length=max_length)
 
     mask = probabilities_to_mask(probs, id2label=id2label, thresholds=thresholds, rule=threshold_rule)
     predictions: List[List[str]] = []

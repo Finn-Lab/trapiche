@@ -1,7 +1,7 @@
 *.egg-info
 
-trapiche/data/deep_pred/full_final_taxonomy.model.keras
-trapiche/data/deep_pred/taxonomy_quant_model.tflite
+trapiche/data/taxonomy_prediction/full_final_taxonomy.model.keras
+trapiche/data/taxonomy_prediction/taxonomy_quant_model.tflite
 trapiche/data/biome2vec/mgnify_sample_vectors.h5
 
 

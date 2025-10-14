@@ -54,11 +54,11 @@ def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
         If True load the full Word2Vec model (slower, more RAM). Otherwise only load KeyedVectors
         (lighter) when/if required.
     """
-    community2vec_model_path = get_path('models/biome/community2vec/1.0/community2vec_model_v1.0.model')
-    model_vocab_file = get_path('models/biome/community2vec/1.0/community2vec_model_vocab_v1.0.json')
-    vec_file = get_path('models/biome/community2vec/1.0/community2vec_model_vocab_v1.0.json')
+    taxonomy_vectorization_model_path = get_path('models/biome/taxonomy_vectorization/1.0/taxonomy_vectorization_model_v1.0.model')
+    model_vocab_file = get_path('models/biome/taxonomy_vectorization/1.0/taxonomy_vectorization_model_vocab_v1.0.json')
+    vec_file = get_path('models/biome/taxonomy_vectorization/1.0/taxonomy_vectorization_model_vocab_v1.0.json')
 
-    missing = [p for p in (community2vec_model_path, model_vocab_file, vec_file) if not Path(p).exists()]
+    missing = [p for p in (taxonomy_vectorization_model_path, model_vocab_file, vec_file) if not Path(p).exists()]
     if missing:
         raise FileNotFoundError(
             "Missing biome2vec model files: " + ", ".join(map(str, missing)) +
@@ -76,7 +76,7 @@ def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
     _keyed: KeyedVectors | None = None
     if load_full_model:
         # Load full model only when explicitly requested
-        _keyed = Word2Vec.load(community2vec_model_path).wv
+        _keyed = Word2Vec.load(taxonomy_vectorization_model_path).wv
     return BiomeEmbeddings(keyed=_keyed, model_vocab=_model_vocab, vectors=_vectors, taxo_ids=_taxo_ids)
 
 
@@ -167,7 +167,7 @@ def get_mean(f):
     return taxo_terminals
 
 
-def genre_to_comm2vec(genres_set):
+def genre_to_taxonomy_vectorization(genres_set):
     emb = load_biome_embeddings()
     _vectors = []
     for x in genres_set:
@@ -280,7 +280,7 @@ def vectorise_sample(list_of_tax_files):
 
     # Derive genus sets and vectors per sample
     samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}
-    samples_vecs = {k: genre_to_comm2vec(gs) for k, gs in samples_genus.items() if gs}
+    samples_vecs = {k: genre_to_taxonomy_vectorization(gs) for k, gs in samples_genus.items() if gs}
 
     if not samples_vecs:
         # No sample produced a vector -> shape (n_samples, 0)

@@ -7,7 +7,7 @@ and lightweight web / XML helpers.
 
 __all__ = ['parse_diamond', 'sanity_check_otus_annot_file', 'parse_otus_count', 'sanity_check_diamond_annot_file',
            'cosine_similarity', 'cosine_similarity_pairwise', 'jaccard_similarity', 'find_common_lineage',
-           'jsonCompressed', 'rand_cmap', 'split_tt', 'three_split', 'subsamp', 'longest_matching_string',
+           'jsonCompressed', 'split_tt', 'three_split', 'subsamp', 'longest_matching_string',
            'match_metrics', 'build_bayesian_onto', 'ia_v', 'i_T', 'roc_preds', 'semantic_distance',
            'info_theoretic_metrics', 'fbeta_score', 'set_info_theoretic_metrics', 'fetch_data_from_ebi',
            'get_project_text_description']
@@ -32,7 +32,8 @@ import numpy as np
 from collections import Counter
 import pandas as pd
 from pathlib import Path
-from platformdirs import user_cache_dir
+from huggingface_hub import hf_hub_download
+
 import os
 
 import logging
@@ -40,23 +41,14 @@ logger = logging.getLogger(__name__)
 
 # --- Path helpers ---
 
-APP_NAME = "trapiche"
-
-def get_cache_dir() -> Path:
-    env = os.getenv("TRAPICHE_CACHE")
-    if env:
-        path = Path(env).expanduser().resolve()
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-    
-    path = Path(user_cache_dir("trapiche"))
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-def get_path(relative: str) -> Path:
-    """Join a path under the base data dir (no existence check)."""
-    return get_cache_dir() / relative
-
+def _get_hf_model_path(model_name: str, model_version: str, file_pattern: str) -> Path:
+    """parse huggingdace model path using hf_hub_download and file pattern should be like 'file_*.json' and the * is replaced with model_version"""
+    try:
+        filename = f"{model_version}/{file_pattern.replace('*', model_version)}"
+        file_path = hf_hub_download(repo_id=model_name, filename=filename, repo_type="model")
+        return file_path
+    except Exception as e:
+        raise FileNotFoundError(f"Could not find model file for {model_name} version {model_version} with pattern {file_pattern}: {e}")
 # --- ---
 
 @contextmanager
@@ -183,11 +175,13 @@ def tax_annotations_from_file(f):
 
 @lru_cache
 def load_biome_herarchy_dict():
-    p = get_path("resources/biome/biome_herarchy_amended.json.gz")
+    p = get_path("resources/biome/biome_herarchy_amended.json")
     if not p.exists():
-        raise FileNotFoundError(f"biome_herarchy_amended.json.gz not found at {p}")
+        raise FileNotFoundError(f"biome_herarchy_amended.json not found at {p}")
     logger.debug(f"Loading biome_herarchy_dct from file={p}")
-    biome_herarchy_dct = jsonCompressed.read(p)
+    # Load the biome hierarchy dictionary from the compressed JSON file
+    with open(p, encoding="utf-8") as f:
+        biome_herarchy_dct = json.load(f)
     logger.debug(f"biome_herarchy_dct loaded n_keys={len(biome_herarchy_dct) if biome_herarchy_dct else 0}")
     return biome_herarchy_dct
 
@@ -333,104 +327,6 @@ class jsonCompressed:
         with gzip.open(infile, "rt", encoding="utf-8") as fin:
             return json.loads(fin.read())
 
-
-# Generate random colormap
-def rand_cmap(
-    nlabels, type="bright", first_color_black=True, last_color_black=False, verbose=True
-):
-    """
-    From https://github.com/delestro/rand_cmap
-
-    Creates a random colormap to be used together with matplotlib. Useful for segmentation tasks
-    :param nlabels: Number of labels (size of colormap)
-    :param type: 'bright' for strong colors, 'soft' for pastel colors
-    :param first_color_black: Option to use first color as black, True or False
-    :param last_color_black: Option to use last color as black, True or False
-    :param verbose: Prints the number of labels and shows the colormap. True or False
-    :return: colormap for matplotlib
-    """
-    import colorsys
-
-    import numpy as np
-    from matplotlib.colors import LinearSegmentedColormap
-
-    if type not in ("bright", "soft"):
-        print('Please choose "bright" or "soft" for type')
-        return
-
-    if verbose:
-        print("Number of labels: " + str(nlabels))
-
-    # Generate color map for bright colors, based on hsv
-    if type == "bright":
-        randHSVcolors = [
-            (
-                np.random.uniform(low=0.0, high=1),
-                np.random.uniform(low=0.2, high=1),
-                np.random.uniform(low=0.9, high=1),
-            )
-            for i in range(nlabels)
-        ]
-
-        # Convert HSV list to RGB
-        randRGBcolors = []
-        for HSVcolor in randHSVcolors:
-            randRGBcolors.append(
-                colorsys.hsv_to_rgb(HSVcolor[0], HSVcolor[1], HSVcolor[2])
-            )
-
-        if first_color_black:
-            randRGBcolors[0] = (0.0, 0.0, 0.0)
-        if last_color_black:
-            randRGBcolors[-1] = (0.0, 0.0, 0.0)
-
-        random_colormap = LinearSegmentedColormap.from_list(
-            "new_map", randRGBcolors, N=nlabels
-        )
-
-    # Generate soft pastel colors, by limiting the RGB spectrum
-    if type == "soft":
-        low = 0.6
-        high = 0.95
-        randRGBcolors = [
-            (
-                np.random.uniform(low=low, high=high),
-                np.random.uniform(low=low, high=high),
-                np.random.uniform(low=low, high=high),
-            )
-            for i in range(nlabels)
-        ]
-
-        if first_color_black:
-            randRGBcolors[0] = (0.0, 0.0, 0.0)
-        if last_color_black:
-            randRGBcolors[-1] = (0.0, 0.0, 0.0)
-        random_colormap = LinearSegmentedColormap.from_list(
-            "new_map", randRGBcolors, N=nlabels
-        )
-
-    # Display colorbar
-    if verbose:
-        from matplotlib import colorbar, colors
-        from matplotlib import pyplot as plt
-
-        fig, ax = plt.subplots(1, 1, figsize=(15, 0.5))
-
-        bounds = np.linspace(0, nlabels, nlabels + 1)
-        norm = colors.BoundaryNorm(bounds, nlabels)
-
-        cb = colorbar.ColorbarBase(
-            ax,
-            cmap=random_colormap,
-            norm=norm,
-            spacing="proportional",
-            ticks=None,
-            boundaries=bounds,
-            format="%1i",
-            orientation="horizontal",
-        )
-
-    return random_colormap
 
 
 def split_tt(df, frac, rs, lin):

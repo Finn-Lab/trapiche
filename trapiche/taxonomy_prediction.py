@@ -24,7 +24,7 @@ import json
 import numpy as np
 import pandas as pd
 from .utils import cosine_similarity_pairwise, get_path,tax_annotations_from_file, load_biome_herarchy_dict
-from .community2vec import genus_from_edges_subgraph, genre_to_comm2vec
+from .taxonomy_vectorization import genus_from_edges_subgraph, genre_to_taxonomy_vectorization
 import networkx as nx
 from more_itertools import chunked
 
@@ -36,12 +36,12 @@ from tqdm import tqdm
 from . import config
 
 
-from .community2vec import load_mgnify_c2v
+from .taxonomy_vectorization import load_mgnify_c2v
 from . import model_registry
 
 biome_herarchy_dct = load_biome_herarchy_dict()
 
-TAG = 'deep_pred'
+TAG = 'taxonomy_prediction'
 
 DATA_DIR = f"{config.datadir}/{TAG}"
 TMP_DIR = f"{DATA_DIR}/temp"
@@ -50,7 +50,7 @@ os.makedirs(TMP_DIR,exist_ok=True)
 from .utils import cosine_similarity_pairwise
 
 
-from .community2vec import load_mgnify_c2v
+from .taxonomy_vectorization import load_mgnify_c2v
 
 
 

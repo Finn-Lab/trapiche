@@ -1,5 +1,3 @@
-__version__ = "0.0.4"
+__version__ = "0.9.0"
 
-from .model_registry import get_model_path as get_model, ensure_model as _ensure_model
-
-__all__ = ["get_model", "_ensure_model", "__version__"]
+__all__ = ["__version__"]
