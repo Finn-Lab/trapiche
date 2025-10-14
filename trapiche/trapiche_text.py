@@ -1,17 +1,21 @@
-"""Text classification (multi-label) wrapper for biome prediction from study descriptions.
+"""Text classification utilities (multi-label) for biome prediction from descriptions.
 
-This module provides a thin convenience layer around a multi‑label BERT classifier
-plus a CLI entry point. Optional sentence splitting uses spaCy (or NLTK / naive
-fallback). Class specific probability thresholds are loaded from an optional
-JSON file named ``class_thresholds.json`` inside the model directory (or HF hub
-cache path).
+This module exposes pure functions for multi‑label BERT classification plus a CLI
+entry point. It implements:
+
+- Automatic device selection (CUDA if available, else CPU).
+- Lazy, cached model loading using Hugging Face Transformers.
+- Optional sentence splitting using spaCy (or NLTK / naive fallback).
+- Optional class specific probability thresholds loaded from ``class_thresholds.json``
+    when present alongside the model weights (local directory or resolved cache path).
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Mapping, Sequence, Tuple
+from functools import lru_cache
 
 import numpy as np
 import torch
@@ -21,239 +25,226 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-__all__ = ["TextClassifier", "main"]
 
 
-class TextClassifier:
-    """Multi‑label text classifier wrapper.
+# ---------------------------------------------------------------------
+# Device selection and model loading
+# ---------------------------------------------------------------------
+def choose_device(device: str | None = None) -> str:
+    """Return the best available device string.
 
-    Parameters
-    ----------
-    model_path: str
-        HF hub model id or local directory containing a fine‑tuned model.
-    device: str | None
-        Explicit device ("cpu" / "cuda" / "cuda:0"). If ``None`` an available
-        CUDA device is used, else CPU.
+    If a specific device is provided, it's returned unchanged. Otherwise, this
+    function selects CUDA when available, else CPU.
     """
+    if device:
+        return device
+    try:
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:  # pragma: no cover - conservative
+        pass
+    return "cpu"
 
-    def __init__(self, model_path: str, device: str | None = None) -> None:
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.tokenizer = BertTokenizerFast.from_pretrained(model_path)
-        self.model_config = BertConfig.from_pretrained(model_path)
-        num_labels = getattr(self.model_config, "num_labels", 0)
-        self.id2label = getattr(
-            self.model_config,
-            "id2label",
-            {i: f"label_{i}" for i in range(num_labels)},
-        )
-        self.model = BertForSequenceClassification.from_pretrained(
-            model_path, config=self.model_config
-        )
-        # Move model to device via small wrapper to appease some static analyzers
-        self._move_to_device()
-        self.model.eval()
-        self.thresholds = self._load_thresholds(model_path)
-        self._nlp = None  # spaCy model cache
 
-    # ---------------------------------------------------------------------
-    # Internal helpers
-    # ---------------------------------------------------------------------
-    def _load_thresholds(self, model_path: str) -> dict:
-        path = os.path.join(model_path, "class_thresholds.json")
+@lru_cache(maxsize=2)
+def load_text_model(model_path: str, device: str | None = None) -> Tuple[
+    BertTokenizerFast, BertConfig, Mapping[int, str], BertForSequenceClassification, Mapping[str, float]
+]:
+    """Lazily load and cache tokenizer, config, model, and thresholds.
+
+    Returns (tokenizer, config, id2label, model, thresholds).
+    """
+    dev = choose_device(device)
+
+    # Load lightweight bits first
+    tokenizer = BertTokenizerFast.from_pretrained(model_path)
+    config = BertConfig.from_pretrained(model_path)
+    num_labels = getattr(config, "num_labels", 0)
+    id2label: Mapping[int, str] = getattr(
+        config, "id2label", {i: f"label_{i}" for i in range(num_labels)}
+    )
+
+    # Load model and move to device
+    model = BertForSequenceClassification.from_pretrained(model_path, config=config)
+    try:  # pragma: no cover - trivial
+        model.to(dev)  # type: ignore[call-arg]
+    except Exception:
+        pass
+    model.eval()
+
+    thresholds = _load_thresholds_multi_path(model_path, tokenizer, model)
+    return tokenizer, config, id2label, model, thresholds
+
+
+def _load_thresholds_multi_path(
+    model_path: str,
+    tokenizer: BertTokenizerFast | None = None,
+    model: BertForSequenceClassification | None = None,
+) -> Mapping[str, float]:
+    """Attempt to locate class_thresholds.json near the resolved model files."""
+    candidates: List[str] = []
+    if os.path.isdir(model_path):
+        candidates.append(model_path)
+    for obj in (tokenizer, getattr(model, "config", None), model):
+        if obj is None:
+            continue
+        p = getattr(obj, "name_or_path", None) or getattr(obj, "_name_or_path", None)
+        if isinstance(p, str) and os.path.isdir(p):
+            candidates.append(p)
+
+    for base in candidates:
+        path = os.path.join(base, "class_thresholds.json")
         if os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        # Ensure numeric floats
+                        return {str(k): float(v) for k, v in data.items()}
             except Exception:
-                return {}
-        return {}
+                continue
+    return {}
 
-    def _get_nlp(self):  # pragma: no cover - optional path
-        if self._nlp is not None:
-            return self._nlp
-        try:  # optional dependency
-            import spacy  # type: ignore
+
+# ---------------------------------------------------------------------
+# Text utilities
+# ---------------------------------------------------------------------
+_NLP = None  # module-level cache for spaCy model
+
+
+def _get_nlp():  # pragma: no cover - optional path
+    global _NLP
+    if _NLP is not None:
+        return _NLP
+    try:  # optional dependency
+        import spacy  # type: ignore
+    except Exception:
+        _NLP = None
+        return None
+    # Try SciSpaCy first then general English
+    for model_name in ("en_core_sci_sm", "en_core_web_sm"):
+        try:
+            _NLP = spacy.load(model_name)  # type: ignore
+            break
         except Exception:
-            self._nlp = None
-            return None
-        # Try SciSpaCy first then general English
-        for model_name in ("en_core_sci_sm", "en_core_web_sm"):
             try:
-                self._nlp = spacy.load(model_name)  # type: ignore
+                spacy.cli.download(model_name)  # type: ignore
+                _NLP = spacy.load(model_name)  # type: ignore
                 break
             except Exception:
-                try:
-                    spacy.cli.download(model_name)  # type: ignore
-                    self._nlp = spacy.load(model_name)  # type: ignore
-                    break
-                except Exception:
-                    continue
-        return self._nlp
+                continue
+    return _NLP
 
-    def _split_sentences(self, text: str) -> List[str]:
-        nlp = self._get_nlp()
-        if nlp is not None:
-            try:
-                return [s.text.strip() for s in nlp(text).sents if s.text.strip()]
-            except Exception:
-                pass
-        # Fallbacks
-        try:  # nltk fallback
-            import nltk  # type: ignore
-            from nltk.tokenize import sent_tokenize  # type: ignore
 
-            nltk.download("punkt", quiet=True)  # idempotent
-            return [s.strip() for s in sent_tokenize(text) if s.strip()]
-        except Exception:
-            return [s.strip() for s in text.split('.') if s.strip()]
-
-    # Device helper -----------------------------------------------------
-    def _move_to_device(self) -> None:
-        """Safely move model to target device.
-
-        Wrapped to avoid over-eager static analyzers misinterpreting the
-        ``.to`` invocation as a call on the *class* rather than the instance.
-        Silently ignores failures (e.g., if a meta device is used in tests).
-        """
-        try:  # pragma: no cover - trivial
-            self.model.to(self.device)  # type: ignore[call-arg]
+def _split_sentences(text: str) -> List[str]:
+    nlp = _get_nlp()
+    if nlp is not None:
+        try:
+            return [s.text.strip() for s in nlp(text).sents if s.text.strip()]
         except Exception:
             pass
+    # Fallbacks
+    try:  # nltk fallback
+        import nltk  # type: ignore
+        from nltk.tokenize import sent_tokenize  # type: ignore
 
-    # ---------------------------------------------------------------------
-    # Public API
-    # ---------------------------------------------------------------------
-    def predict_probability(
-        self, texts: Sequence[str], max_length: int = 256
-    ) -> np.ndarray:
-        if isinstance(texts, str):  # type: ignore
-            texts = [texts]  # type: ignore
-        enc = self.tokenizer(
-            list(texts),
-            padding=True,
-            truncation=True,
-            max_length=max_length,
-            return_tensors="pt",
-        )
-        enc = {k: v.to(self.device) for k, v in enc.items()}
-        with torch.no_grad():
-            out = self.model(**enc)
-            probs = torch.sigmoid(out.logits).cpu().numpy()
-        return probs
-
-    def _probabilities_to_mask(
-        self, probs: np.ndarray, rule: str | float | int = 0.01
-    ) -> np.ndarray:
-        n_samples, n_classes = probs.shape
-        mask = np.zeros_like(probs, dtype=int)
-
-        # Build per-class thresholds (if numeric rule)
-        per_class = None
-        if isinstance(rule, (int, float)):
-            per_class = []
-            for i in range(n_classes):
-                label = self.id2label.get(i, f"label_{i}")
-                per_class.append(self.thresholds.get(label, float(rule)))
-
-        for i, row in enumerate(probs):
-            if rule == "max":
-                mask[i, int(np.argmax(row))] = 1
-            elif isinstance(rule, str) and rule.startswith("top-"):
-                try:
-                    top_n = int(rule.split('-')[1])
-                except ValueError as e:  # pragma: no cover - defensive
-                    raise ValueError("Invalid top-N rule format: use 'top-N'.") from e
-                top_idx = np.argsort(row)[::-1][:top_n]
-                mask[i, top_idx] = 1
-            elif per_class is not None:
-                for j, p in enumerate(row):
-                    if p >= per_class[j]:
-                        mask[i, j] = 1
-            else:  # pragma: no cover - unexpected
-                raise ValueError("Unsupported threshold rule.")
-        return mask
-
-    def predict(
-        self,
-        texts: Sequence[str] | str,
-        max_length: int = 256,
-        threshold_rule: str | float | int = 0.01,
-        split_sentences: bool = False,
-    ) -> List[List[str]]:
-        if isinstance(texts, str):
-            texts_list = [texts]
-        else:
-            texts_list = list(texts)
-
-        if split_sentences:
-            agg = []
-            for t in texts_list:
-                parts = self._split_sentences(t)
-                parts.append(t)  # include full context
-                p = self.predict_probability(parts, max_length=max_length)
-                agg.append(p.max(axis=0))
-            probs = np.vstack(agg)
-        else:
-            probs = self.predict_probability(texts_list, max_length=max_length)
-
-        mask = self._probabilities_to_mask(probs, threshold_rule)
-        predictions: List[List[str]] = []
-        for row in mask:
-            labels = [self.id2label.get(i, f"label_{i}") for i, v in enumerate(row) if v == 1]
-            predictions.append(labels)
-        return predictions
+        nltk.download("punkt", quiet=True)  # idempotent
+        return [s.strip() for s in sent_tokenize(text) if s.strip()]
+    except Exception:
+        return [s.strip() for s in text.split('.') if s.strip()]
 
 
-def main(argv: Iterable[str] | None = None) -> None:  # CLI helper
-    parser = argparse.ArgumentParser(
-        description="Multi-label biome text classifier"
+# ---------------------------------------------------------------------
+# Public API (pure functions)
+# ---------------------------------------------------------------------
+def predict_probability(
+    texts: Sequence[str] | str,
+    model_path: str,
+    device: str | None = None,
+    max_length: int = 256,
+) -> np.ndarray:
+    if isinstance(texts, str):  # type: ignore
+        texts = [texts]  # type: ignore
+    tokenizer, _config, _id2label, model, _thresholds = load_text_model(model_path, device)
+    enc = tokenizer(
+        list(texts),
+        padding=True,
+        truncation=True,
+        max_length=max_length,
+        return_tensors="pt",
     )
-    parser.add_argument(
-        "--model_path",
-        default="SantiagoSanchezF/trapiche-biome-classifier",
-        help="HF hub model id or local directory",
-    )
-    parser.add_argument(
-        "--input_text",
-        required=True,
-        help="Raw text or path to JSON list file",
-    )
-    parser.add_argument(
-        "--output_file",
-        help="Optional path to write predictions as JSON",
-    )
-    parser.add_argument(
-        "--threshold",
-        default=0.01,
-        help="Threshold rule: float/int, 'max', or 'top-N' (e.g. top-3)",
-    )
-    parser.add_argument(
-        "--split",
-        action="store_true",
-        help="Enable sentence splitting aggregation",
-    )
-    args = parser.parse_args(list(argv) if argv is not None else None)
+    dev = choose_device(device)
+    enc = {k: v.to(dev) for k, v in enc.items()}
+    with torch.no_grad():
+        out = model(**enc)
+        probs = torch.sigmoid(out.logits).cpu().numpy()
+    return probs
 
-    clf = TextClassifier(args.model_path)
 
-    if os.path.isfile(args.input_text) and args.input_text.endswith(".json"):
-        with open(args.input_text, "r", encoding="utf-8") as fh:
-            texts = json.load(fh)
+def probabilities_to_mask(
+    probs: np.ndarray,
+    id2label: Mapping[int, str],
+    thresholds: Mapping[str, float],
+    rule: str | float | int = 0.01,
+) -> np.ndarray:
+    n_samples, n_classes = probs.shape
+    mask = np.zeros_like(probs, dtype=int)
+
+    # Build per-class thresholds (if numeric rule)
+    per_class = None
+    if isinstance(rule, (int, float)):
+        per_class = [thresholds.get(id2label.get(i, f"label_{i}"), float(rule)) for i in range(n_classes)]
+
+    for i, row in enumerate(probs):
+        if rule == "max":
+            mask[i, int(np.argmax(row))] = 1
+        elif isinstance(rule, str) and rule.startswith("top-"):
+            try:
+                top_n = int(rule.split('-')[1])
+            except ValueError as e:  # pragma: no cover - defensive
+                raise ValueError("Invalid top-N rule format: use 'top-N'.") from e
+            top_idx = np.argsort(row)[::-1][:top_n]
+            mask[i, top_idx] = 1
+        elif per_class is not None:
+            for j, p in enumerate(row):
+                if p >= per_class[j]:
+                    mask[i, j] = 1
+        else:  # pragma: no cover - unexpected
+            raise ValueError("Unsupported threshold rule.")
+    return mask
+
+
+def predict(
+    texts: Sequence[str] | str,
+    model_path: str = "SantiagoSanchezF/trapiche-biome-classifier",
+    device: str | None = None,
+    max_length: int = 256,
+    threshold_rule: str | float | int = 0.01,
+    split_sentences: bool = False,
+) -> List[List[str]]:
+    if isinstance(texts, str):
+        texts_list = [texts]
     else:
-        texts = [args.input_text]
+        texts_list = list(texts)
 
-    preds = clf.predict(
-        texts,
-        threshold_rule=args.threshold,  # type: ignore[arg-type]
-        split_sentences=args.split,
-    )
+    tokenizer, _config, id2label, _model, thresholds = load_text_model(model_path, device)
+    # Unused tokenizer variable purposefully retained to ensure cache priming above
+    _ = tokenizer  # pragma: no cover
 
-    if args.output_file:
-        with open(args.output_file, "w", encoding="utf-8") as fh:
-            json.dump(preds, fh, indent=2)
+    if split_sentences:
+        agg = []
+        for t in texts_list:
+            parts = _split_sentences(t)
+            parts.append(t)  # include full context
+            p = predict_probability(parts, model_path=model_path, device=device, max_length=max_length)
+            agg.append(p.max(axis=0))
+        probs = np.vstack(agg) if agg else np.zeros((0, len(id2label)))
     else:
-        print(json.dumps(preds, indent=2))
+        probs = predict_probability(texts_list, model_path=model_path, device=device, max_length=max_length)
 
-
-if __name__ == "__main__":  # pragma: no cover
-    main()
+    mask = probabilities_to_mask(probs, id2label=id2label, thresholds=thresholds, rule=threshold_rule)
+    predictions: List[List[str]] = []
+    for row in mask:
+        labels = [id2label.get(i, f"label_{i}") for i, v in enumerate(row) if v == 1]
+        predictions.append(labels)
+    return predictions

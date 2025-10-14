@@ -8,13 +8,7 @@ from functools import lru_cache
 
 from .api import Community2vec
 
-# %% auto 0
-__all__ = ['TAG', 'DATA_DIR', 'TMP_DIR', 'mgnify_sample_vectors', 'mgnify_sample_vectors_metadata', 'k', 'min_projects_vote', 'dominance_thres', 'k2',
-           'dominance_thres2', 'tags_dct_file', 'tags_li', 'bioms', 'tag_biomes', 'tnp_core_df_file', 'slim_core_df',
-           'best_params', 'final_model_file', 'bnn_model2gg', 'get_bnn_model', 'tflite_model_quant_file', 'generate_all_combinations',
-           'focal_loss_fixed', 'load_custom_model', 'pc_deviation_consensus', 'find_best_path', 'from_probs_to_pred',
-           'get_lineage_frquencies', 'refine_predictions_knn', 'full_stack_prediction', 'chunked_fuzzy_prediction',
-           'vectorise_run', 'predict_runs']
+
 
 import os
 import json
@@ -278,13 +272,13 @@ def full_stack_prediction(query_vector, constrain,k_knn=10, dominance_threshold=
     predicted_lineages = from_probs_to_pred(deep_l_probs, potential_space=constrain)
 
     pred_df = pd.DataFrame(
-        predicted_lineages, columns=["lineage_pred", "lineage_pred_prob"]
+        predicted_lineages, columns=["lineage_prediction", "lineage_prediction_probability"]
     )
 
     # refinement phase
     refined = [None] * pred_df.shape[0]
 
-    for pred, gr in pred_df.groupby("lineage_pred"):
+    for pred, gr in pred_df.groupby("lineage_prediction"):
         query_array = query_vector[gr.index]
         refs = refine_predictions_knn(
             pred, query_array, mgnify_sample_vectors_metadata, k_knn=k_knn, dominance_threshold=dominance_threshold, vector_space=vector_space
@@ -292,7 +286,7 @@ def full_stack_prediction(query_vector, constrain,k_knn=10, dominance_threshold=
         for ix, pp in zip(gr.index, refs):
             refined[ix] = pp
     pred_df["refined_prediction"] = refined
-    pred_df["unbiased_taxo_prediction"] = [tag_biomes.get(tags_li[idx], None) for idx in np.argsort(deep_l_probs)[:, -1]]
+    pred_df["prediction_non_constrained"] = [tag_biomes.get(tags_li[idx], None) for idx in np.argsort(deep_l_probs)[:, -1]]
 
     for ix, t in enumerate(tags_li):
         pred_df[t] = deep_l_probs[:, ix]
@@ -314,7 +308,7 @@ def chunked_fuzzy_prediction(query_vector, constrain,k_knn=10, dominance_thresho
     return pd.concat(results).reset_index()
 
 def predict_runs(
-    list_of_list,
+    community_vectors,
     return_full_preds=False,
     constrain=None,
     batch_size=200,
@@ -322,32 +316,28 @@ def predict_runs(
     dominance_threshold=0.5,
 ):
     """Predict lineage of runs based on multiple taxonomy files (diamond/SSU/LSU mix)."""
-    logger.info(f"predict_runs called n_samples={len(list_of_list)} return_full_preds={return_full_preds}")
+    logger.info(f"predict_runs called n_samples={len(community_vectors)} return_full_preds={return_full_preds}")
 
-    comm2vec = Community2vec()
-    if constrain is not None:
-        logger.debug(f"constrain={constrain}")
-    full_vec = comm2vec.transform(list_of_list)
-    logger.info(f"vectorise_run output shape={full_vec.shape}")
+    logger.info(f"vectorise_run output shape={community_vectors.shape}")
 
-    if full_vec.shape[1] == 0:  # no features extracted
-        logger.warning(f"No features extracted from input; returning empty DataFrame n_samples={len(list_of_list)}")
+    if community_vectors.shape[1] == 0:  # no features extracted
+        logger.warning(f"No features extracted from input; returning empty DataFrame n_samples={len(community_vectors)}")
         empty_df = pd.DataFrame({
-            "refined_prediction": [None]*len(list_of_list),
-            "lineage_pred_prob": [np.nan]*len(list_of_list),
-            "lineage_pred": [None]*len(list_of_list),
-            "unbiased_taxo_prediction": [None]*len(list_of_list),
+            "refined_prediction": [None]*len(community_vectors),
+            "lineage_prediction_probability": [np.nan]*len(community_vectors),
+            "lineage_prediction": [None]*len(community_vectors),
+            "prediction_non_constrained": [None]*len(community_vectors),
         })
-        return (empty_df if return_full_preds else empty_df[["refined_prediction", "lineage_pred_prob"]]), full_vec
+        return (empty_df if return_full_preds else empty_df[["refined_prediction", "lineage_prediction_probability"]]), community_vectors
 
     if constrain is None:
-        constrain = [[] for _ in list_of_list]
+        constrain = [[] for _ in community_vectors]
 
-    result = chunked_fuzzy_prediction(full_vec, constrain, k_knn=k_knn, dominance_threshold=dominance_threshold, batch_size=batch_size)
+    result = chunked_fuzzy_prediction(community_vectors, constrain, k_knn=k_knn, dominance_threshold=dominance_threshold, batch_size=batch_size)
     logger.info(f"chunked_fuzzy_prediction output shape={result.shape if hasattr(result, 'shape') else None}")
     logger.debug(f"result columns={getattr(result, 'columns', None)} head={result.head().to_dict() if hasattr(result, 'head') else None}")
 
     if not return_full_preds:
-        result = result[["refined_prediction", "lineage_pred_prob"]]
+        result = result[["refined_prediction", "lineage_prediction_probability"]]
     logger.info(f"predict_runs returning result shape={result.shape if hasattr(result, 'shape') else None}")
-    return result, full_vec
+    return result, community_vectors
