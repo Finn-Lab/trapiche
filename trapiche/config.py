@@ -45,7 +45,25 @@ class TextToBiomeParams:
 
 @dataclass
 class TrapicheWorkflowParams:
-
+    """Parameters for the Trapiche workflow.
+    Attributes
+    ----------
+    run_text : bool
+        Whether to run the text classification step.
+    keep_text_results : bool
+        Whether to keep text classification results in the output.
+    run_vectorise : bool
+        Whether to run the community vectorisation step.
+    keep_vectorise_results : bool
+        Whether to keep community vectorisation results in the output.
+    run_taxonomy : bool
+        Whether to run the taxonomy prediction step.
+    keep_taxonomy_results : bool
+        Whether to keep taxonomy prediction results in the output.
+    output_keys : list[str] | None
+        If a list, only these keys will be kept in the final output dicts. If None, keys are controled by keep_*_results config.
+    
+    """
     run_text: bool = True
     keep_text_results: bool = False
     run_vectorise: bool = True

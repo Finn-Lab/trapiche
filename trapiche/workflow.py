@@ -29,9 +29,9 @@ def _read_text_file(path: str) -> str:
     if not p.exists():
         raise FileNotFoundError(f"Text file not found: {path}")
     try:
-        return p.read_text(encoding="utf-8")
+        return p.read_text(encoding="utf-8", errors="replace")
     except UnicodeDecodeError:
-        return p.read_text(encoding="ISO-8859-1")
+        return p.read_text(encoding="ISO-8859-1", errors="replace")
 
 
 def run_text_step(samples: Sequence[Dict[str, Any]], model_path: Optional[str] = None) -> List[Optional[List[str]]]:
@@ -40,22 +40,32 @@ def run_text_step(samples: Sequence[Dict[str, Any]], model_path: Optional[str] =
     Returns a list aligned with `samples` where each element is either the
     list of predicted labels or None if no text was provided for that sample.
     """
-    # Collect unique file paths and map samples -> unique index
-    path_to_index: Dict[str, int] = {}
+    # Collect unique text contents (either from inline text or from files)
+    # and map samples -> unique index. Inline `project_description_text` has
+    # priority over `project_description_file_path`.
+    content_to_index: Dict[str, int] = {}
     unique_texts: List[str] = []
     sample_to_unique_idx: List[Optional[int]] = []
 
     for s in samples:
-        tpath = s.get("project_description_file_path")
-        if not tpath:
-            sample_to_unique_idx.append(None)
-            continue
-        tpath = str(tpath)
-        if tpath not in path_to_index:
-            path_to_index[tpath] = len(unique_texts)
-            # read content now (avoid re-reading later)
-            unique_texts.append(_read_text_file(tpath))
-        sample_to_unique_idx.append(path_to_index[tpath])
+        inline = s.get("project_description_text")
+        if inline is not None:
+            # Ensure non-bytes and normalise to str. This is already treated as
+            # the file content would be (decoded string).
+            text_content = str(inline).encode("utf-8", errors="replace").decode("utf-8")
+        else:
+            tpath = s.get("project_description_file_path")
+            if not tpath:
+                sample_to_unique_idx.append(None)
+                continue
+            # Read from file and use its decoded text
+            text_content = _read_text_file(str(tpath))
+
+        # Deduplicate based on the actual text content
+        if text_content not in content_to_index:
+            content_to_index[text_content] = len(unique_texts)
+            unique_texts.append(text_content)
+        sample_to_unique_idx.append(content_to_index[text_content])
 
     if not unique_texts:
         return [None for _ in samples]
@@ -188,4 +198,3 @@ def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_v
                 s.update(txr)  # taxonomy results are a dict with several keys
 
     return result
-

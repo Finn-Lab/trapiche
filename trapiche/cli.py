@@ -74,7 +74,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("input", nargs="?", help="Input NDJSON file path (use - for stdin). Supports .gz")
     p.add_argument("-o", "--output", help="Output NDJSON file path (defaults to stdout). Use .gz to compress")
-
+    p.add_argument(
+        "--minimal-result",
+        dest="minimal_result",
+        action="store_true",
+        help=("When set, keep the minimal output."
+              "When not set, final keys are controlled by the --keep-*-results flags."),
+    )
     # workflow toggles mirroring TrapicheWorkflowParams
     p.add_argument("--no-text", dest="run_text", action="store_false", help="Do not run text prediction step")
     p.add_argument("--keep-text-results", dest="keep_text_results", action="store_true", help="Keep text intermediate results in output")
@@ -83,13 +89,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--no-taxonomy", dest="run_taxonomy", action="store_false", help="Do not run taxonomy prediction step")
     p.add_argument("--keep-taxonomy-results", dest="keep_taxonomy_results", action="store_true", help="Keep taxonomy intermediate results in output")
 
-    p.add_argument(
-        "--minimal-result",
-        dest="minimal_result",
-        action="store_true",
-        help=("When set, keep the minimal output."
-              "When not set, final keys are controlled by the --keep-*-results flags."),
-    )
+
 
     # defaults mirror dataclass defaults from TrapicheWorkflowParams
     defaults = TrapicheWorkflowParams()
@@ -100,7 +100,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         keep_vectorise_results=defaults.keep_vectorise_results,
         run_taxonomy=defaults.run_taxonomy,
         keep_taxonomy_results=defaults.keep_taxonomy_results,
-        minimal_result=True,
+        minimal_result=False,
     )
 
     return p.parse_args(argv)
