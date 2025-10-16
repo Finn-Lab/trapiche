@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trapiche"
-version = "0.9.0"
+dynamic = ["version"]
 description = "Trapiche biome prediction toolkit"
 readme = "README.md"
 authors = [{name = "Santiago Sanchez Fragoso", email = "fragoso@ebi.ac.uk"}]
@@ -35,6 +35,8 @@ dependencies = [
 
 urls = { Homepage = "https://github.com/Finn-Lab/trapiche" }
 
+[tool.setuptools_scm]
+write_to = "trapiche/_version.py"
 
 [tool.black]
 line-length = 100

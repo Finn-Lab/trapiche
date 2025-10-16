@@ -6,16 +6,13 @@ prediction refinement utilities.
 from __future__ import annotations
 from functools import lru_cache
 
-from .api import Community2vec
-
-
 
 import os
 import json
 import re
 import importlib
 import logging
-from typing import List, Sequence
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
@@ -23,9 +20,7 @@ import sys
 import json
 import numpy as np
 import pandas as pd
-from .utils import cosine_similarity_pairwise, get_path,tax_annotations_from_file, load_biome_herarchy_dict
-from .taxonomy_vectorization import genus_from_edges_subgraph, genre_to_taxonomy_vectorization
-import networkx as nx
+from .utils import cosine_similarity_pairwise, load_biome_herarchy_dict
 from more_itertools import chunked
 
 logger = logging.getLogger(__name__)
@@ -33,35 +28,19 @@ logger = logging.getLogger(__name__)
 
 from tqdm import tqdm
 
-from . import config
-
-
 from .taxonomy_vectorization import load_mgnify_c2v
-from . import model_registry
-
-biome_herarchy_dct = load_biome_herarchy_dict()
-
-TAG = 'taxonomy_prediction'
-
-DATA_DIR = f"{config.datadir}/{TAG}"
-TMP_DIR = f"{DATA_DIR}/temp"
-os.makedirs(TMP_DIR,exist_ok=True)
 
 from .utils import cosine_similarity_pairwise
-
-
 from .taxonomy_vectorization import load_mgnify_c2v
 
 
 
 @lru_cache
 def load_biome_tags_list():
-    tags_dct_file = get_path("resources/taxonomy/biome_tags_dct_file.json")
-    if not os.path.exists(tags_dct_file):
-        raise FileNotFoundError(
-            f"Biome tags dictionary file not found: {tags_dct_file}\n"
-            "Download using trapiche-download-models"
-            )
+    from .config import TaxonomyToVectorParams as _T2V
+    from .utils import _get_hf_model_path
+    _p = _T2V()
+    tags_dct_file = _get_hf_model_path(_p.hf_model, _p.model_version, "biome_tags_dct_file_*.json")
     logger.debug(f"Loading biome tags dictionary from file={tags_dct_file}")
     with open(tags_dct_file) as h:
         tags_dct = json.load(h)
@@ -124,10 +103,11 @@ def load_custom_model(model_file: str | None = None):
     """Load and compile the Keras model on demand with robust error handling.
     model_file: optional explicit path; if None, resolve via registry/legacy path.
     """
-    model_path = get_path("models/taxonomy/taxonomy_to_biome/1.0/taxonomy_to_biome_v1.0.model.h5")
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found: {model_path}\n"
-                                "Download using trapiche-download-models")
+    # Resolve model path via HF hub using taxonomy_to_biome assets in the taxonomy classifier repo
+    from .config import TaxonomyToBiomeParams as _T2B
+    from .utils import _get_hf_model_path
+    _p = _T2B()
+    model_path = _get_hf_model_path(_p.hf_model, _p.model_version, "taxonomy_to_biome_*.h5")
     logger.debug(f"Loading model from file={model_path}")
 
     tf = _get_tensorflow()
@@ -224,10 +204,10 @@ def get_lineage_frquencies(co):  # spelling retained for backwards compatibility
     node_frequencies = {k: sum(v) / total_samples for k, v in _node_frquencies.items()}
     return node_frequencies
 
-def refine_predictions_knn(prediction, query_vector, full_subject_df, tru_column='BIOME_AMEND', k_knn=10, dominance_threshold=0.5, vector_space='g'):
+def refine_predictions_knn(prediction, query_vector, full_subject_df, tru_column='BIOME_AMEND', k_knn=10, dominance_threshold=0.5, vector_space='g', *, model_name: str | None = None, model_version: str | None = None):
     """ Function that given a previous prediction from the deepL model, finds close relatives
     """
-    mgnify_sample_vectors, _ = load_mgnify_c2v()
+    mgnify_sample_vectors, _ = load_mgnify_c2v(model_name=model_name, model_version=model_version)
     if prediction is None:
         prediction = ''
     _subject_df = full_subject_df[full_subject_df[tru_column].str.contains(prediction)]
@@ -257,13 +237,14 @@ np.seterr(
 )  # handle bad files == divition by zero error
 
 
-def full_stack_prediction(query_vector, constrain,k_knn=10, dominance_threshold=0.5, vector_space="g"):
+def full_stack_prediction(query_vector, constrain,k_knn=10, dominance_threshold=0.5, vector_space="g", *, model_name: str | None = None, model_version: str | None = None):
     """Function for prediction of biome based on taxonomic compositon"""
     # prediction baded on deep learning model
     # deep_l_probs = tflite_prediction(taxo_qunat_interpreter, query_vector)
-    _, mgnify_sample_vectors_metadata = load_mgnify_c2v()
+    _, mgnify_sample_vectors_metadata = load_mgnify_c2v(model_name=model_name, model_version=model_version)
     tag_biomes,_ = load_tag_biomes()
     tags_li = load_biome_tags_list()
+    biome_herarchy_dct = load_biome_herarchy_dict()
 
     mgnify_sample_vectors_metadata['BIOME_AMEND'] = mgnify_sample_vectors_metadata.LINEAGE.map(lambda x: biome_herarchy_dct.get(x, x))
     
@@ -281,7 +262,7 @@ def full_stack_prediction(query_vector, constrain,k_knn=10, dominance_threshold=
     for pred, gr in pred_df.groupby("lineage_prediction"):
         query_array = query_vector[gr.index]
         refs = refine_predictions_knn(
-            pred, query_array, mgnify_sample_vectors_metadata, k_knn=k_knn, dominance_threshold=dominance_threshold, vector_space=vector_space
+            pred, query_array, mgnify_sample_vectors_metadata, k_knn=k_knn, dominance_threshold=dominance_threshold, vector_space=vector_space, model_name=model_name, model_version=model_version
         )
         for ix, pp in zip(gr.index, refs):
             refined[ix] = pp
@@ -293,16 +274,16 @@ def full_stack_prediction(query_vector, constrain,k_knn=10, dominance_threshold=
 
     return pred_df
 
-def chunked_fuzzy_prediction(query_vector, constrain,k_knn=10, dominance_threshold=0.5, batch_size=200, vector_space="g"):
+def chunked_fuzzy_prediction(query_vector, constrain,k_knn=10, dominance_threshold=0.5, batch_size=200, vector_space="g", *, model_name: str | None = None, model_version: str | None = None):
     """Process prediction in chunks to limit memory usage."""
 
     splits = chunked(range(query_vector.shape[0]), batch_size)
 
     results = []
 
-    for spl in tqdm(splits, desc=TAG):
+    for spl in tqdm(splits, desc='taxonomy_prediction'):
         _results = full_stack_prediction(
-            query_vector[spl], [constrain[ix] for ix in spl],k_knn=k_knn,dominance_threshold=dominance_threshold, vector_space=vector_space
+            query_vector[spl], [constrain[ix] for ix in spl],k_knn=k_knn,dominance_threshold=dominance_threshold, vector_space=vector_space, model_name=model_name, model_version=model_version
         )
         results.append(_results)
     return pd.concat(results).reset_index()
@@ -314,6 +295,7 @@ def predict_runs(
     batch_size=200,
     k_knn=10,
     dominance_threshold=0.5,
+    *, model_name: str | None = None, model_version: str | None = None,
 ):
     """Predict lineage of runs based on multiple taxonomy files (diamond/SSU/LSU mix)."""
     logger.info(f"predict_runs called n_samples={len(community_vectors)} return_full_preds={return_full_preds}")
@@ -333,7 +315,7 @@ def predict_runs(
     if constrain is None:
         constrain = [[] for _ in community_vectors]
 
-    result = chunked_fuzzy_prediction(community_vectors, constrain, k_knn=k_knn, dominance_threshold=dominance_threshold, batch_size=batch_size)
+    result = chunked_fuzzy_prediction(community_vectors, constrain, k_knn=k_knn, dominance_threshold=dominance_threshold, batch_size=batch_size, model_name=model_name, model_version=model_version)
     logger.info(f"chunked_fuzzy_prediction output shape={result.shape if hasattr(result, 'shape') else None}")
     logger.debug(f"result columns={getattr(result, 'columns', None)} head={result.head().to_dict() if hasattr(result, 'head') else None}")
 

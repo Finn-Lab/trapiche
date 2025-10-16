@@ -70,20 +70,17 @@ def run_text_step(samples: Sequence[Dict[str, Any]], model_path: Optional[str] =
     if not unique_texts:
         return [None for _ in samples]
 
-    # Change model_path in TextToBiomeParams
-    if model_path is not None:
-        params_obj = TextToBiomeParams(model_path=model_path)
-        preds_unique = tt.predict(
-            unique_texts,
-            model_path=params_obj.model_path,
-            device=params_obj.device,
-            max_length=params_obj.max_length,
-            threshold_rule=params_obj.threshold_rule,
-            split_sentences=params_obj.split_sentences,
-        )
-    else:
-        # Let `text_prediction.predict` use its own defaults
-        preds_unique = tt.predict(unique_texts)
+    # Build params for text model
+    params_obj = TextToBiomeParams()
+    preds_unique = tt.predict(
+        unique_texts,
+        model_name=params_obj.hf_model,
+        model_version=params_obj.model_version,
+        device=params_obj.device,
+        max_length=params_obj.max_length,
+        threshold_rule=params_obj.threshold_rule,
+        split_sentences=params_obj.split_sentences,
+    )
 
     # Map back to samples
     results: List[Optional[List[str]]] = []
@@ -95,7 +92,7 @@ def run_text_step(samples: Sequence[Dict[str, Any]], model_path: Optional[str] =
     return results
 
 
-def run_vectorise_step(samples: Sequence[Dict[str, Any]]) -> np.ndarray:
+def run_vectorise_step(samples: Sequence[Dict[str, Any]], *, model_name: str | None = None, model_version: str | None = None) -> np.ndarray:
     """Run Community2vec.transform over the samples.
 
     For efficiency this function will deduplicate identical taxonomy file lists
@@ -116,7 +113,8 @@ def run_vectorise_step(samples: Sequence[Dict[str, Any]]) -> np.ndarray:
         return np.array([np.zeros((0,)) for _ in samples])
 
     # Call the vectoriser directly (avoids importing the API wrapper)
-    return c2v_mod.vectorise_sample(sample_lists)
+    # Require explicit model parameters
+    return c2v_mod.vectorise_sample(sample_lists, model_name=model_name, model_version=model_version)
 
 
 def run_taxonomy_step(samples: Sequence[Dict[str, Any]], community_vectors: Optional[ np.ndarray | Sequence] = None, text_constraints: Optional[Sequence[Optional[List[str]]]] = None) -> Sequence[Optional[Dict[str, Any]]]:
@@ -125,7 +123,8 @@ def run_taxonomy_step(samples: Sequence[Dict[str, Any]], community_vectors: Opti
     If community_vectors is None the function computes them.
     """
     if community_vectors is None:
-        community_vectors = run_vectorise_step(samples)
+        # When used from run_workflow, we pass community vectors explicitly; keep signature for compatibility.
+        community_vectors = run_vectorise_step(samples)  
 
     # Constraints: pass text constraints as-is (list per sample) or None
     constrain = [c if c is not None else [] for c in (text_constraints or [None]*len(samples))]
@@ -161,7 +160,7 @@ def run_taxonomy_step(samples: Sequence[Dict[str, Any]], community_vectors: Opti
     return rows
 
 
-def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_vectorise: bool = True, run_taxonomy: bool = True) -> Sequence[Dict[str, Any]]:
+def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_vectorise: bool = True, run_taxonomy: bool = True, *, model_name: str | None = None, model_version: str | None = None) -> Sequence[Dict[str, Any]]:
     """Run the requested steps and return augmented sample dicts.
 
     The input `samples` is not modified; a new list with shallow-copied dicts is
@@ -177,7 +176,7 @@ def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_v
 
     # If taxonomy is requested, but not taxonomy_vectorization compute community vectors (used internally too)
     if run_vectorise or run_taxonomy:
-        community_vectors = run_vectorise_step(samples)
+        community_vectors = run_vectorise_step(samples, model_name=model_name, model_version=model_version)
     else:
         community_vectors = [None for _ in samples]
 

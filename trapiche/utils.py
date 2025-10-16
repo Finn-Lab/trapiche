@@ -175,9 +175,13 @@ def tax_annotations_from_file(f):
 
 @lru_cache
 def load_biome_herarchy_dict():
-    p = get_path("resources/biome/biome_herarchy_amended.json")
+    from .config import TaxonomyToVectorParams as _T2V
+    from .utils import _get_hf_model_path
+    _p = _T2V()
+    p = _get_hf_model_path(_p.hf_model, _p.model_version, "biome_herarchy_amended_*.json")
+
     if not p.exists():
-        raise FileNotFoundError(f"biome_herarchy_amended.json not found at {p}")
+        raise FileNotFoundError(f"{p} not found")
     logger.debug(f"Loading biome_herarchy_dct from file={p}")
     # Load the biome hierarchy dictionary from the compressed JSON file
     with open(p, encoding="utf-8") as f:

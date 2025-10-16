@@ -9,8 +9,16 @@ from .workflow import run_workflow
 from typing import Dict, Any, Sequence
 
 class Community2vec:
-    def __init__(self):
-        pass
+    def __init__(self, model_name: str | None = None, model_version: str | None = None):
+        # If not provided, default to config defaults
+        if model_name is None or model_version is None:
+            from .config import TaxonomyToVectorParams as _T2V
+            _p = _T2V()
+            self.model_name = model_name or _p.hf_model
+            self.model_version = model_version or _p.model_version
+        else:
+            self.model_name = model_name
+            self.model_version = model_version
     def transform(self, list_of_tax_files) -> np.ndarray:
         """Vectorise one or many samples from taxonomy annotation files.
 
@@ -32,7 +40,7 @@ class Community2vec:
         """
         from .taxonomy_vectorization import vectorise_sample
 
-        self.vectorised_samples = vectorise_sample(list_of_tax_files)
+        self.vectorised_samples = vectorise_sample(list_of_tax_files, model_name=self.model_name, model_version=self.model_version)
         return self.vectorised_samples
     
     def save(self, path: str | Path) -> None:
@@ -58,6 +66,7 @@ class TaxonomyToBiome:
         constrain: Sequence[Sequence[str]] | None = None,
         return_full_preds: bool = False,
         params: TaxonomyToBiomeParams | None = None,
+        *, model_name: str | None = None, model_version: str | None = None,
     ):
         """Run deep biome lineage prediction.
 
@@ -90,6 +99,8 @@ class TaxonomyToBiome:
             batch_size=_params.batch_size,
             k_knn=_params.k_knn,
             dominance_threshold=_params.dominance_threshold,
+            model_name=model_name,
+            model_version=model_version,
         )
         return self.df, self.vec
     
@@ -133,7 +144,8 @@ class TextToBiome:
         _p = params or self.params
         preds = tt.predict(
             texts,
-            model_path=_p.model_path,
+            model_name=_p.hf_model,
+            model_version=_p.model_version,
             device=_p.device,
             max_length=_p.max_length,
             threshold_rule=_p.threshold_rule,
@@ -166,7 +178,7 @@ class TrapicheWorkflowFromSequence:
     def __init__(self, params: TrapicheWorkflowParams | None = None) -> None:
         self.params = params or TrapicheWorkflowParams()
 
-    def run(self, samples: Sequence[Dict[str, Any]]) -> Sequence[Dict[str, Any]]:
+    def run(self, samples: Sequence[Dict[str, Any]], *, model_name: str | None = None, model_version: str | None = None) -> Sequence[Dict[str, Any]]:
         """Run the workflow on `samples` and return the augmented list.
 
         Parameters
@@ -177,7 +189,14 @@ class TrapicheWorkflowFromSequence:
             of dicts (shallow copies) augmented with results per sample.
         """
 
-        result = run_workflow(samples, run_text=self.params.run_text, run_vectorise=self.params.run_vectorise, run_taxonomy=self.params.run_taxonomy)
+        result = run_workflow(
+            samples,
+            run_text=self.params.run_text,
+            run_vectorise=self.params.run_vectorise,
+            run_taxonomy=self.params.run_taxonomy,
+            model_name=model_name,
+            model_version=model_version,
+        )
 
         # process which keys to keep according to config
         keep_keys = set()

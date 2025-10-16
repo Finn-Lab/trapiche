@@ -17,7 +17,8 @@ import pandas as pd
 
 import networkx as nx
 from gensim.models import Word2Vec, KeyedVectors
-from .utils import get_path, tax_annotations_from_file
+from .utils import _get_hf_model_path, tax_annotations_from_file
+from .config import TaxonomyToVectorParams
 
 import logging
 logger = logging.getLogger(__name__)
@@ -44,8 +45,18 @@ class BiomeEmbeddings:
     taxo_ids: dict
 
 
+def _resolve_model_params(model_name: str | None, model_version: str | None) -> tuple[str, str]:
+    """Resolve model name/version; require explicit values to avoid hidden config accesses.
+
+    Note: Pass model parameters from API/CLI by constructing TaxonomyToVectorParams there.
+    """
+    if model_name is None or model_version is None:
+        raise ValueError("model_name and model_version must be provided; pass them from API/CLI using TaxonomyToVectorParams().")
+    return model_name, model_version
+
+
 @lru_cache
-def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
+def load_biome_embeddings(load_full_model: bool = False, *, model_name: str | None = None, model_version: str | None = None) -> BiomeEmbeddings:
     """Lazy load biome embedding assets with caching.
 
     Parameters
@@ -54,15 +65,21 @@ def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
         If True load the full Word2Vec model (slower, more RAM). Otherwise only load KeyedVectors
         (lighter) when/if required.
     """
-    taxonomy_vectorization_model_path = get_path('models/biome/taxonomy_vectorization/1.0/taxonomy_vectorization_model_v1.0.model')
-    model_vocab_file = get_path('models/biome/taxonomy_vectorization/1.0/taxonomy_vectorization_model_vocab_v1.0.json')
-    vec_file = get_path('models/biome/taxonomy_vectorization/1.0/taxonomy_vectorization_model_vocab_v1.0.json')
+    # Resolve model params (explicit overrides > config defaults).
+    model_name, model_version = _resolve_model_params(model_name, model_version)
+
+    # Resolve expected files from the model repository. The file patterns
+    # should match the files stored in the HuggingFace model repo. Adjust
+    # patterns if your repo uses different names.
+    taxonomy_vectorization_model_path = _get_hf_model_path(model_name, model_version, "taxonomy_vectorization_model_*.model")
+    model_vocab_file = _get_hf_model_path(model_name, model_version, "taxonomy_vectorization_model_vocab_*.json")
+    vec_file = _get_hf_model_path(model_name, model_version, "taxonomy_vectorization_model_vectors_*.npy")
 
     missing = [p for p in (taxonomy_vectorization_model_path, model_vocab_file, vec_file) if not Path(p).exists()]
     if missing:
         raise FileNotFoundError(
             "Missing biome2vec model files: " + ", ".join(map(str, missing)) +
-            f" (base dir: {get_path('')}).\nPlease run `trapiche-download-models` to download the required models."
+            f" (HF model: {model_name} version {model_version}).\nPlease ensure the model files are available in the HuggingFace model repository or run `trapiche-download-models`."
         )
 
     logger.info("Loading biome embeddings (full_model=%s)", load_full_model)
@@ -72,7 +89,7 @@ def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
     # Memory-map vectors (fast, minimal RAM upfront)
     _vectors = np.load(vec_file, mmap_mode='r')
     # Load taxonomy ids (cached)
-    _taxo_ids = load_taxonomy_ids()
+    _taxo_ids = load_taxonomy_ids(model_name=model_name, model_version=model_version)
     _keyed: KeyedVectors | None = None
     if load_full_model:
         # Load full model only when explicitly requested
@@ -80,7 +97,7 @@ def load_biome_embeddings(load_full_model: bool = False) -> BiomeEmbeddings:
     return BiomeEmbeddings(keyed=_keyed, model_vocab=_model_vocab, vectors=_vectors, taxo_ids=_taxo_ids)
 
 
-def load_biome2vec(load_full_model: bool = True) -> KeyedVectors:
+def load_biome2vec(load_full_model: bool = True, *, model_name: str | None = None, model_version: str | None = None) -> KeyedVectors:
     """Backward-compatible loader returning keyed vectors (full model subset).
 
     Parameters
@@ -88,20 +105,22 @@ def load_biome2vec(load_full_model: bool = True) -> KeyedVectors:
     load_full_model : bool
         Whether to force loading the full model (same behaviour as before). Provided for API stability.
     """
-    emb = load_biome_embeddings(load_full_model=True if load_full_model else False)
+    emb = load_biome_embeddings(load_full_model=True if load_full_model else False, model_name=model_name, model_version=model_version)
     # If user didn't request full but we didn't load, ensure keyed is available lazily.
     if emb.keyed is None:
         # Reload with full model (will overwrite cache). Simplicity > micro-optimisation.
-        load_biome_embeddings.cache_clear()  # type: ignore[attr-defined]
-        emb = load_biome_embeddings(load_full_model=True)
+    load_biome_embeddings.cache_clear()  # type: ignore[attr-defined]
+    emb = load_biome_embeddings(load_full_model=True, model_name=model_name, model_version=model_version)
     return emb.keyed  # type: ignore[return-value]
 
 @lru_cache
-def load_taxonomy_ids() -> dict:
+def load_taxonomy_ids(*, model_name: str | None = None, model_version: str | None = None) -> dict:
     """Lazy cached load of taxonomy_graph and taxo_ids dictionary."""
-    p = get_path("resources/taxonomy/taxonomy_graph.graphml")
-    if not p.exists():
-        raise FileNotFoundError(f"taxonomy_graph file not found: {p}")
+    # Resolve taxonomy graph from the HF model repo used for taxonomy vectorization.
+    model_name, model_version = _resolve_model_params(model_name, model_version)
+    p = _get_hf_model_path(model_name, model_version, "taxonomy_graph_*.graphml")
+    if not Path(p).exists():
+        raise FileNotFoundError(f"taxonomy_graph file not found: {p} (HF model: {model_name} version {model_version})")
     logger.info("Loading taxonomy_graph file=%s", p)
     taxonomy_graph = nx.read_graphml(p, node_type=str)
     taxo_ids = {x: ix for ix, x in enumerate(taxonomy_graph.nodes)}
@@ -109,22 +128,22 @@ def load_taxonomy_ids() -> dict:
     return taxo_ids
 
 
-def get_model_vocab() -> dict:
+def get_model_vocab(*, model_name: str | None = None, model_version: str | None = None) -> dict:
     """Access the model vocabulary mapping lazily."""
-    return load_biome_embeddings().model_vocab
+    return load_biome_embeddings(model_name=model_name, model_version=model_version).model_vocab
 
 
-def get_vectors() -> np.ndarray:
+def get_vectors(*, model_name: str | None = None, model_version: str | None = None) -> np.ndarray:
     """Access the embedding vectors lazily (memory-mapped)."""
-    return load_biome_embeddings().vectors
+    return load_biome_embeddings(model_name=model_name, model_version=model_version).vectors
 
 
 
 
-def sentence_vectorization(terminals):
+def sentence_vectorization(terminals, *, model_name: str | None = None, model_version: str | None = None):
     """Compute mean vector from terminal nodes of a subgraph (community)."""
     # tax ='Laterosporus'
-    emb = load_biome_embeddings()
+    emb = load_biome_embeddings(model_name=model_name, model_version=model_version)
     tix_ = [emb.taxo_ids.get(tax) for tax in terminals]
     tixs = [x for x in tix_ if x is not None]
     v_ixs_ = [emb.model_vocab.get(str(tix)) for tix in tixs]
@@ -167,8 +186,8 @@ def get_mean(f):
     return taxo_terminals
 
 
-def genre_to_taxonomy_vectorization(genres_set):
-    emb = load_biome_embeddings()
+def genre_to_taxonomy_vectorization(genres_set, *, model_name: str | None = None, model_version: str | None = None):
+    emb = load_biome_embeddings(model_name=model_name, model_version=model_version)
     _vectors = []
     for x in genres_set:
         tax_id = emb.taxo_ids.get(x)
@@ -184,30 +203,32 @@ def genre_to_taxonomy_vectorization(genres_set):
 
 
 @lru_cache
-def load_mgnify_c2v():
-    _c2v_file = get_path('models/biome/mgnify_sample_vectors/1.0/mgnify_sample_vectors_v1.0.h5')
+def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None = None):
+    # Resolve mgnify sample vectors from the HF model repo used for taxonomy vectorization.
+    model_name, model_version = _resolve_model_params(model_name, model_version)
+    _c2v_file = Path(_get_hf_model_path(model_name, model_version, "mgnify_sample_vectors_*.h5"))
     if not _c2v_file.exists():
-        # raise error and recomend to use trapiche-download-models
+        # raise error and recommend to use trapiche-download-models
         raise FileNotFoundError(
-            f"mgnify_sample_vectors file not found: {_c2v_file} (base dir: {get_path('')})\n"
-            "Please run `trapiche-download-models` to download the required models."
-            )
+            f"mgnify_sample_vectors file not found: {_c2v_file} (HF model: {model_name} version {model_version})\n"
+            "Please ensure the file is present in the model repository or run `trapiche-download-models`."
+        )
     logger.info("Loading mgnify_sample_vectors file=%s", _c2v_file)
     __mgnify_sample_vectors = pd.read_hdf(_c2v_file, key="df")
 
-    _mgnify_sample_vectors_metadata_file = get_path('models/biome/mgnify_sample_vectors/1.0/mgnify_sample_vectors_metadata_v1.0.tsv')
+    _mgnify_sample_vectors_metadata_file = Path(_get_hf_model_path(model_name, model_version, "mgnify_sample_vectors_metadata_*.tsv"))
     if not _mgnify_sample_vectors_metadata_file.exists():
         raise FileNotFoundError(
-            f"mgnify_sample_vectors metadata file not found: {_mgnify_sample_vectors_metadata_file} (base dir: {get_path('')})\n"
-            "Please run `trapiche-download-models` to download the required models."
-            )
+            f"mgnify_sample_vectors metadata file not found: {_mgnify_sample_vectors_metadata_file} (HF model: {model_name} version {model_version})\n"
+            "Please ensure the file is present in the model repository or run `trapiche-download-models`."
+        )
     logger.info("Loading mgnify_sample_vectors metadata file=%s", _mgnify_sample_vectors_metadata_file)
     _mgnify_sample_vectors_metadata = pd.read_csv(
         _mgnify_sample_vectors_metadata_file, sep="\t", index_col="SAMPLE_ID"
     )
     return __mgnify_sample_vectors, _mgnify_sample_vectors_metadata
 
-def vectorise_sample(list_of_tax_files):
+def vectorise_sample(list_of_tax_files, *, model_name: str | None = None, model_version: str | None = None):
     """Vectorise one or many samples from taxonomy annotation files.
 
     Flexible input forms are accepted (all are normalised internally to the
@@ -280,7 +301,7 @@ def vectorise_sample(list_of_tax_files):
 
     # Derive genus sets and vectors per sample
     samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}
-    samples_vecs = {k: genre_to_taxonomy_vectorization(gs) for k, gs in samples_genus.items() if gs}
+    samples_vecs = {k: genre_to_taxonomy_vectorization(gs, model_name=model_name, model_version=model_version) for k, gs in samples_genus.items() if gs}
 
     if not samples_vecs:
         # No sample produced a vector -> shape (n_samples, 0)

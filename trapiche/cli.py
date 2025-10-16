@@ -7,7 +7,7 @@ from typing import Iterable, Dict, Any
 import gzip
 
 from .api import TrapicheWorkflowFromSequence
-from .config import TrapicheWorkflowParams
+from .config import TrapicheWorkflowParams, TaxonomyToVectorParams
 
 
 def read_ndjson(path: Path | None) -> Iterable[Dict[str, Any]]:
@@ -150,8 +150,10 @@ def main(argv: list[str] | None = None) -> int:
         write_ndjson([], outpath)
         return 0
 
+    # Determine taxonomy vectorization model params from config defaults
+    _t2v = TaxonomyToVectorParams()
     runner = TrapicheWorkflowFromSequence(params=params)
-    processed = runner.run(samples)
+    processed = runner.run(samples, model_name=_t2v.hf_model, model_version=_t2v.model_version)
 
     # If no output path specified but an input file was used, generate
     # a default filename: <input_basename>_trapiche_results.ndjson
