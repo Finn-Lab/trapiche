@@ -90,15 +90,15 @@ from trapiche.config import TrapicheWorkflowParams
 samples = [
 	{
 		"project_description_text": "Dental plaque microbiomes from hunter-gatherer and subsistence farmer populations in Cameroon. This study collected dental plaque samples from two non-industrial populations in Cameroon, the Baka and the Nzime. Two plaque samples were collected per individual, one from anterior teeth and one from posterior teeth.",
-		"taxonomy_files_paths": [ ".prueba.bak/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"],
+		"taxonomy_files_paths": [ "test/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"],
 	},
 	{
 		"project_description_text": "Epipelagic bacterial communities of Canadian lakes. The NSERC Canadian LakePulse Network is a scientific initiative assessing environmental issues affecting Canadian lakes. Through multidisciplinary projects, LakePulse researchers use tools in lake science, spatial modelling, analytical chemistry, public health, and remote sensing to assess the status of over 600 lakes across various ecozones in Canada. The impacts of land-use, climate change and contaminants on lake health will be assessed to develop policies for better lake management.",
-		"taxonomy_files_paths": [ ".prueba.bak/files/taxonomy_files/ERR5954428_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR5954428_MERGED_FASTQ_SSU_OTU.tsv"],
+		"taxonomy_files_paths": [ "test/taxonomy_files/ERR5954428_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR5954428_MERGED_FASTQ_SSU_OTU.tsv"],
 	},
 	{
 		"project_description_text": "Temporal shotgun metagenomic dissection of the coffee fermentation ecosystem. The current study employed a temporal shotgun metagenomic analysis of a prolonged (64 h) coffee fermentation process (six time points) to facilitate an in-depth dissection of the structure and functions of the coffee microbiome.",
-		"taxonomy_files_paths": [ ".prueba.bak/files/taxonomy_files/ERR2231570_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR2231570_MERGED_FASTQ_SSU_OTU.tsv"],
+		"taxonomy_files_paths": [ "test/taxonomy_files/ERR2231570_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR2231570_MERGED_FASTQ_SSU_OTU.tsv"],
 	},
 ]
 
@@ -153,9 +153,11 @@ tax2b.save("taxonomy_predictions.csv")
 tax2b.save_vectors("taxonomy_vectors.npy")
 ```
 
-## Input and output schema
+## Input schema
 
 Input record (API and CLI workflow)
+
+One JSON object per sample in eithe NDJSON (CLI) or List (API), with the following keys:
 
 ```
 {
@@ -166,19 +168,21 @@ Input record (API and CLI workflow)
 }
 ```
 
-Output record (typical keys)
-
+## Output schema
+Output record (API and CLI workflow)
+One JSON object per sample in either NDJSON (CLI) or List (API), with the following keys added to the input record:
 ```
-{
-  ... original fields ...,
-  "text_predictions": ["root:Host-Associated:Human", "root:Host-Associated:Animal"],                   # optional if run_text
-  "community_vector": [0.12, -0.03, ...],                        # optional if keep_vectorise_results
-  "lineage_prediction": "...",                                  # taxonomy-based prediction
-  "lineage_prediction_probability": 0.93,
-  "refined_prediction": "..."
-}
+ {'raw_unambiguous_prediction': ('root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin',
+   1.0),
+  'raw_refined_prediction': {'root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin': 1.0},
+  'final_selected_prediction': {'root:Engineered:Food production': 1.0},
+  'text_predictions': ['root:Engineered:Food production'],
+  'constrained_unambiguous_prediction': ('root:Engineered:Food production',
+   1.0),
+  'constrained_refined_prediction': {'root:Engineered:Food production': 1.0}}
 ```
 
+Best prediction is in `final_selected_prediction`.
 
 ## Data and models
 
