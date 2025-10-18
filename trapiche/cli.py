@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Determine taxonomy vectorization model params from config defaults
     _t2v = TaxonomyToVectorParams()
-    runner = TrapicheWorkflowFromSequence(params=params)
+    runner = TrapicheWorkflowFromSequence(workflow_params=params)
     processed = runner.run(samples, model_name=_t2v.hf_model, model_version=_t2v.model_version)
 
     # If no output path specified but an input file was used, generate

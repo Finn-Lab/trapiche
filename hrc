@@ -1,0 +1,16 @@
+total 94
+drwxr-sr-x 2 fragoso metagen  4096 Oct 16 11:39 ./
+drwxr-sr-x 2 fragoso metagen  4096 Oct 17 22:38 ../
+-rw-r--r-- 1 fragoso metagen 10079 Oct 17 15:40 api.py
+drwxr-sr-x 2 fragoso metagen  4096 Aug 28 08:24 .cache/
+-rw-r--r-- 1 fragoso metagen  6391 Oct 17 15:45 cli.py
+-rw-r--r-- 1 fragoso metagen  3975 Oct 18 00:02 config.py
+drwxr-sr-x 2 fragoso metagen  4096 Aug 27 08:27 data/
+-rw-r--r-- 1 fragoso metagen    72 Oct 16 11:26 __init__.py
+drwxr-sr-x 2 fragoso metagen  4096 Oct 18 00:24 __pycache__/
+-rw-r--r-- 1 fragoso metagen 16560 Oct 18 00:22 taxonomy_prediction.py
+-rw-r--r-- 1 fragoso metagen 13459 Oct 17 13:57 taxonomy_vectorization.py
+-rw-r--r-- 1 fragoso metagen  9442 Oct 16 11:26 text_prediction.py
+-rw-r--r-- 1 fragoso metagen 24507 Oct 17 23:48 utils.py
+-rw-r--r-- 1 fragoso metagen   770 Oct 16 11:39 _version.py
+-rw-r--r-- 1 fragoso metagen  7756 Oct 18 00:29 workflow.py

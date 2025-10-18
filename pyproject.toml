@@ -1,6 +1,5 @@
-
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -28,8 +27,6 @@ dependencies = [
   "gensim",
   "more-itertools",
   "spacy",
-  # Optional SciSpacy model (kept as convenience; installing may also require `scispacy` package)
-  # Use a PEP 508 direct reference: <name> @ <url>
   "en_core_sci_sm @ https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
 ]
 

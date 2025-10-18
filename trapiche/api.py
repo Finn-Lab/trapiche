@@ -3,7 +3,7 @@ from typing import List, Sequence, Any
 import json
 import numpy as np
 
-from .config import TaxonomyToBiomeParams, TextToBiomeParams
+from .config import TaxonomyToBiomeParams, TaxonomyToVectorParams, TextToBiomeParams
 from .config import TrapicheWorkflowParams
 from .workflow import run_workflow
 from typing import Dict, Any, Sequence
@@ -64,7 +64,6 @@ class TaxonomyToBiome:
         self,
         community_vectors: np.ndarray,
         constrain: Sequence[Sequence[str]] | None = None,
-        return_full_preds: bool = False,
         params: TaxonomyToBiomeParams | None = None,
         *, model_name: str | None = None, model_version: str | None = None,
     ):
@@ -92,25 +91,22 @@ class TaxonomyToBiome:
         # Local import to avoid circular dependency (taxonomy_prediction imports Community2vec from this module)
         from . import taxonomy_prediction  # type: ignore
 
-        self.df, self.vec = taxonomy_prediction.predict_runs(
+        self.results = taxonomy_prediction.predict_runs(
             community_vectors=community_vectors,
-            return_full_preds=return_full_preds,
             constrain=constrain,
-            batch_size=_params.batch_size,
-            k_knn=_params.k_knn,
-            dominance_threshold=_params.dominance_threshold,
-            model_name=model_name,
-            model_version=model_version,
+            params=_params
         )
-        return self.df, self.vec
+        return self.results
     
-    def save_vectors(self, path: str | Path) -> None:
-        """Save the vectorised samples to a .npy file."""
-        np.save(path, self.vec)
 
     def save(self, path: str | Path) -> None:
-        """Save the predictions dataframe to a CSV file."""
-        self.df.to_csv(path, index=False)
+        """Save the predictions list of dicts to ndjson file."""
+        if not hasattr(self, 'results'):
+            raise ValueError("No predictions to save. Call predict() first.")
+        with open(path, "w", encoding="utf-8") as f:
+            for record in self.results:
+                json.dump(record, f)
+                f.write("\n")
 
 
 class TextToBiome:
@@ -175,8 +171,16 @@ class TrapicheWorkflowFromSequence:
     steps run and whether intermediate results are kept.
     """
 
-    def __init__(self, params: TrapicheWorkflowParams | None = None) -> None:
-        self.params = params or TrapicheWorkflowParams()
+    def __init__(self, 
+                 workflow_params: TrapicheWorkflowParams | None = None,
+                 text_params: TextToBiomeParams | None = None,
+                 vectorise_params: TaxonomyToVectorParams | None = None,
+                 taxonomy_params: TaxonomyToBiomeParams | None = None,
+                 ) -> None:
+        self.workflow_params = workflow_params or TrapicheWorkflowParams()
+        self.text_params = text_params or TextToBiomeParams()
+        self.vectorise_params = vectorise_params or TaxonomyToVectorParams()
+        self.taxonomy_params = taxonomy_params or TaxonomyToBiomeParams()
 
     def run(self, samples: Sequence[Dict[str, Any]], *, model_name: str | None = None, model_version: str | None = None) -> Sequence[Dict[str, Any]]:
         """Run the workflow on `samples` and return the augmented list.
@@ -191,26 +195,27 @@ class TrapicheWorkflowFromSequence:
 
         result = run_workflow(
             samples,
-            run_text=self.params.run_text,
-            run_vectorise=self.params.run_vectorise,
-            run_taxonomy=self.params.run_taxonomy,
-            model_name=model_name,
-            model_version=model_version,
+            run_text=self.workflow_params.run_text,
+            run_vectorise=self.workflow_params.run_vectorise,
+            run_taxonomy=self.workflow_params.run_taxonomy,
+            text_params=self.text_params,
+            vectorise_params=self.vectorise_params,
+            taxonomy_params=self.taxonomy_params,
         )
 
         # process which keys to keep according to config
         keep_keys = set()
         sample_keys = set(samples[0].keys()) if samples else set()
         all_keys = set(result[0].keys()) if result else set()
-        if self.params.output_keys:
-            keep_keys = set(self.params.output_keys)
+        if self.workflow_params.output_keys:
+            keep_keys = set(self.workflow_params.output_keys)
         else:
             keep_keys = set(result[0].keys()) if result else set()
-            if not self.params.keep_text_results:
+            if not self.workflow_params.keep_text_results:
                 keep_keys.discard("text_predictions")
-            if not self.params.keep_vectorise_results:
+            if not self.workflow_params.keep_vectorise_results:
                 keep_keys.discard("community_vector")
-            if not self.params.keep_taxonomy_results:
+            if not self.workflow_params.keep_taxonomy_results:
                 # TODO: add a tag to the taxonomy results dict to identify its keys
                 taxonomy_keys = all_keys - ({"text_predictions", "community_vector"} | sample_keys)
                 keep_keys -= taxonomy_keys

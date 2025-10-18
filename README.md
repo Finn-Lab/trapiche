@@ -23,14 +23,7 @@ From source
 pip install -e .
 ```
 
-Download models and resources
-
-```
-trapiche-download-models
-```
-
 This fetches the required taxonomy_vectorization resources, taxonomy graph, and other assets used at runtime.
-
 
 ## Quick start (CLI)
 
@@ -50,7 +43,7 @@ Example input:
 
 ```
 {"project_description_text":"Effect of different fertilization treatments on soil microbiome...", "taxonomy_files_paths":["test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_diamond.tsv.gz","test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_mseq.tsv"]}
-{"project_description_file_path":"test/files/text_files/PRJEB42572_project_description.txt","taxonomy_files_paths":["test/files/taxonomy_files/ERZ19590789/ERZ19590789_FASTA_diamond.tsv.gz"]}
+{"project_description_file_path":"test/files/text_files/PRJEB42572_project_description.txt","taxonomy_files_paths":["test/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"]}
 ```
 
 Run the workflow
@@ -96,21 +89,28 @@ from trapiche.config import TrapicheWorkflowParams
 
 samples = [
 	{
-		"project_description_file_path": "test/files/text_files/PRJEB42572_project_description.txt",
-		"taxonomy_files_paths": [
-			"test/files/taxonomy_files/ERZ19590789/ERZ19590789_FASTA_diamond.tsv.gz",
-		],
-	}
+		"project_description_text": "Dental plaque microbiomes from hunter-gatherer and subsistence farmer populations in Cameroon. This study collected dental plaque samples from two non-industrial populations in Cameroon, the Baka and the Nzime. Two plaque samples were collected per individual, one from anterior teeth and one from posterior teeth.",
+		"taxonomy_files_paths": [ ".prueba.bak/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"],
+	},
+	{
+		"project_description_text": "Epipelagic bacterial communities of Canadian lakes. The NSERC Canadian LakePulse Network is a scientific initiative assessing environmental issues affecting Canadian lakes. Through multidisciplinary projects, LakePulse researchers use tools in lake science, spatial modelling, analytical chemistry, public health, and remote sensing to assess the status of over 600 lakes across various ecozones in Canada. The impacts of land-use, climate change and contaminants on lake health will be assessed to develop policies for better lake management.",
+		"taxonomy_files_paths": [ ".prueba.bak/files/taxonomy_files/ERR5954428_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR5954428_MERGED_FASTQ_SSU_OTU.tsv"],
+	},
+	{
+		"project_description_text": "Temporal shotgun metagenomic dissection of the coffee fermentation ecosystem. The current study employed a temporal shotgun metagenomic analysis of a prolonged (64 h) coffee fermentation process (six time points) to facilitate an in-depth dissection of the structure and functions of the coffee microbiome.",
+		"taxonomy_files_paths": [ ".prueba.bak/files/taxonomy_files/ERR2231570_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR2231570_MERGED_FASTQ_SSU_OTU.tsv"],
+	},
 ]
 
-params = TrapicheWorkflowParams(  # defaults shown
+workflow_params = TrapicheWorkflowParams(  # defaults shown
 	run_text=True, run_vectorise=True, run_taxonomy=True,
 	keep_text_results=False, keep_vectorise_results=False, keep_taxonomy_results=False,
 	# When output_keys is None, the keep_* flags decide what to include.
 )
 
-runner = TrapicheWorkflowFromSequence(params=params)
+runner = TrapicheWorkflowFromSequence(workflow_params=workflow_params)
 result = runner.run(samples)  # sequence of dicts augmented with predictions
+print(result)
 runner.save("trapiche_results.ndjson")  # optional convenience save
 ```
 
@@ -121,11 +121,10 @@ Text prediction
 from trapiche.api import TextToBiome
 
 ttb = TextToBiome()  # uses default model and device
-preds = ttb.predict([
-	"Soil metagenome from agricultural field in temperate climate.",
-	"Gut microbiome samples from healthy adults.",
-])
-print(preds)  # list[list[str]]: predicted biome labels per input text
+
+texts = [x["project_description_text"] for x in samples]
+text_predictions = ttb.predict(texts)
+print(text_predictions)  # list[list[str]]: predicted biome labels per input text
 
 # Optionally save last predictions
 ttb.save("text_preds.json")
@@ -138,13 +137,15 @@ from trapiche.api import Community2vec, TaxonomyToBiome
 
 # Vectorise one or more samples from taxonomy annotation files
 c2v = Community2vec()
-vectors = c2v.transform([
-	["test/files/taxonomy_files/ERZ19590789/ERZ19590789_FASTA_diamond.tsv"],
-])
+
+taxonomy_files = [x["taxonomy_files_paths"] for x in samples]
+
+vectors = c2v.transform(taxonomy_files)
 
 tax2b = TaxonomyToBiome()
-df, vecs = tax2b.predict(community_vectors=vectors, return_full_preds=True)
-print(df.head())  # pandas DataFrame with per-sample predictions
+result = tax2b.predict(community_vectors=vectors,constrain=text_predictions)
+print(len(result))
+print(result[0])  # pandas DataFrame with per-sample predictions
 
 # Optional saves
 c2v.save("community_vectors.npy")
@@ -181,7 +182,7 @@ Output record (typical keys)
 
 ## Data and models
 
-Trapiche ships code only. Run `trapiche-download-models` once to download required resources (taxonomy_vectorization embeddings, taxonomy graph, and companion assets). Files are stored under an internal cache path managed by the library.
+Trapiche ships code only. Models used live in HugginFaceHub, and are downloaded by HF api.
 
 
 ## Benchmarks (placeholder)

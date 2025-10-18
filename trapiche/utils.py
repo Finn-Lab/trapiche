@@ -25,6 +25,7 @@ import re
 import gzip
 from pathlib import Path
 from contextlib import contextmanager
+import io
 
 import requests
 import xml.etree.ElementTree as ET
@@ -46,7 +47,7 @@ def _get_hf_model_path(model_name: str, model_version: str, file_pattern: str) -
     try:
         filename = f"{model_version}/{file_pattern.replace('*', model_version)}"
         file_path = hf_hub_download(repo_id=model_name, filename=filename, repo_type="model")
-        return file_path
+        return Path(file_path)
     except Exception as e:
         raise FileNotFoundError(f"Could not find model file for {model_name} version {model_version} with pattern {file_pattern}: {e}")
 # --- ---
@@ -70,8 +71,26 @@ def _open_text_auto(path: str | os.PathLike, mode: str = "rt", encoding: str = "
         except OSError:
             pass
     opener = gzip.open if use_gzip else open
+    # Open the file (may be binary or text depending on mode and opener)
     with opener(p, mode, encoding=encoding) as handle:  # type: ignore[arg-type]
-        yield handle
+        # If the underlying handle is in binary mode, wrap it so iteration
+        # yields str objects consistently. Some callers expect text lines
+        # and will pass a string separator to split(), so ensure we return
+        # a text-mode file-like object.
+        handle_mode = getattr(handle, "mode", mode)
+        if "b" in handle_mode:
+            wrapper = io.TextIOWrapper(handle, encoding=encoding)
+            try:
+                yield wrapper
+            finally:
+                # Close the wrapper to flush and detach properly. Underlying
+                # handle will be closed by the outer context manager as well.
+                try:
+                    wrapper.close()
+                except Exception:
+                    pass
+        else:
+            yield handle
 
 
 def diamond_read(f):
@@ -82,26 +101,51 @@ def diamond_read(f):
     simple genus->species style edges (capitalised first token -> full string).
     """
     with _open_text_auto(f, "rt", encoding="utf-8") as h:
-        try:
-            _diamonds = list({
-                line.split("\t")[14].split("=")[-1].replace("Candidatus ", "")
-                for line in h
-                if line and not line.startswith("#")
-            })
-        except IndexError as e:
-            raise ValueError(f"Diamond file appears malformed (missing expected columns): {f}") from e
+        _diamonds_set = set()
+        for raw in h:
+            if not raw:
+                continue
+            # Normalize to str in case a binary iterator slipped through
+            if isinstance(raw, (bytes, bytearray)):
+                try:
+                    line = raw.decode("utf-8")
+                except Exception:
+                    # Skip lines that can't be decoded
+                    continue
+            elif isinstance(raw, memoryview):
+                try:
+                    line = bytes(raw).decode("utf-8")
+                except Exception:
+                    continue
+            else:
+                line = raw
+            # Ensure final safety: coerce non-str to str
+            if not isinstance(line, str):
+                try:
+                    line = str(line)
+                except Exception:
+                    continue
+            if line.startswith("#"):
+                continue
+            parts = line.split("\t")
+            if len(parts) <= 14:
+                # Malformed line; skip rather than crashing
+                continue
+            tax = parts[14].split("=")[-1].replace("Candidatus ", "")
+            _diamonds_set.add(tax)
+        _diamonds = list(_diamonds_set)
     edges = set()
     for s in _diamonds:
         spl = s.split()
         if not spl:
             continue
-    first_token = str(spl[0])
-    if first_token and first_token[0].isalpha() and first_token[0].isupper():
-            edge = (
-                spl[0],
-                s if len(spl) > 1 else "",  # pseudo-graph in diamond, connect gr with sp
-            )
-            edges.add(edge)
+        first_token = str(spl[0])
+        if first_token and first_token[0].isalpha() and first_token[0].isupper():
+                edge = (
+                    spl[0],
+                    s if len(spl) > 1 else "",  # pseudo-graph in diamond, connect gr with sp
+                )
+                edges.add(edge)
     return list(edges)
 
 
@@ -109,15 +153,11 @@ def krona_read(content):
     """function to read mseq.txt files"""
     edges = set()  # Use a set to avoid duplicate edges
     for _line in content:
+        if _line.startswith("#") or not _line.strip():
+            continue
         line = _line.replace("Candidatus ", "")
         # Split line and filter out any empty strings or strings representing empty nodes like 'k__'
-        parts = [
-            part
-            for part in line.strip().split("\t")
-            if part and not part.endswith("__")
-        ]
-        # Skip the count at the beginning of each line
-        lineage = parts[1:]
+        lineage = [bit for bit in re.split("[\t;]",line) if "__" in bit and not bit.endswith("__")]
 
         # Initialize previous valid item variable
         prev = None
@@ -594,3 +634,72 @@ def get_project_text_description(acc):
     description = desc_el.text if desc_el is not None else None
     return title, description
 
+
+
+def get_similar_predictions(probabilities, diff_thresh=0.05, ratio_thresh=0.9):
+    """
+    Identify indices of predictions with probabilities similar to the top one.
+
+    This function expects a 1-D numpy array (or array-like) of probabilities and
+    returns a list of integer indices (into the original array) whose
+    probabilities are within either the absolute difference threshold
+    (`diff_thresh`) or the relative ratio threshold (`ratio_thresh`) compared
+    to the top probability. The top (largest) probability's index is always
+    included.
+    
+    Args:
+        probabilities (np.ndarray or sequence): 1-D array-like of probabilities.
+        diff_thresh (float): Max allowed absolute difference between top and others.
+        ratio_thresh (float): Min allowed ratio (p_i / top_p) to count as similar.
+
+    Returns:
+        list[int]: Indices of entries similar to the top prediction, sorted by
+                   decreasing probability (so indices follow the order of
+                   descending probabilities).
+    """
+    # Convert to numpy array for consistent behavior and flatten
+    probs = np.asarray(probabilities)
+    # Handle scalar / 0-d arrays by treating them as length-1 arrays
+    probs = probs.reshape(-1) if probs.ndim == 0 else probs.flatten()
+
+    if probs.ndim != 1:
+        raise ValueError("probabilities must be a 1-D array-like of scores")
+    if probs.size == 0:
+        return []
+
+    # If all values are NaN, nothing to return
+    if np.isnan(probs).all():
+        return []
+
+    # Sort indices by descending probability (stable sort)
+    # use negative to avoid reversing after argsort
+    sorted_idx = np.argsort(-probs, kind="stable")
+
+    # Ensure indices are integers and safe to index
+    top_idx = int(sorted_idx[0])
+    top_p = float(probs[top_idx])
+
+    similar_indices = [top_idx]
+
+    # Iterate remaining indices in descending order
+    for idx in sorted_idx[1:]:
+        idx = int(idx)
+        p = probs[idx]
+        # Skip NaNs quietly
+        if np.isnan(p):
+            continue
+
+        # Compute diff and ratio robustly
+        diff = abs(top_p - float(p))
+        if top_p == 0:
+            # treat ratio as 1.0 only when both are zero
+            ratio = 1.0 if float(p) == 0.0 else 0.0
+        else:
+            ratio = float(p) / top_p
+
+        if diff <= diff_thresh or ratio >= ratio_thresh:
+            similar_indices.append(idx)
+        else:
+            break
+
+    return similar_indices

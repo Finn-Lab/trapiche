@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class TextToBiomeParams:
@@ -45,10 +45,34 @@ class TaxonomyToBiomeParams:
         Number of nearest neighbours used during refinement.
     dominance_threshold : float
         Frequency threshold for accepting lineage extensions in KNN refinement.
+    In addition to model forward-pass settings, this also includes
+    refinement and vectorizer data sources so downstream utilities can be
+    invoked independently with a single params object.
+
+    Fields
+    ------
+    batch_size
+        Chunk size for model forward passes.
+    k_knn
+        Number of nearest neighbours used during refinement.
+    dominance_threshold
+        Frequency threshold for accepting lineage extensions in KNN refinement.
+    vector_space
+        Vector space identifier (currently only 'g' is supported).
+    tru_column
+        Column name in the metadata which contains the ground-truth lineage
+        used by the refinement step (after formatting). Defaults to
+        'BIOME_AMEND'.
+    hf_model
+        HF hub model id for the taxonomy-to-biome classifier.
+    model_version
+        Version tag for the taxonomy-to-biome classifier.
     """
     batch_size: int = 200
-    k_knn: int = 10
+    k_knn: int = 20
     dominance_threshold: float = 0.5
+    top_prob_diff_threshold: float = 0.05
+    top_prob_ratio_threshold: float = 0.9
     hf_model: str = "SantiagoSanchezF/trapiche-biome-classifier-taxonomy"
     model_version: str = "1.0"
 
@@ -79,5 +103,5 @@ class TrapicheWorkflowParams:
     keep_vectorise_results: bool = False
     run_taxonomy: bool = True
     keep_taxonomy_results: bool = False
-    output_keys: list[str] | None = ["text_predictions", "lineage_prediction","lineage_prediction_probability","refined_prediction"]
+    output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction", "raw_refined_prediction","constrained_unambiguous_prediction", "constrained_refined_prediction", "final_selected_prediction"]) 
     

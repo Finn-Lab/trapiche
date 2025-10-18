@@ -21,7 +21,7 @@ import numpy as np
 from . import taxonomy_vectorization as c2v_mod
 from . import text_prediction as tt
 from . import taxonomy_prediction
-from .config import TextToBiomeParams, TaxonomyToBiomeParams
+from .config import TaxonomyToVectorParams, TextToBiomeParams, TaxonomyToBiomeParams
 
 
 def _read_text_file(path: str) -> str:
@@ -34,7 +34,7 @@ def _read_text_file(path: str) -> str:
         return p.read_text(encoding="ISO-8859-1", errors="replace")
 
 
-def run_text_step(samples: Sequence[Dict[str, Any]], model_path: Optional[str] = None) -> List[Optional[List[str]]]:
+def run_text_step(samples: Sequence[Dict[str, Any]], params_obj: TextToBiomeParams) -> List[Optional[List[str]]]:
     """Run TextToBiome on the samples, deduplicating identical file paths.
 
     Returns a list aligned with `samples` where each element is either the
@@ -71,7 +71,6 @@ def run_text_step(samples: Sequence[Dict[str, Any]], model_path: Optional[str] =
         return [None for _ in samples]
 
     # Build params for text model
-    params_obj = TextToBiomeParams()
     preds_unique = tt.predict(
         unique_texts,
         model_name=params_obj.hf_model,
@@ -116,8 +115,7 @@ def run_vectorise_step(samples: Sequence[Dict[str, Any]], *, model_name: str | N
     # Require explicit model parameters
     return c2v_mod.vectorise_sample(sample_lists, model_name=model_name, model_version=model_version)
 
-
-def run_taxonomy_step(samples: Sequence[Dict[str, Any]], community_vectors: Optional[ np.ndarray | Sequence] = None, text_constraints: Optional[Sequence[Optional[List[str]]]] = None) -> Sequence[Optional[Dict[str, Any]]]:
+def run_taxonomy_step(samples: Sequence[Dict[str, Any]], *,params:TaxonomyToBiomeParams, community_vectors: Optional[ np.ndarray | Sequence] = None, text_constraints: Optional[Sequence[Optional[List[str]]]] = None) -> Sequence[Optional[Dict[str, Any]]]:
     """Run TaxonomyToBiome using community vectors and optional text constraints.
     Returns for each sample either a dict (row-wise prediction) or None.
     If community_vectors is None the function computes them.
@@ -127,40 +125,19 @@ def run_taxonomy_step(samples: Sequence[Dict[str, Any]], community_vectors: Opti
         community_vectors = run_vectorise_step(samples)  
 
     # Constraints: pass text constraints as-is (list per sample) or None
-    constrain = [c if c is not None else [] for c in (text_constraints or [None]*len(samples))]
+    constrain = text_constraints or [None]*len(samples)
 
     # Use taxonomy_prediction.predict_runs directly and feed it default params from
     # TaxonomyToBiomeParams (this mirrors the behaviour of the API wrapper).
-    _params = TaxonomyToBiomeParams()
-    df, _ = taxonomy_prediction.predict_runs(
+    results = taxonomy_prediction.predict_runs(
         community_vectors=community_vectors,
-        return_full_preds=True,
         constrain=constrain,
-        batch_size=_params.batch_size,
-        k_knn=_params.k_knn,
-        dominance_threshold=_params.dominance_threshold,
+        params= params,
     )
 
-    # Convert dataframe rows to dicts (one per sample). Ensure we return a
-    # Sequence[Optional[Dict[str, Any]]] with the same length as `samples`.
-    try:
-        if df is None:
-            rows = [None] * len(samples)
-        else:
-            records = df.to_dict(orient="records")
-            # Make each record a plain dict[str, Any]
-            rows = [({str(k): v for k, v in r.items()} if r is not None else None) for r in records]
-            # Pad or truncate to match samples length
-            if len(rows) < len(samples):
-                rows.extend([None] * (len(samples) - len(rows)))
-            elif len(rows) > len(samples):
-                rows = rows[: len(samples)]
-    except Exception:
-        rows = [None] * len(samples)
-    return rows
+    return results
 
-
-def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_vectorise: bool = True, run_taxonomy: bool = True, *, model_name: str | None = None, model_version: str | None = None) -> Sequence[Dict[str, Any]]:
+def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomeParams,  vectorise_params: TaxonomyToVectorParams, taxonomy_params: TaxonomyToBiomeParams, run_text: bool = True, run_vectorise: bool = True, run_taxonomy: bool = True) -> Sequence[Dict[str, Any]]:
     """Run the requested steps and return augmented sample dicts.
 
     The input `samples` is not modified; a new list with shallow-copied dicts is
@@ -170,18 +147,18 @@ def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_v
 
     text_results = None
     if run_text:
-        text_results = run_text_step(samples)
+        text_results = run_text_step(samples, params_obj=text_params)
     else:
         text_results = [None for _ in samples]
 
     # If taxonomy is requested, but not taxonomy_vectorization compute community vectors (used internally too)
     if run_vectorise or run_taxonomy:
-        community_vectors = run_vectorise_step(samples, model_name=model_name, model_version=model_version)
+        community_vectors = run_vectorise_step(samples, model_name=vectorise_params.hf_model, model_version=vectorise_params.model_version)
     else:
         community_vectors = [None for _ in samples]
 
     if run_taxonomy:
-        taxonomy_results = run_taxonomy_step(samples, community_vectors=community_vectors, text_constraints=text_results)
+        taxonomy_results = run_taxonomy_step(samples, params=taxonomy_params, community_vectors=community_vectors, text_constraints=text_results)
     else:
         taxonomy_results = [None for _ in samples]
 
@@ -193,7 +170,6 @@ def run_workflow(samples: Sequence[Dict[str, Any]], run_text: bool = True, run_v
         if cv is not None:
             s["community_vector"] = cv.tolist() if cv.size else None
         if txr is not None:
-            if txr is not None:
-                s.update(txr)  # taxonomy results are a dict with several keys
+            s.update(txr)  # taxonomy results are a dict with several keys
 
     return result

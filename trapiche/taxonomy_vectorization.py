@@ -17,8 +17,7 @@ import pandas as pd
 
 import networkx as nx
 from gensim.models import Word2Vec, KeyedVectors
-from .utils import _get_hf_model_path, tax_annotations_from_file
-from .config import TaxonomyToVectorParams
+from .utils import _get_hf_model_path, load_biome_herarchy_dict, tax_annotations_from_file
 
 import logging
 logger = logging.getLogger(__name__)
@@ -71,15 +70,15 @@ def load_biome_embeddings(load_full_model: bool = False, *, model_name: str | No
     # Resolve expected files from the model repository. The file patterns
     # should match the files stored in the HuggingFace model repo. Adjust
     # patterns if your repo uses different names.
-    taxonomy_vectorization_model_path = _get_hf_model_path(model_name, model_version, "taxonomy_vectorization_model_*.model")
-    model_vocab_file = _get_hf_model_path(model_name, model_version, "taxonomy_vectorization_model_vocab_*.json")
-    vec_file = _get_hf_model_path(model_name, model_version, "taxonomy_vectorization_model_vectors_*.npy")
+    taxonomy_vectorization_model_path = _get_hf_model_path(model_name, model_version, "community2vec_model_v*.model")
+    model_vocab_file = _get_hf_model_path(model_name, model_version, "community2vec_model_vocab_v*.json")
+    vec_file = _get_hf_model_path(model_name, model_version, "community2vec_model_v*.wv.vectors.npy")
 
     missing = [p for p in (taxonomy_vectorization_model_path, model_vocab_file, vec_file) if not Path(p).exists()]
     if missing:
         raise FileNotFoundError(
             "Missing biome2vec model files: " + ", ".join(map(str, missing)) +
-            f" (HF model: {model_name} version {model_version}).\nPlease ensure the model files are available in the HuggingFace model repository or run `trapiche-download-models`."
+            f" (HF model: {model_name} version {model_version}).\nPlease ensure the model files are available in the HuggingFace model repository."
         )
 
     logger.info("Loading biome embeddings (full_model=%s)", load_full_model)
@@ -109,8 +108,8 @@ def load_biome2vec(load_full_model: bool = True, *, model_name: str | None = Non
     # If user didn't request full but we didn't load, ensure keyed is available lazily.
     if emb.keyed is None:
         # Reload with full model (will overwrite cache). Simplicity > micro-optimisation.
-    load_biome_embeddings.cache_clear()  # type: ignore[attr-defined]
-    emb = load_biome_embeddings(load_full_model=True, model_name=model_name, model_version=model_version)
+        load_biome_embeddings.cache_clear()  # type: ignore[attr-defined]
+        emb = load_biome_embeddings(load_full_model=True, model_name=model_name, model_version=model_version)
     return emb.keyed  # type: ignore[return-value]
 
 @lru_cache
@@ -206,26 +205,27 @@ def genre_to_taxonomy_vectorization(genres_set, *, model_name: str | None = None
 def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None = None):
     # Resolve mgnify sample vectors from the HF model repo used for taxonomy vectorization.
     model_name, model_version = _resolve_model_params(model_name, model_version)
-    _c2v_file = Path(_get_hf_model_path(model_name, model_version, "mgnify_sample_vectors_*.h5"))
+    _c2v_file = Path(_get_hf_model_path(model_name, model_version, "mgnify_sample_vectors_v*.h5"))
     if not _c2v_file.exists():
-        # raise error and recommend to use trapiche-download-models
         raise FileNotFoundError(
             f"mgnify_sample_vectors file not found: {_c2v_file} (HF model: {model_name} version {model_version})\n"
-            "Please ensure the file is present in the model repository or run `trapiche-download-models`."
         )
     logger.info("Loading mgnify_sample_vectors file=%s", _c2v_file)
+    biome_herarchy_dct = load_biome_herarchy_dict()
+
     __mgnify_sample_vectors = pd.read_hdf(_c2v_file, key="df")
 
-    _mgnify_sample_vectors_metadata_file = Path(_get_hf_model_path(model_name, model_version, "mgnify_sample_vectors_metadata_*.tsv"))
+    _mgnify_sample_vectors_metadata_file = Path(_get_hf_model_path(model_name, model_version, "mgnify_sample_vectors_metadata_v*.tsv"))
     if not _mgnify_sample_vectors_metadata_file.exists():
         raise FileNotFoundError(
             f"mgnify_sample_vectors metadata file not found: {_mgnify_sample_vectors_metadata_file} (HF model: {model_name} version {model_version})\n"
-            "Please ensure the file is present in the model repository or run `trapiche-download-models`."
+            "Please ensure the file is present in the model repository."
         )
     logger.info("Loading mgnify_sample_vectors metadata file=%s", _mgnify_sample_vectors_metadata_file)
     _mgnify_sample_vectors_metadata = pd.read_csv(
         _mgnify_sample_vectors_metadata_file, sep="\t", index_col="SAMPLE_ID"
     )
+    _mgnify_sample_vectors_metadata["BIOME_AMEND"] = _mgnify_sample_vectors_metadata.LINEAGE.map(lambda x: biome_herarchy_dct.get(x, x))
     return __mgnify_sample_vectors, _mgnify_sample_vectors_metadata
 
 def vectorise_sample(list_of_tax_files, *, model_name: str | None = None, model_version: str | None = None):
