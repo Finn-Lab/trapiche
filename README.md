@@ -1,10 +1,10 @@
 Trapiche — Joint biome classification from text and taxonomy
 ===========================================================
 
-Trapiche is an open-source tool for biome classification in metagenomic studies. It combines two complementary signals:
+Trapiche is an open-source tool for biome classification in metagenomic studies. It combines two complementary sources of information:
 
-- Text-based context: an adapted Large Language Model (LLM) predicts candidate biomes from project/sample descriptions.
-- Taxonomy-based signal: a taxonomy_vectorization embedding of taxonomic profiles is fed to a feed‑forward model for deep biome lineage prediction.
+- Text-based: an adapted Large Language Model (LLM) predicts candidate biomes from project/sample descriptions.
+- Taxonomy-based: a taxonomy_vectorization embedding of taxonomic profiles is fed to a feed‑forward model for deep biome lineage prediction.
 
 By integrating both views, Trapiche improves accuracy and robustness in biome classification workflows.
 
@@ -20,10 +20,12 @@ From source
 2) Install the package and dependencies
 
 ```
-pip install -e .
-```
+# git clone tag
 
-This fetches the required taxonomy_vectorization resources, taxonomy graph, and other assets used at runtime.
+git clone <repo_url>
+cd trapiche
+pip install .
+```
 
 ## Quick start (CLI)
 
@@ -184,6 +186,17 @@ One JSON object per sample in either NDJSON (CLI) or List (API), with the follow
 
 Best prediction is in `final_selected_prediction`.
 
+
+## Tests
+
+Integration tests of API and CLI
+
+Run tests:
+
+```
+python -m unittest discover -s test -p 'test_*.py' -q
+```
+
 ## Data and models
 
 Trapiche ships code only. Models used live in HugginFaceHub, and are downloaded by HF api.
@@ -209,4 +222,5 @@ Issues and pull requests are welcome. Please open an issue to discuss larger cha
 This project is open source. See the repository metadata for licensing terms.
 
 If you use Trapiche in your work, please cite the Trapiche paper (coming soon). A BibTeX entry will be provided here.
+
 
