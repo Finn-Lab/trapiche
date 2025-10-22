@@ -88,6 +88,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--keep-vectorise-results", dest="keep_vectorise_results", action="store_true", help="Keep vectorisation intermediate results in output")
     p.add_argument("--no-taxonomy", dest="run_taxonomy", action="store_false", help="Do not run taxonomy prediction step")
     p.add_argument("--keep-taxonomy-results", dest="keep_taxonomy_results", action="store_true", help="Keep taxonomy intermediate results in output")
+    # Text params
+    p.add_argument(
+        "--sample-over-study-heuristic",
+        dest="sample_over_study_heuristic",
+        action="store_true",
+        help=(
+            "When set, if both project_description_text and sample_description_text are provided, "
+            "run predictions on both and intersect the labels, preferring the longest prefix match; "
+            "fallback to project predictions when intersection is empty."
+        ),
+    )
 
 
 
@@ -101,6 +112,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         run_taxonomy=defaults.run_taxonomy,
         keep_taxonomy_results=defaults.keep_taxonomy_results,
         minimal_result=False,
+        sample_over_study_heuristic=defaults.sample_over_study_heuristic,
     )
 
     return p.parse_args(argv)
@@ -132,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         run_taxonomy=bool(args.run_taxonomy),
         keep_taxonomy_results=bool(args.keep_taxonomy_results),
         output_keys=output_keys,
+        sample_over_study_heuristic=bool(args.sample_over_study_heuristic),
     )
 
     # read input

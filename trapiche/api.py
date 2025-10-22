@@ -201,6 +201,7 @@ class TrapicheWorkflowFromSequence:
             text_params=self.text_params,
             vectorise_params=self.vectorise_params,
             taxonomy_params=self.taxonomy_params,
+            sample_over_study_heuristic=self.workflow_params.sample_over_study_heuristic,
         )
 
         # process which keys to keep according to config

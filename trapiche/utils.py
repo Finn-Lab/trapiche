@@ -17,6 +17,7 @@ import glob
 import gzip
 import json
 import logging
+import math
 import os
 import re
 
@@ -703,3 +704,66 @@ def get_similar_predictions(probabilities, diff_thresh=0.05, ratio_thresh=0.9):
             break
 
     return similar_indices
+
+def obj_to_serializable(obj):
+    """Recursively convert common non-JSON types to JSON-serializable Python types.
+
+    - numpy scalars -> Python scalars via .item()
+    - numpy arrays -> lists via .tolist()
+    - Path -> str
+    - bytes -> decoded str (fallback to repr)
+    - sets/tuples -> lists
+    - dict/list -> recursively converted
+    - non-finite floats -> None
+    - fallback: str(obj)
+    """
+    # simple primitives
+    if obj is None or isinstance(obj, (str, bool, int)):
+        return obj
+    if isinstance(obj, float):
+        # convert NaN/inf to None to keep NDJSON parsable
+        if math.isfinite(obj):
+            return obj
+        return None
+
+    # Paths
+    if isinstance(obj, Path):
+        return str(obj)
+
+    # bytes
+    if isinstance(obj, (bytes, bytearray)):
+        try:
+            return obj.decode("utf-8")
+        except Exception:
+            return repr(obj)
+
+    # Numpy types (best-effort, numpy may not be installed)
+    try:
+        import numpy as _np
+        if isinstance(obj, _np.generic):
+            return obj.item()
+        if isinstance(obj, _np.ndarray):
+            return obj.tolist()
+    except Exception:
+        pass
+
+    # dicts
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            try:
+                key = k if isinstance(k, str) else str(k)
+            except Exception:
+                key = str(k)
+            out[key] = obj_to_serializable(v)
+        return out
+
+    # iterables -> list
+    if isinstance(obj, (list, tuple, set)):
+        return [obj_to_serializable(v) for v in obj]
+
+    # fallback to string
+    try:
+        return str(obj)
+    except Exception:
+        return None

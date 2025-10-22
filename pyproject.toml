@@ -11,22 +11,21 @@ authors = [{name = "Santiago Sanchez Fragoso", email = "fragoso@ebi.ac.uk"}]
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 dependencies = [
-  "torch",
-  "transformers",
-  "safetensors",
-  "huggingface_hub",
-  "tensorflow",
-  "scispacy",
-  "nltk",
   "numpy",
   "pandas",
   "tables",
   "requests",
   "tqdm",
-  "networkx",
-  "gensim",
-  "more-itertools",
-  "spacy",
+  "torch==2.8.0",
+  "transformers==4.55.4",
+  "huggingface_hub==0.34.4",
+  "safetensors==0.6.2",
+  "nltk==3.9.1",
+  "networkx==3.4.2",
+  "gensim==4.3.3",
+  "more-itertools==10.7.0",
+  "spacy==3.7.5",
+  "scispacy==0.5.5",
   "en_core_sci_sm @ https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
 ]
 
@@ -48,3 +47,8 @@ ignore = ["E203","E501"]
 combine-as-imports = true
 force-single-line = false
 
+[project.optional-dependencies]
+# TensorFlow is optional because some users prefer the CPU-only wheel (tensorflow-cpu)
+# Install with one of the extras below, e.g. `pip install .[cpu]` or `pip install .[gpu]`.
+cpu = ["tensorflow-cpu==2.20.0"]
+gpu = ["tensorflow==2.20.0"]

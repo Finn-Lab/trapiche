@@ -8,7 +8,6 @@ Trapiche is an open-source tool for biome classification in metagenomic studies.
 
 By integrating both views, Trapiche improves accuracy and robustness in biome classification workflows.
 
-
 ## Install
 
 Requirements
@@ -19,12 +18,21 @@ From source
 1) Clone this repository
 2) Install the package and dependencies
 
-```
-# git clone tag
+By default TensorFlow is optional. Choose the extra that matches your needs:
 
+```
+# Clone
 git clone <repo_url>
 cd trapiche
+
+# Install without TensorFlow (default)
 pip install .
+
+# Install with CPU-only TensorFlow
+pip install .[cpu]
+
+# Install with GPU TensorFlow
+pip install .[gpu]
 ```
 
 ## Quick start (CLI)
@@ -36,6 +44,7 @@ Required/optional keys per sample:
 **Text predictions**
 - project_description_text (optional): text describing the sample/project.
 - project_description_file_path (optional): path to a text file with the description. If project_description_text is provided, this is ignored.
+- sample_description_text (optional): additional text for the specific sample. Used when the sample-over-study heuristic is enabled.
 
 **Taxonomy predictions**
 - taxonomy_files_paths (required for taxonomy predictions): list of file paths.
@@ -62,12 +71,16 @@ trapiche input.ndjson --keep-text-results --keep-vectorise-results --keep-taxono
 
 # Disable a step
 trapiche input.ndjson --no-text  # no text-based constraints
+
+# Enable the sample-over-study heuristic for text predictions
+trapiche input.ndjson --sample-over-study-heuristic
 ```
 
 Flags
 - --no-text / --no-vectorise / --no-taxonomy
 - --keep-text-results / --keep-vectorise-results / --keep-taxonomy-results
 - --minimal-result (default: false). When set, output_keys defaults to a compact schema.
+- --sample-over-study-heuristic: when both project_description_text and sample_description_text are present, run text prediction on both and intersect labels, keeping the longest prefix match. Falls back to project predictions if the intersection is empty.
 
 
 ## Quick start (Python API)
@@ -80,6 +93,7 @@ Uses a sequence of dicts (one dict is one sample) with the following required/op
 **Text predictions**
 - project_description_text (optional): text describing the sample/project.
 - project_description_file_path (optional): path to a text file with the description. If project_description_text is provided, this is ignored.
+- sample_description_text (optional): additional text describing the specific sample. Used only when the heuristic is enabled.
 
 **Taxonomy predictions**
 - taxonomy_files_paths (required for taxonomy predictions): list of file paths.
@@ -96,11 +110,11 @@ samples = [
 	},
 	{
 		"project_description_text": "Epipelagic bacterial communities of Canadian lakes. The NSERC Canadian LakePulse Network is a scientific initiative assessing environmental issues affecting Canadian lakes. Through multidisciplinary projects, LakePulse researchers use tools in lake science, spatial modelling, analytical chemistry, public health, and remote sensing to assess the status of over 600 lakes across various ecozones in Canada. The impacts of land-use, climate change and contaminants on lake health will be assessed to develop policies for better lake management.",
-		"taxonomy_files_paths": [ "test/taxonomy_files/ERR5954428_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR5954428_MERGED_FASTQ_SSU_OTU.tsv"],
+		"taxonomy_files_paths": [ "test/taxonomy_files/ERR5954428_MERGED_FASTQ_LSU_OTU.tsv","test/taxonomy_files/ERR5954428_MERGED_FASTQ_SSU_OTU.tsv"],
 	},
 	{
 		"project_description_text": "Temporal shotgun metagenomic dissection of the coffee fermentation ecosystem. The current study employed a temporal shotgun metagenomic analysis of a prolonged (64 h) coffee fermentation process (six time points) to facilitate an in-depth dissection of the structure and functions of the coffee microbiome.",
-		"taxonomy_files_paths": [ "test/taxonomy_files/ERR2231570_MERGED_FASTQ_LSU_OTU.tsv",".prueba.bak/files/taxonomy_files/ERR2231570_MERGED_FASTQ_SSU_OTU.tsv"],
+		"taxonomy_files_paths": [ "test/taxonomy_files/ERR2231570_MERGED_FASTQ_LSU_OTU.tsv","test/taxonomy_files/ERR2231570_MERGED_FASTQ_SSU_OTU.tsv"],
 	},
 ]
 
@@ -165,6 +179,7 @@ One JSON object per sample in eithe NDJSON (CLI) or List (API), with the followi
 {
 	"taxonomy_files_paths": ["/path/to/sample1.tsv", "/path/to/sample1_b.tsv.gz"],
 	"project_description_text": "Free text describing the sample.",
+	"sample_description_text": "Free text describing this specific sample variant.",
 	# alternatively (if no inline text):
 	# "project_description_file_path": "path/to/description.txt"
 }
@@ -185,6 +200,16 @@ One JSON object per sample in either NDJSON (CLI) or List (API), with the follow
 ```
 
 Best prediction is in `final_selected_prediction`.
+
+## Sample-over-study heuristic (optional)
+
+When enabled (via CLI flag `--sample-over-study-heuristic` or programmatically by setting `TextToBiomeParams(sample_over_study_heuristic=True)`), Trapiche will:
+
+- Run text prediction on both `project_description_text` and `sample_description_text` when both are provided for a sample.
+- Intersect the two label sets, keeping the longest label in cases where one is a prefix of the other (e.g., keep `root:Host-associated:Animal` over `root:Host-associated`).
+- If the intersection is empty, it falls back to the project-level predictions.
+
+This heuristic can improve specificity when sample-level text refines the broader project description.
 
 
 ## Tests

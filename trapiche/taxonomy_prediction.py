@@ -224,6 +224,8 @@ def refine_predictions_knn_batch(
     List[Optional[Dict[str, float]]]
         A list of refined predictions aligned with the input order.
     """
+
+    logger.info("Starting batch KNN refinement of predictions")
     # Load MGnify sample vectors and metadata
     mgnify_sample_vectors, mgnify_meta = load_mgnify_c2v(
         model_name=params.hf_model,
@@ -309,7 +311,7 @@ np.seterr(
 def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams) -> List[Dict[str, Any]]:
     """Function for prediction of biome based on taxonomic compositon"""
     # prediction baded on deep learning model
-    
+    logger.info("Starting full stack prediction")
     deep_l_probs = bnn_model2gg(query_vector).numpy()
 
     top_predictions,constrained_top_predictions = from_probs_to_pred(deep_l_probs, potential_space=constrains)
@@ -383,7 +385,7 @@ def chunked_fuzzy_prediction(query_vector, constrain, params:TaxonomyToBiomePara
 
     results = []
 
-    for spl in tqdm(splits, desc='taxonomy_prediction'):
+    for spl in splits:
         _results = full_stack_prediction(
             query_vector[spl], [constrain[ix] for ix in spl], params=params
         )

@@ -26,6 +26,7 @@ class TextToBiomeParams:
     hf_model: str = "SantiagoSanchezF/trapiche-biome-classifier-text"
     model_version: str = "1.0"
 
+
 @dataclass
 class TaxonomyToVectorParams:
     """Configuration parameters for taxonomy vectorization.
@@ -104,4 +105,8 @@ class TrapicheWorkflowParams:
     run_taxonomy: bool = True
     keep_taxonomy_results: bool = False
     output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction", "raw_refined_prediction","constrained_unambiguous_prediction", "constrained_refined_prediction", "final_selected_prediction"]) 
+    # When True and both 'project_description_text' and 'sample_description_text'
+    # are provided in a sample dict, run predictions on both and intersect results
+    # preferring the longest matching label when one label is a prefix of the other.
+    sample_over_study_heuristic: bool = True
     
