@@ -99,11 +99,11 @@ class TrapicheWorkflowParams:
     
     """
     run_text: bool = True
-    keep_text_results: bool = False
+    keep_text_results: bool = True
     run_vectorise: bool = True
-    keep_vectorise_results: bool = False
+    keep_vectorise_results: bool = True
     run_taxonomy: bool = True
-    keep_taxonomy_results: bool = False
+    keep_taxonomy_results: bool = True
     output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction", "raw_refined_prediction","constrained_unambiguous_prediction", "constrained_refined_prediction", "final_selected_prediction"]) 
     # When True and both 'project_description_text' and 'sample_description_text'
     # are provided in a sample dict, run predictions on both and intersect results

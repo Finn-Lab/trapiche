@@ -151,22 +151,46 @@ def from_probs_to_pred(_probs, potential_space, params: TaxonomyToBiomeParams = 
             top_p = {tag_biomes.get(tags_li[idx],tags_li[idx]): pr[idx] for idx in top_predictions_idx}
 
             if _pot_space is None or len(_pot_space) == 0:
-                constrained_top_p =None
+                constrained_top_p = None
             else:
-                potential_tags = {k for k, v in tag_biomes.items() if re.search("|".join(_pot_space), v)}
+                # Build robust matching patterns from the provided constraints:
+                # - Treat constraints as lineage prefixes (e.g., 'root:Engineered:Built environment')
+                # - Also allow matching on any segment token (e.g., 'Engineered', 'Built environment')
+                # - Always escape regex special chars to avoid unintended regex behaviour
+                patterns: List[str] = []
+                for c in _pot_space:
+                    if not c:
+                        continue
+                    c = c.strip()                   
+                    patterns.append("^" + re.escape(c))
+
+                def _matches_any(v: str,_patterns:List[str]) -> bool:
+                    for pat in _patterns:
+                        try:
+                            if re.search(pat, v):
+                                return True
+                        except re.error:
+                            # In case of an invalid pattern, skip it safely
+                            continue
+                    return False
+
+                potential_tags = {k for k, v in tag_biomes.items() if _matches_any(v,patterns)}
+
+                # If nothing matches, respect the constraint by returning None (do not silently fall back to ALL)
                 if len(potential_tags) == 0:
-                    potential_tags = set(tag_biomes.keys())
-                    
-                non_useful_tags = [ix for ix, x in enumerate(tags_li) if x not in potential_tags]
-                _pr = pr.copy()
-                _pr[non_useful_tags] = -1
-                # Use the zeroed probability array when computing constrained top predictions
-                constrained_top_predictions_idx = get_similar_predictions(
-                    _pr,
-                    diff_thresh=params.top_prob_diff_threshold,
-                    ratio_thresh=params.top_prob_ratio_threshold,
-                )
-                constrained_top_p = {tag_biomes.get(tags_li[idx],tags_li[idx]): _pr[idx] for idx in constrained_top_predictions_idx}
+
+                    constrained_top_p = {k:0.5 for k in _pot_space}
+                else:
+                    non_useful_tags = [ix for ix, x in enumerate(tags_li) if x not in potential_tags]
+                    _pr = pr.copy()
+                    _pr[non_useful_tags] = -1
+                    # Use the masked probability array when computing constrained top predictions
+                    constrained_top_predictions_idx = get_similar_predictions(
+                        _pr,
+                        diff_thresh=params.top_prob_diff_threshold,
+                        ratio_thresh=params.top_prob_ratio_threshold,
+                    )
+                    constrained_top_p = {tag_biomes.get(tags_li[idx], tags_li[idx]): _pr[idx] for idx in constrained_top_predictions_idx}
 
         top_predictions.append(top_p)
         constrained_top_predictions.append(constrained_top_p)
@@ -338,7 +362,7 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     constrained_prediction_keys = [list(d.keys()) if d is not None else None for d in constrained_top_predictions]
     constrained_refined_predictions = refine_predictions_knn_batch( predictions=constrained_prediction_keys, query_vectors=query_vector, params=params)
 
-    results_sequecne = []
+    results_sequence = []
     for pred, constr_pred, unambig_pred, unambig_constr_pred, refined_prediction, refined_constrained_prediction in zip(
         top_predictions,
         constrained_top_predictions,
@@ -374,9 +398,9 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
             "constrained_refined_prediction": refined_constrained_prediction,
             "final_selected_prediction": best_heuristic,
         }
-        results_sequecne.append(result)
+        results_sequence.append(result)
 
-    return results_sequecne
+    return results_sequence
 
 def chunked_fuzzy_prediction(query_vector, constrain, params:TaxonomyToBiomeParams):
     """Process prediction in chunks to limit memory usage."""
