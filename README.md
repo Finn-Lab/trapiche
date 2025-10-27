@@ -61,26 +61,32 @@ Run the workflow
 
 ```
 # From file to default output path (<input>_trapiche_results.ndjson)
-trapiche input.ndjson --minimal-result
+# By default the CLI writes a compact (minimal) result. To disable the
+# minimal output and let the workflow params control which
+# keys are saved, use the --disable-minimal-result flag.
+trapiche input.ndjson
+
+# To explicitly disable the minimal output and keep the full set controlled
+# by TrapicheWorkflowParams:
+trapiche input.ndjson --disable-minimal-result
 
 # Or read from stdin and write to stdout
 cat input.ndjson | trapiche -
-
-# Keep intermediate results for inspection
-trapiche input.ndjson --keep-text-results --keep-vectorise-results --keep-taxonomy-results
 
 # Disable a step
 trapiche input.ndjson --no-text  # no text-based constraints
 
 # Enable the sample-over-study heuristic for text predictions
-trapiche input.ndjson --sample-over-study-heuristic
+trapiche input.ndjson --sample-study-text-heuristic
 ```
 
 Flags
 - --no-text / --no-vectorise / --no-taxonomy
 - --keep-text-results / --keep-vectorise-results / --keep-taxonomy-results
-- --minimal-result (default: false). When set, output_keys defaults to a compact schema.
-- --sample-over-study-heuristic: when both project_description_text and sample_description_text are present, run text prediction on both and intersect labels, keeping the longest prefix match. Falls back to project predictions if the intersection is empty.
+-- --disable-minimal-result (default: false). When set, the default minimal output is disabled and
+	the final keys saved are controlled by `TrapicheWorkflowParams`. By default the CLI produces the compact/minimal
+	output (no flag required).
+- --sample-study-text-heuristic: when both project_description_text and sample_description_text are present, run text prediction on both and keep union of labels. 
 
 
 ## Quick start (Python API)
@@ -203,11 +209,10 @@ Best prediction is in `final_selected_prediction`.
 
 ## Sample-over-study heuristic (optional)
 
-When enabled (via CLI flag `--sample-over-study-heuristic` or programmatically by setting `TextToBiomeParams(sample_over_study_heuristic=True)`), Trapiche will:
+When enabled (via CLI flag `--sample-study-text-heuristic` or programmatically by setting `TextToBiomeParams(sample_study_text_heuristic=True)`), Trapiche will:
 
 - Run text prediction on both `project_description_text` and `sample_description_text` when both are provided for a sample.
-- Intersect the two label sets, keeping the longest label in cases where one is a prefix of the other (e.g., keep `root:Host-associated:Animal` over `root:Host-associated`).
-- If the intersection is empty, it falls back to the project-level predictions.
+- Get union of the two label sets.
 
 This heuristic can improve specificity when sample-level text refines the broader project description.
 

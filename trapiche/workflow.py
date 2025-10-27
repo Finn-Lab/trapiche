@@ -23,7 +23,9 @@ from . import text_prediction as tt
 from . import taxonomy_prediction
 from .config import TaxonomyToVectorParams, TextToBiomeParams, TaxonomyToBiomeParams
 from .utils import obj_to_serializable
+import logging
 
+logger = logging.getLogger(__name__)
 
 def _read_text_file(path: str) -> str:
     p = Path(path)
@@ -63,6 +65,8 @@ def run_text_step(
     Returns a list aligned with `samples` where each element is either the
     list of predicted labels or None if no applicable text was provided.
     """
+
+    logger.info(f"Running TextToBiome step | use_heuristic={use_heuristic}")
     # Helper to normalise text content
     def _norm(v: Any) -> str:
         return str(v).encode("utf-8", errors="replace").decode("utf-8")
@@ -142,12 +146,8 @@ def run_text_step(
         )
 
     # Helper for heuristic intersection keeping the longest prefix match
-    def intersect_keep_longest(a: List[str], b: List[str]) -> List[str]:
-        selected: set[str] = set()
-        for sa in a:
-            for sb in b:
-                if sa.startswith(sb) or sb.startswith(sa):
-                    selected.add(sa if len(sa) >= len(sb) else sb)
+    def heuristic_function(a: List[str], b: List[str]) -> List[str]:
+        selected = set(a) | set(b)
         return list(selected)
 
     # Map back to samples combining with heuristic when applicable
@@ -156,7 +156,7 @@ def run_text_step(
     samp_preds_per_sample: List[Optional[List[str]]] = []
     heuristic_flags: List[bool] = []
 
-    for s, pidx, sidx in zip(samples, per_sample_proj_idx, per_sample_samp_idx):
+    for position, (s, pidx, sidx) in enumerate(zip(samples, per_sample_proj_idx, per_sample_samp_idx)):
         if pidx is None and (sidx is None or not use_heuristic):
             combined_results.append(None)
             proj_preds_per_sample.append(None)
@@ -172,13 +172,17 @@ def run_text_step(
 
         # Heuristic only when flag is on and both keys exist in the dict
         heuristic_active = use_heuristic and ("project_description_text" in s) and ("sample_description_text" in s)
+        
+        # Log messague if heuristic inactive for use_heuristic=True but sample text missing
+        if use_heuristic and not heuristic_active:
+            logger.info(f"Heuristic requested but not applied for sample at position {position}: missing required text fields.")
 
         if heuristic_active and sidx is not None and samp_unique_texts and proj_preds is not None:
             samp_content = samp_unique_texts[sidx]
             samp_preds = union_preds_unique[content_to_union_idx[samp_content]]
-            inter = intersect_keep_longest(proj_preds, samp_preds)
-            if inter:
-                combined_results.append(sorted(inter))
+            heuristic_result = heuristic_function(proj_preds, samp_preds)
+            if heuristic_result:
+                combined_results.append(sorted(heuristic_result))
             else:
                 # Fallback to project-level predictions when no intersection
                 combined_results.append(list(proj_preds))
@@ -204,6 +208,8 @@ def run_vectorise_step(samples: Sequence[Dict[str, Any]], *, model_name: str | N
     Returns a list of numpy arrays (one per sample) with the community vector
     or empty arrays if no vector was produced for that sample.
     """
+
+    logger.info(f"Running Taxonomy Vectorization step | model_name={model_name} | model_version={model_version}")
     # Build keys based on sorted tuple of paths so identical sets deduplicate
     sample_lists: List[List[str]] = []
 
@@ -225,6 +231,8 @@ def run_taxonomy_step(samples: Sequence[Dict[str, Any]], *,params:TaxonomyToBiom
     Returns for each sample either a dict (row-wise prediction) or None.
     If community_vectors is None the function computes them.
     """
+
+    logger.info(f"Running TaxonomyToBiome step | model_name={params.hf_model} | model_version={params.model_version}")
     if community_vectors is None:
         # When used from run_workflow, we pass community vectors explicitly; keep signature for compatibility.
         community_vectors = run_vectorise_step(samples)  
@@ -242,7 +250,7 @@ def run_taxonomy_step(samples: Sequence[Dict[str, Any]], *,params:TaxonomyToBiom
 
     return results
 
-def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomeParams,  vectorise_params: TaxonomyToVectorParams, taxonomy_params: TaxonomyToBiomeParams, run_text: bool = True, run_vectorise: bool = True, run_taxonomy: bool = True, sample_over_study_heuristic: bool = False) -> Sequence[Dict[str, Any]]:
+def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomeParams,  vectorise_params: TaxonomyToVectorParams, taxonomy_params: TaxonomyToBiomeParams, run_text: bool = True, run_vectorise: bool = True, run_taxonomy: bool = True, sample_study_text_heuristic: bool = False) -> Sequence[Dict[str, Any]]:
     """Run the requested steps and return augmented sample dicts.
 
     The input `samples` is not modified; a new list with shallow-copied dicts is
@@ -250,13 +258,15 @@ def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomePa
     `community_vector` and `taxonomy_prediction` depending on which steps were run.
     """
 
+    logger.info(f"Running Trapiche workflow | run_text={run_text} | run_vectorise={run_vectorise} | run_taxonomy={run_taxonomy} | sample_study_text_heuristic={sample_study_text_heuristic}")
+    
     text_results = None
     proj_text_results = None
     samp_text_results = None
     heuristic_flags = None
     if run_text:
         text_results, proj_text_results, samp_text_results, heuristic_flags = run_text_step(
-            samples, params_obj=text_params, use_heuristic=sample_over_study_heuristic
+            samples, params_obj=text_params, use_heuristic=sample_study_text_heuristic
         )
     else:
         text_results = [None for _ in samples]

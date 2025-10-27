@@ -31,6 +31,9 @@ dependencies = [
 
 urls = { Homepage = "https://github.com/Finn-Lab/trapiche" }
 
+[project.scripts]
+trapiche = "trapiche.cli:main"
+
 [tool.setuptools_scm]
 write_to = "trapiche/_version.py"
 

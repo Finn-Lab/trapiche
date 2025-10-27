@@ -14,13 +14,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from typing import Iterable, List, Mapping, Sequence, Tuple
+from typing import List, Mapping, Sequence, Tuple, Any
 from functools import lru_cache
 
 import numpy as np
-import torch
-from transformers import BertConfig, BertForSequenceClassification, BertTokenizerFast
-from safetensors.torch import load_file
+import importlib
 
 
 from .utils import _get_hf_model_path
@@ -38,8 +36,10 @@ def choose_device(device: str | None = None) -> str:
     """
     if device:
         return str(device)
+    # Lazily import torch only when needed for CUDA check
     try:
-        if torch.cuda.is_available():
+        torch = importlib.import_module("torch")  # type: ignore
+        if getattr(torch, "cuda", None) and torch.cuda.is_available():
             return "cuda"
     except Exception:  # pragma: no cover - conservative
         pass
@@ -48,7 +48,7 @@ def choose_device(device: str | None = None) -> str:
 
 @lru_cache(maxsize=2)
 def load_text_model(model_name: str, model_version:str, device: str | None = None) -> Tuple[
-    BertTokenizerFast, BertConfig, Mapping[int, str], BertForSequenceClassification, Mapping[str, float]
+    Any, Any, Mapping[int, str], Any, Mapping[str, float]
 ]:
     """Lazily load and cache tokenizer, config, model, and thresholds.
 
@@ -66,6 +66,15 @@ def load_text_model(model_name: str, model_version:str, device: str | None = Non
     with open(tokenizer_config_path) as h:
         tokenizer_config = json.load(h)
 
+    # Lazy imports for transformers and safetensors
+    transformers = importlib.import_module("transformers")  # type: ignore
+    safetensors_torch = importlib.import_module("safetensors.torch")  # type: ignore
+
+    BertTokenizerFast = getattr(transformers, "BertTokenizerFast")
+    BertConfig = getattr(transformers, "BertConfig")
+    BertForSequenceClassification = getattr(transformers, "BertForSequenceClassification")
+    load_file = getattr(safetensors_torch, "load_file")
+
     tokenizer = BertTokenizerFast(
         vocab_file=vocab_path,
     )
@@ -80,6 +89,7 @@ def load_text_model(model_name: str, model_version:str, device: str | None = Non
     model.load_state_dict(state_dict, strict=False)
 
     try:  # pragma: no cover - trivial
+        torch = importlib.import_module("torch")  # type: ignore
         model.to(dev)  
     except Exception:
         pass
@@ -91,8 +101,8 @@ def load_text_model(model_name: str, model_version:str, device: str | None = Non
 
 def _load_thresholds_multi_path(
     model_path: str,
-    tokenizer: BertTokenizerFast | None = None,
-    model: BertForSequenceClassification | None = None,
+    tokenizer: Any | None = None,
+    model: Any | None = None,
 ) -> Mapping[str, float]:
     """Attempt to locate class_thresholds.json near the resolved model files."""
     candidates: List[str] = []
@@ -189,6 +199,7 @@ def predict_probability(
     )
     dev = choose_device(device)
     enc = {k: v.to(dev) for k, v in enc.items()}
+    torch = importlib.import_module("torch")  # type: ignore
     with torch.no_grad():
         out = model(**enc)
         probs = torch.sigmoid(out.logits).cpu().numpy()

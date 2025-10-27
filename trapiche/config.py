@@ -95,7 +95,7 @@ class TrapicheWorkflowParams:
     keep_taxonomy_results : bool
         Whether to keep taxonomy prediction results in the output.
     output_keys : list[str] | None
-        If a list, only these keys will be kept in the final output dicts. If None, keys are controled by keep_*_results config.
+        If a list, only these keys will be kept in the final output dicts.
     
     """
     run_text: bool = True
@@ -105,8 +105,35 @@ class TrapicheWorkflowParams:
     run_taxonomy: bool = True
     keep_taxonomy_results: bool = True
     output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction", "raw_refined_prediction","constrained_unambiguous_prediction", "constrained_refined_prediction", "final_selected_prediction"]) 
-    # When True and both 'project_description_text' and 'sample_description_text'
-    # are provided in a sample dict, run predictions on both and intersect results
-    # preferring the longest matching label when one label is a prefix of the other.
-    sample_over_study_heuristic: bool = True
+    sample_study_text_heuristic: bool = False
     
+
+
+"""LOGGING CONFIGURATION
+"""
+
+import logging
+import logging.handlers
+from pathlib import Path
+import sys
+from typing import Optional
+
+
+def setup_logging(logfile: Optional[str] = None, level: int = logging.INFO) -> None:
+    """Configure logging for CLI (file) or API (stdout)."""
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    logger.handlers.clear()
+
+    formatter = logging.Formatter("%(asctime)s %(name)s [%(levelname)s] %(message)s")
+
+    if logfile:
+        path = Path(logfile)
+        if path.parent and not str(path.parent) == ".":
+            path.parent.mkdir(parents=True, exist_ok=True)
+        handler = logging.handlers.RotatingFileHandler(str(path), maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
+    else:
+        handler = logging.StreamHandler(sys.stdout)
+
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)

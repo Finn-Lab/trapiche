@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import logging
 import sys
 import json
 from pathlib import Path
@@ -7,7 +8,7 @@ from typing import Iterable, Dict, Any
 import gzip
 
 from .api import TrapicheWorkflowFromSequence
-from .config import TrapicheWorkflowParams, TaxonomyToVectorParams
+from .config import TrapicheWorkflowParams, TaxonomyToVectorParams, setup_logging
 
 
 def read_ndjson(path: Path | None) -> Iterable[Dict[str, Any]]:
@@ -73,30 +74,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Run Trapiche workflow on a sequence of sample dicts provided as NDJSON.",
     )
     p.add_argument("input", nargs="?", help="Input NDJSON file path (use - for stdin). Supports .gz")
-    p.add_argument("-o", "--output", help="Output NDJSON file path (defaults to stdout). Use .gz to compress")
+    p.add_argument("-o", "--output", help="Output NDJSON file path (defaults to <INPUT_BASENAME>_trapiche_results.ndjson). Use .gz to compress")
     p.add_argument(
-        "--minimal-result",
-        dest="minimal_result",
+        "--disable-minimal-result",
+        dest="disable_minimal_result",
         action="store_true",
-        help=("When set, keep the minimal output."
-              "When not set, final keys are controlled by the --keep-*-results flags."),
+        help=(
+            "When set, disable the default minimal output."
+            " When disabled, the final keys saved are controlled by the"
+            " TrapicheWorkflowParams."
+        ),
     )
     # workflow toggles mirroring TrapicheWorkflowParams
     p.add_argument("--no-text", dest="run_text", action="store_false", help="Do not run text prediction step")
-    p.add_argument("--keep-text-results", dest="keep_text_results", action="store_true", help="Keep text intermediate results in output")
     p.add_argument("--no-vectorise", dest="run_vectorise", action="store_false", help="Do not run vectorisation step")
-    p.add_argument("--keep-vectorise-results", dest="keep_vectorise_results", action="store_true", help="Keep vectorisation intermediate results in output")
     p.add_argument("--no-taxonomy", dest="run_taxonomy", action="store_false", help="Do not run taxonomy prediction step")
-    p.add_argument("--keep-taxonomy-results", dest="keep_taxonomy_results", action="store_true", help="Keep taxonomy intermediate results in output")
     # Text params
     p.add_argument(
-        "--sample-over-study-heuristic",
-        dest="sample_over_study_heuristic",
+        "--sample-study-text-heuristic",
+        dest="sample_study_text_heuristic",
         action="store_true",
         help=(
             "When set, if both project_description_text and sample_description_text are provided, "
-            "run predictions on both and intersect the labels, preferring the longest prefix match; "
-            "fallback to project predictions when intersection is empty."
+            "run predictions on both and take union the labels; "
         ),
     )
 
@@ -106,20 +106,47 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     defaults = TrapicheWorkflowParams()
     p.set_defaults(
         run_text=defaults.run_text,
-        keep_text_results=defaults.keep_text_results,
         run_vectorise=defaults.run_vectorise,
-        keep_vectorise_results=defaults.keep_vectorise_results,
         run_taxonomy=defaults.run_taxonomy,
-        keep_taxonomy_results=defaults.keep_taxonomy_results,
-        minimal_result=False,
-        sample_over_study_heuristic=defaults.sample_over_study_heuristic,
+        disable_minimal_result=False,
+        sample_study_text_heuristic=defaults.sample_study_text_heuristic,
     )
+
+    # Logging option: default to trapiche.log when running via the CLI
+    p.add_argument(
+        "--log-file",
+        dest="log_file",
+        default="trapiche.log",
+        help=("Path to log file (defaults to 'trapiche.log')."),
+    )
+
+    # add vervose option to set logger level
+    p.add_argument(
+        "-v",
+        "--verbose",
+        action="store_const",
+        const=logging.DEBUG,
+        default=logging.INFO,
+        dest="log_level",
+        help="Enable verbose logging output (DEBUG level).",
+    )
+    
 
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+
+    logfile = args.log_file
+    setup_logging(logfile=logfile, level=args.log_level)
+    logger = logging.getLogger(__name__)
+
+    logger.info(
+        "trapiche CLI invoked | command_line_arguments='%s'", " ".join(sys.argv)
+    )
+   
+    logger.info("Parsed arguments: %s", args)
 
     inpath = None
     if args.input and args.input != "-":
@@ -129,23 +156,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.output:
         outpath = Path(args.output)
 
-    # build params dataclass
-    # Determine output_keys according to --minimal-result
-    if args.minimal_result:
+
+    if not getattr(args, "disable_minimal_result", False):
+        # minimal result enabled -> use compact output_keys from config
         output_keys = TrapicheWorkflowParams().output_keys
     else:
+        # minimal result explicitly disabled
         output_keys = None
 
     params = TrapicheWorkflowParams(
         run_text=bool(args.run_text),
-        keep_text_results=bool(args.keep_text_results),
         run_vectorise=bool(args.run_vectorise),
-        keep_vectorise_results=bool(args.keep_vectorise_results),
         run_taxonomy=bool(args.run_taxonomy),
-        keep_taxonomy_results=bool(args.keep_taxonomy_results),
         output_keys=output_keys,
-        sample_over_study_heuristic=bool(args.sample_over_study_heuristic),
+        sample_study_text_heuristic=bool(args.sample_study_text_heuristic),
     )
+
 
     # read input
     samples = list(read_ndjson(inpath))
@@ -177,6 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         outpath = inpath.parent / f"{base_path.name}_trapiche_results.ndjson"
 
     # processed is a sequence of dicts
+
+    logger.info(f"Writing results to | output_path={outpath if outpath else 'stdout'}")
     write_ndjson(processed, outpath)
     return 0
 

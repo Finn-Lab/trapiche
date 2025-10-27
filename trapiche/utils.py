@@ -31,7 +31,6 @@ import io
 import requests
 import xml.etree.ElementTree as ET
 import numpy as np
-from collections import Counter
 import pandas as pd
 from pathlib import Path
 from huggingface_hub import hf_hub_download
@@ -191,7 +190,7 @@ def krona_read(content):
 def tax_annotations_from_file(f):
     """Function to extract taxo_annots from file"""
     d = None
-    logger.info(f"tax_annotations_from_file called file={f}")
+    logger.debug(f"tax_annotations_from_file called file={f}")
     if "diamond" in f:
         try:
             d = diamond_read(f)
@@ -208,7 +207,7 @@ def tax_annotations_from_file(f):
                     d = krona_read(content)
             except Exception as e2:
                 logger.error(f"gzip krona failed file={f} error={e2}")
-    logger.info(f"tax_annotations_from_file result n_edges={len(d) if d is not None else 0}")
+    logger.debug(f"tax_annotations_from_file result n_edges={len(d) if d is not None else 0}")
     return d
 
 
