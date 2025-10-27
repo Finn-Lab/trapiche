@@ -43,7 +43,22 @@ logger = logging.getLogger(__name__)
 # --- Path helpers ---
 
 def _get_hf_model_path(model_name: str, model_version: str, file_pattern: str) -> Path:
-    """parse huggingdace model path using hf_hub_download and file pattern should be like 'file_*.json' and the * is replaced with model_version"""
+    """Resolve a versioned file path from a Hugging Face model repo.
+
+    The star in file_pattern is replaced with model_version, and the file is
+    downloaded to the local HF cache if needed.
+
+    Args:
+        model_name: HF repository id.
+        model_version: Semantic version or tag.
+        file_pattern: Pattern with a single '*' placeholder.
+
+    Returns:
+        Path: Local path to the resolved file.
+
+    Raises:
+        FileNotFoundError: If the asset cannot be resolved or downloaded.
+    """
     try:
         filename = f"{model_version}/{file_pattern.replace('*', model_version)}"
         file_path = hf_hub_download(repo_id=model_name, filename=filename, repo_type="model")
@@ -54,10 +69,10 @@ def _get_hf_model_path(model_name: str, model_version: str, file_pattern: str) -
 
 @contextmanager
 def _open_text_auto(path: str | os.PathLike, mode: str = "rt", encoding: str = "utf-8"):
-    """Open plain text or gzip-compressed text transparently.
+    """Open plain or gzip-compressed text transparently.
 
-    Chooses gzip when the filename ends with .gz or the file starts with the
-    gzip magic bytes. Falls back to plain open otherwise.
+    Chooses gzip when the filename ends with .gz or the file starts with gzip
+    magic bytes. Falls back to plain open otherwise.
     """
     p = Path(path)
     use_gzip = p.suffix == ".gz"
@@ -94,11 +109,10 @@ def _open_text_auto(path: str | os.PathLike, mode: str = "rt", encoding: str = "
 
 
 def diamond_read(f):
-    """Extract taxonomy edges from a diamond functional annotation file (.tsv or .tsv.gz).
+    """Extract taxonomy edges from a DIAMOND annotation file.
 
-    The diamond annotation schema places the taxonomy lineage (last taxon) in
-    column 15 (0-based index 14). We capture unique taxon strings, then build
-    simple genus->species style edges (capitalised first token -> full string).
+    Supports .tsv and .tsv.gz files. Uses column 15 (0-based 14) for lineage
+    and builds simple genus->species-like edges.
     """
     with _open_text_auto(f, "rt", encoding="utf-8") as h:
         _diamonds_set = set()
@@ -150,7 +164,14 @@ def diamond_read(f):
 
 
 def krona_read(content):
-    """function to read mseq.txt files"""
+    """Parse Krona-style taxonomy content into edge lists.
+
+    Args:
+        content: Iterable of lines (open file or list of str).
+
+    Returns:
+        list[tuple[str, str]]: Directed edges in the taxonomy graph.
+    """
     edges = set()  # Use a set to avoid duplicate edges
     for _line in content:
         if _line.startswith("#") or not _line.strip():
@@ -188,7 +209,17 @@ def krona_read(content):
 
 
 def tax_annotations_from_file(f):
-    """Function to extract taxo_annots from file"""
+    """Extract taxonomy annotations from an input file.
+
+    DIAMOND outputs are detected by filename. Otherwise a Krona-style TSV is
+    assumed. Gzip files are supported.
+
+    Args:
+        f: File path.
+
+    Returns:
+        list[tuple[str, str]] | None: Edge list or None if parsing fails.
+    """
     d = None
     logger.debug(f"tax_annotations_from_file called file={f}")
     if "diamond" in f:
@@ -215,6 +246,7 @@ def tax_annotations_from_file(f):
 
 @lru_cache
 def load_biome_herarchy_dict():
+    """Load amended biome hierarchy mapping from HF assets (cached)."""
     from .config import TaxonomyToVectorParams as _T2V
     from .utils import _get_hf_model_path
     _p = _T2V()
@@ -232,8 +264,13 @@ def load_biome_herarchy_dict():
 def parse_diamond(
     content: list,  # diamond_taxo_annotation content. Usually is the result of list(open(PATH_FILE).read())
 ):
-    """
-    Given a diamond_taxo_annotation content (in for of a python list), extract the taxonomic annotations in it
+    """Extract unique taxa from DIAMOND lines.
+
+    Args:
+        content: Lines from a DIAMOND TSV file.
+
+    Returns:
+        set[str]: Unique taxon strings.
     """
     mix = {
         line.split("\t")[14].split("=")[-1].replace("Candidatus ", "")
@@ -243,10 +280,7 @@ def parse_diamond(
 
 
 def sanity_check_otus_annot_file(filepath):
-    """Lightweight validation + content collection for OTU annotation file.
-
-    Returns the list of lines (content) regardless; placeholder for future validation.
-    """
+    """Collect lines from an OTU annotation file (light validation)."""
     with open(filepath, "r") as f:
         content = list(f)
     for line in content:
@@ -259,8 +293,13 @@ def sanity_check_otus_annot_file(filepath):
 def parse_otus_count(
     content: list,  # diamond_taxo_annotation content. Usually is the result of list(open(PATH_FILE).read())
 ):
-    """
-    Given a OTU conut content (in for of a python list), extract the taxonomic annotations in it
+    """Extract unique taxa from an OTU count file's content.
+
+    Args:
+        content: Lines from an OTU table.
+
+    Returns:
+        set[str]: Unique taxon tokens at the deepest level.
     """
     se = [
         " ".join(";".join(line.strip().split("\t")[1:]).replace("__", "//").split("_"))
@@ -273,6 +312,10 @@ def parse_otus_count(
 
 
 def sanity_check_diamond_annot_file(filepath):
+    """Read a DIAMOND TSV (or .gz) and return its content lines.
+
+    Placeholder for future header/format validation.
+    """
 
     # List of valid headers
     # valid_headers = {'uniref90_ID', 'contig_name', 'percentage_of_identical_matches', 'length', 'mismatch',
@@ -304,11 +347,13 @@ from numpy.linalg import norm
 
 
 def cosine_similarity(a, b):
+    """Return cosine similarity between two vectors."""
     cos_sim = dot(a, b) / (norm(a) * norm(b))
     return cos_sim
 
 
 def cosine_similarity_pairwise(A, B):
+    """Compute pairwise cosine similarity between row vectors in A and B."""
     dot_product = np.dot(A, B.T)
     norm_a = np.linalg.norm(A, axis=1)
     norm_b = np.linalg.norm(B, axis=1)
@@ -316,6 +361,7 @@ def cosine_similarity_pairwise(A, B):
 
 
 def jaccard_similarity(set1, set2):
+    """Return Jaccard similarity between two sets."""
     intersection = set1.intersection(set2)
     union = set1.union(set2)
     if len(union) == 0:
@@ -325,6 +371,7 @@ def jaccard_similarity(set1, set2):
 
 
 def find_common_lineage(lineages):
+    """Find the longest common prefix (by nodes) across lineages."""
     if not lineages:
         return ""
     if len(lineages) == 1:
@@ -354,27 +401,31 @@ def find_common_lineage(lineages):
 
 
 class jsonCompressed:
-    "dump and read data objects into a compressed json"
+    """Dump/read JSON objects using gzip compression."""
 
     def __init__(self):
         pass
 
     @staticmethod
     def dump(data, outfile):
-        """Serialize data object to gzip-compressed JSON (one object)."""
+        """Serialize object to gzip-compressed JSON (one object)."""
         json_str = json.dumps(data) + "\n"
         with gzip.open(outfile, "wt", encoding="utf-8") as fout:
             fout.write(json_str)
 
     @staticmethod
     def read(infile):
+        """Read a gzip-compressed JSON object from disk."""
         with gzip.open(infile, "rt", encoding="utf-8") as fin:
             return json.loads(fin.read())
 
 
 
 def split_tt(df, frac, rs, lin):
-    "add a column to dataframe marking test samples, based on leaving out complete projects to better asses performance"
+    """Mark test samples by leaving out complete projects.
+
+    Adds a boolean IS_TEST column to help assess performance fairly.
+    """
     test_samples = []
     if frac != 0:  # skip this step if models are trained with the full dataset
         if type(lin) == str:
@@ -409,7 +460,7 @@ def split_tt(df, frac, rs, lin):
 
 
 def three_split(df, random_state=None, frac_=0.2):
-    "split a dataframe in tr,te,val using non,overlaping projects"
+    """Split a dataframe into train/val/test by non-overlapping projects."""
     gr = pd.DataFrame(df)
     ann = lambda x: re.sub(":*$", "", ":".join((x.split(":") + [""] * 3)[:3]))
     gr["top"] = gr.lineage.map(ann)
@@ -428,7 +479,7 @@ def three_split(df, random_state=None, frac_=0.2):
 
 
 def subsamp(df, random_state=None, top=1200):
-    "subsample a dataframe to keep biome with less than K samples per biome"
+    """Subsample to keep at most K samples per biome label."""
     samps = []
     for g, gr in df.groupby("lineage"):
         if gr.shape[0] > top:
@@ -443,18 +494,14 @@ from difflib import SequenceMatcher
 
 
 def longest_matching_string(string1, string2):
-    """
-    find longest matching string
-    """
+    """Return the longest common substring between two strings."""
     match = SequenceMatcher(None, string1, string2).find_longest_match()
     lm = string1[match.a : match.a + match.size]
     return lm
 
 
 def match_metrics(_gt, _pred):
-    """
-    given two lineages return the leng of the max_matching string and the distance between biome nodes. Nedagtive means that is not an extention of the ground truth
-    """
+    """Compute simple precision/recall between two lineage strings."""
     # remove the root node
     gt, pred = [set(x.replace("root:", "").split(":")) for x in [_gt, _pred]]
     recall = len(gt & pred) / len(gt)
@@ -465,12 +512,11 @@ def match_metrics(_gt, _pred):
 import networkx as nx
 
 
-""" Bayesian network of GOLD
-"""
+"""Bayesian network of GOLD."""
 
 
 def build_bayesian_onto(onto_net):
-    "function to cronstruct a baysian network based on the probabilites derived from options"
+    """Construct a Bayesian network with simple conditional probabilities."""
     nodes = list(onto_net.nodes)
     for node in nodes:
         if node == "root":
@@ -483,15 +529,16 @@ def build_bayesian_onto(onto_net):
 
 
 def ia_v(term, graph):
-    "get information accretion of o node in ontology"
+    """Return information accretion of a node in the ontology."""
     cond_prob = graph.nodes[term]["conditional_probability"]
     information_accretion = np.log2(1 / cond_prob)
     return information_accretion
 
 
 def i_T(term, graph):
-    """marginal probabilities that a protein is experimentally associated with a consistent subgraph T in the ontology.
-    information content of a term (if str is provided) or a list of terms
+    """Information content of a term or set of terms.
+
+    If term is a string, use its ancestors; if iterable, use the set itself.
     """
     if type(term) == str:
         veT = nx.ancestors(graph, term) | {term}
@@ -501,18 +548,18 @@ def i_T(term, graph):
     return np.sum(_info_content)
 
 
-def roc_preds(true, path, probs, threshold):  # noqa: D401 (simple helper)
-    "Return path elements whose probability >= threshold (simple ROC helper)."
+def roc_preds(true, path, probs, threshold):
+    """Return path elements with probability >= threshold (ROC helper)."""
     return path[np.where(probs >= threshold)[0]]
 
 
 def semantic_distance(ru, mi, k=2):
-    "calculate diatnace"
+    """Compute L-k distance given remaining uncertainty and misinformation."""
     return ((ru**k) + (mi**k)) ** (1 / k)
 
 
 def info_theoretic_metrics(T, P, graph):
-    "get metrics based on the paper"
+    """Compute precision/recall and info-theoretic metrics for a prediction."""
     # get ancestors
     Tt = nx.ancestors(graph, T) | {T}
     Pt = nx.ancestors(graph, P) | {P}
@@ -552,8 +599,7 @@ def info_theoretic_metrics(T, P, graph):
 
 
 def fbeta_score(precision, recall, beta=1):
-    # Check if both precision and recall are 0 to prevent division by zero.
-    # This can occur when there are no positive predictions or positive labels
+    """Compute F-beta score with safe zero handling."""
     if (beta**2 * precision) + recall == 0:
         return 0
     fscore = (1 + beta**2) * (precision * recall) / ((beta**2 * precision) + recall)
@@ -561,7 +607,7 @@ def fbeta_score(precision, recall, beta=1):
 
 
 def set_info_theoretic_metrics(true, pred, graph, k=1):
-    "calculate info_theoretical metrics for a set of predictions"
+    """Compute info-theoretic metrics for sets of true/pred terms."""
     (
         precision,
         recall,
@@ -610,6 +656,10 @@ def set_info_theoretic_metrics(true, pred, graph, k=1):
 
 
 def fetch_data_from_ebi(acc):
+    """Fetch ENA XML metadata for an accession.
+
+    Returns the raw XML string or None if the request fails.
+    """
     url = "https://www.ebi.ac.uk/ena/browser/api/xml/{}?download=false".format(acc)
     response = requests.get(url)
     if response.status_code == 200:

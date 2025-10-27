@@ -1,0 +1,19 @@
+# Constructed from biom file
+# OTU ID	SRR1524511	taxonomy
+4942	2.0	sk__Bacteria
+7180	1.0	sk__Bacteria;k__;p__Actinobacteria;c__Actinobacteria;o__Actinomycetales;f__Actinomycetaceae;g__Actinomyces
+9034	1.0	sk__Bacteria;k__;p__Actinobacteria;c__Actinobacteria;o__Propionibacteriales;f__Nocardioidaceae
+28605	1.0	sk__Bacteria;k__;p__Actinobacteria;c__Actinobacteria;o__Propionibacteriales;f__Nocardioidaceae;g__Nocardioides
+26804	1.0	sk__Bacteria;k__;p__Bacteroidetes;c__Bacteroidia;o__Bacteroidales;f__Prevotellaceae;g__Prevotella
+31490	2.0	sk__Bacteria;k__;p__Bacteroidetes;c__Chitinophagia;o__Chitinophagales;f__Chitinophagaceae
+16678	1.0	sk__Bacteria;k__;p__Chloroflexi
+3336	1.0	sk__Bacteria;k__;p__Chloroflexi;c__Chloroflexia;o__Chloroflexales;f__Roseiflexaceae;g__Roseiflexus
+546	2.0	sk__Bacteria;k__;p__Firmicutes;c__Bacilli
+7546	1.0	sk__Bacteria;k__;p__Firmicutes;c__Bacilli;o__Lactobacillales;f__Lactobacillaceae;g__Lactobacillus
+18127	3.0	sk__Bacteria;k__;p__Proteobacteria;c__Gammaproteobacteria;o__Pasteurellales;f__Pasteurellaceae
+13346	1.0	sk__Bacteria;k__;p__Proteobacteria;c__Gammaproteobacteria;o__Xanthomonadales
+33969	1.0	sk__Bacteria;k__;p__Spirochaetes;c__Spirochaetia;o__Spirochaetales;f__Spirochaetaceae;g__Treponema
+35295	1.0	sk__Eukaryota
+37630	2.0	sk__Eukaryota;k__Metazoa;p__Arthropoda;c__Chilopoda
+16620	1.0	sk__Eukaryota;k__Metazoa;p__Arthropoda;c__Insecta
+19995	1.0	sk__Eukaryota;k__Viridiplantae;p__Streptophyta;c__Liliopsida;o__Poales;f__Poaceae

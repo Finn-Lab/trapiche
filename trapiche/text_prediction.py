@@ -1,13 +1,10 @@
-"""Text classification utilities (multi-label) for biome prediction from descriptions.
+"""Multi-label text classifier utilities for biome prediction.
 
-This module exposes pure functions for multi‑label BERT classification plus a CLI
-entry point. It implements:
-
+Provides pure functions for BERT-based inference and a small CLI. Features:
 - Automatic device selection (CUDA if available, else CPU).
-- Lazy, cached model loading using Hugging Face Transformers.
-- Optional sentence splitting using spaCy (or NLTK / naive fallback).
-- Optional class specific probability thresholds loaded from ``class_thresholds.json``
-    when present alongside the model weights (local directory or resolved cache path).
+- Lazy model loading via Hugging Face.
+- Optional sentence splitting (spaCy/NLTK/fallback).
+- Optional per-class thresholds when class_thresholds.json is present.
 """
 from __future__ import annotations
 
@@ -50,9 +47,15 @@ def choose_device(device: str | None = None) -> str:
 def load_text_model(model_name: str, model_version:str, device: str | None = None) -> Tuple[
     Any, Any, Mapping[int, str], Any, Mapping[str, float]
 ]:
-    """Lazily load and cache tokenizer, config, model, and thresholds.
+    """Load tokenizer, config, model, and thresholds (cached).
 
-    Returns (tokenizer, config, id2label, model, thresholds).
+    Args:
+        model_name: HF model repo.
+        model_version: Semantic version or tag.
+        device: Preferred device (e.g. 'cpu', 'cuda').
+
+    Returns:
+        tuple: (tokenizer, config, id2label, model, thresholds).
     """
     dev = choose_device(device)
 
@@ -104,7 +107,7 @@ def _load_thresholds_multi_path(
     tokenizer: Any | None = None,
     model: Any | None = None,
 ) -> Mapping[str, float]:
-    """Attempt to locate class_thresholds.json near the resolved model files."""
+    """Locate class_thresholds.json near resolved model files if present."""
     candidates: List[str] = []
     if os.path.isdir(model_path):
         candidates.append(model_path)
@@ -160,6 +163,14 @@ def _get_nlp():  # pragma: no cover - optional path
 
 
 def _split_sentences(text: str) -> List[str]:
+    """Split text into sentences using spaCy/NLTK/fallback.
+
+    Args:
+        text: Input text.
+
+    Returns:
+        list[str]: Sentence strings (non-empty, stripped).
+    """
     nlp = _get_nlp()
     if nlp is not None:
         try:
@@ -187,6 +198,18 @@ def predict_probability(
     device: str | None = None,
     max_length: int = 256,
 ) -> np.ndarray:
+    """Compute per-class probabilities for one or many texts.
+
+    Args:
+        texts: Text or list of texts.
+        model_name: HF model repo.
+        model_version: Semantic version or tag.
+        device: Preferred device.
+        max_length: Maximum token length.
+
+    Returns:
+        np.ndarray: Array of shape (n_samples, n_classes).
+    """
     if isinstance(texts, str):  # type: ignore
         texts = [texts]  # type: ignore
     tokenizer, _config, _id2label, model, _thresholds = load_text_model(model_name, model_version, device)
@@ -212,6 +235,19 @@ def probabilities_to_mask(
     thresholds: Mapping[str, float],
     rule: str | float | int = 0.01,
 ) -> np.ndarray:
+    """Convert probabilities into a binary selection mask.
+
+    Supports numeric thresholds, 'max', and 'top-N' rules.
+
+    Args:
+        probs: Array of shape (n_samples, n_classes).
+        id2label: Index to label mapping.
+        thresholds: Optional per-class threshold map.
+        rule: Float/int threshold, 'max', or 'top-N'.
+
+    Returns:
+        np.ndarray: Binary mask with same shape as probs.
+    """
     n_samples, n_classes = probs.shape
     mask = np.zeros_like(probs, dtype=int)
 
@@ -248,6 +284,20 @@ def predict(
     threshold_rule: str | float | int = 0.01,
     split_sentences: bool = False,
 ) -> List[List[str]]:
+    """Predict labels for input texts.
+
+    Args:
+        texts: Text or list of texts.
+        model_name: HF model repo.
+        model_version: Semantic version or tag.
+        device: Preferred device.
+        max_length: Maximum token length.
+        threshold_rule: Selection rule for probabilities.
+        split_sentences: If True, aggregate over sentences using max.
+
+    Returns:
+        list[list[str]]: Predicted labels per text.
+    """
     if isinstance(texts, str):
         texts_list = [texts]
     else:

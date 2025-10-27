@@ -110,18 +110,15 @@ from trapiche.api import TrapicheWorkflowFromSequence
 from trapiche.config import TrapicheWorkflowParams
 
 samples = [
+
 	{
-		"project_description_text": "Dental plaque microbiomes from hunter-gatherer and subsistence farmer populations in Cameroon. This study collected dental plaque samples from two non-industrial populations in Cameroon, the Baka and the Nzime. Two plaque samples were collected per individual, one from anterior teeth and one from posterior teeth.",
-		"taxonomy_files_paths": [ "test/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"],
-	},
-	{
-		"project_description_text": "Epipelagic bacterial communities of Canadian lakes. The NSERC Canadian LakePulse Network is a scientific initiative assessing environmental issues affecting Canadian lakes. Through multidisciplinary projects, LakePulse researchers use tools in lake science, spatial modelling, analytical chemistry, public health, and remote sensing to assess the status of over 600 lakes across various ecozones in Canada. The impacts of land-use, climate change and contaminants on lake health will be assessed to develop policies for better lake management.",
-		"taxonomy_files_paths": [ "test/taxonomy_files/ERR5954428_MERGED_FASTQ_LSU_OTU.tsv","test/taxonomy_files/ERR5954428_MERGED_FASTQ_SSU_OTU.tsv"],
-	},
-	{
-		"project_description_text": "Temporal shotgun metagenomic dissection of the coffee fermentation ecosystem. The current study employed a temporal shotgun metagenomic analysis of a prolonged (64 h) coffee fermentation process (six time points) to facilitate an in-depth dissection of the structure and functions of the coffee microbiome.",
-		"taxonomy_files_paths": [ "test/taxonomy_files/ERR2231570_MERGED_FASTQ_LSU_OTU.tsv","test/taxonomy_files/ERR2231570_MERGED_FASTQ_SSU_OTU.tsv"],
-	},
+		"project_description_text": "Home Microbiome Metagenomes. The project identifies patterns in microbial communities associated with different home and home occupant (human and pet) surfaces", 
+		"sample_description_text": "Metagenome of microbial community: Bedroom Floor. House_04a-Bedroom_Floor_Day3. House_04a-Bedroom_Floor_Day3", 
+		"taxonomy_files_paths": [
+			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv", 
+			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_LSU_OTU.tsv"
+			]
+	}
 ]
 
 workflow_params = TrapicheWorkflowParams(  # defaults shown

@@ -1,3 +1,8 @@
+"""Command-line interface for running the Trapiche workflow.
+
+Reads NDJSON input (file or stdin), executes selected steps, and writes
+NDJSON output (file or stdout). Supports gzip input/output.
+"""
 from __future__ import annotations
 import argparse
 import logging
@@ -12,9 +17,13 @@ from .config import TrapicheWorkflowParams, TaxonomyToVectorParams, setup_loggin
 
 
 def read_ndjson(path: Path | None) -> Iterable[Dict[str, Any]]:
-    """Yield objects from NDJSON file or stdin.
+    """Yield JSON objects from NDJSON input.
 
-    If path is None, read from stdin. Supports .gz compressed files.
+    Args:
+        path: Input file path or None to read from stdin. .gz supported.
+
+    Yields:
+        dict: One object per line.
     """
     fh = None
     try:
@@ -45,7 +54,12 @@ def read_ndjson(path: Path | None) -> Iterable[Dict[str, Any]]:
 
 
 def write_ndjson(records: Iterable[Dict[str, Any]], path: Path | None) -> None:
-    """Write records as NDJSON to path or stdout."""
+    """Write records as NDJSON to a file or stdout.
+
+    Args:
+        records: Iterable of dicts to serialize.
+        path: Output path or None to write to stdout. .gz supported.
+    """
     if path is None:
         out = sys.stdout
         for r in records:
@@ -136,6 +150,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Entry point for the trapiche CLI.
+
+    Args:
+        argv: Optional list of command-line arguments.
+
+    Returns:
+        int: Process exit code (0 on success).
+    """
     args = parse_args(argv)
 
     logfile = args.log_file

@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class Community2vec:
+    """Vectorise taxonomy annotations into community embeddings.
+
+    Use explicit model parameters to resolve assets. Defaults come from
+    TaxonomyToVectorParams when not provided.
+    """
     def __init__(self, model_name: str | None = None, model_version: str | None = None):
         # If not provided, default to config defaults
         if model_name is None or model_version is None:
@@ -25,23 +30,17 @@ class Community2vec:
         logger.info("Community2vec created", extra={"model_name": self.model_name, "model_version": self.model_version})
 
     def transform(self, list_of_tax_files) -> np.ndarray:
-        """Vectorise one or many samples from taxonomy annotation files.
+        """Vectorise one or many samples from taxonomy files.
 
-        Flexible input forms are accepted (all are normalised internally to the
-        original list-of-lists of file paths interface):
+        Args:
+            list_of_tax_files: Path, list of paths, directory path, or
+                list of list of paths. See taxonomy_vectorization.vectorise_sample
+                for accepted forms.
 
-        1. Single file path (str / Path): that file represents one sample.
-        2. Directory path: every *.tsv or *.tsv.gz file inside (non-recursive)
-           is treated as belonging to one sample.
-        3. Flat list of file paths: all those files together are one sample.
-        4. List of lists of file paths (original behaviour): each inner list is a sample.
-
-        Returns
-        -------
-        np.ndarray
-            Array with shape (n_samples, embedding_dim). If no vectors can be
-            produced an array with shape (n_samples, 0) is returned (or (0, 0) if
-            there are no samples at all).
+        Returns:
+            np.ndarray: Matrix with shape (n_samples, embedding_dim). If no
+            vectors are produced, returns shape (n_samples, 0) or (0, 0) when
+            there are no samples.
         """
         from .taxonomy_vectorization import vectorise_sample
 
@@ -61,10 +60,9 @@ class Community2vec:
 
 
 class TaxonomyToBiome:
-    """Lightweight wrapper around deep taxonomy prediction.
+    """Predict biome lineage from community vectors.
 
-    Mirrors the minimal style of other API classes. All heavy imports are
-    deferred until prediction time to avoid increasing import cost.
+    Heavy libraries are imported at prediction time to keep import cost low.
     """
 
     def __init__(self, params: TaxonomyToBiomeParams | None = None):
@@ -78,25 +76,15 @@ class TaxonomyToBiome:
         params: TaxonomyToBiomeParams | None = None,
         *, model_name: str | None = None, model_version: str | None = None,
     ):
-        """Run deep biome lineage prediction.
+        """Run taxonomy-based prediction.
 
-        Parameters
-        ----------
-        list_of_tax_files : Sequence
-            Accepts the same flexible inputs as Community2vec.transform (a
-            list-of-lists is passed directly; other forms are normalised
-            internally by Community2vec inside the underlying implementation).
-        constrain : sequence of sequence of str, optional
-            Per-sample potential space constraints; pass None for unconstrained.
-        return_full_preds : bool, default False
-            When True, returns the full probability dataframe, else a reduced view.
-        params : DeepPredictorParams, optional
-            Override instance parameters for this call only.
+        Args:
+            community_vectors: Array of shape (n_samples, dim).
+            constrain: Optional per-sample candidate labels.
+            params: Optional override of instance parameters.
 
-        Returns
-        -------
-        (pd.DataFrame, np.ndarray)
-            Predictions dataframe and the sample embedding matrix.
+        Returns:
+            list[dict]: One result dict per sample with prediction keys.
         """
         _params = params or self.params
         # Local import to avoid circular dependency (taxonomy_prediction imports Community2vec from this module)
@@ -127,10 +115,10 @@ class TaxonomyToBiome:
 
 
 class TextToBiome:
-    """Lightweight wrapper around the text classifier.
+    """Predict biome labels from free-form descriptions.
 
-    Mirrors the minimal style of other API classes. Parameters are grouped in
-    a dataclass, and heavy imports are deferred until prediction time.
+    Parameters are grouped in a dataclass. Heavy imports are deferred until
+    prediction time.
     """
 
     def __init__(self, params: TextToBiomeParams | None = None) -> None:
@@ -145,12 +133,12 @@ class TextToBiome:
     ) -> List[List[str]]:
         """Run text-based biome prediction.
 
-        Parameters
-        ----------
-        texts : Sequence[str] | str
-            One or more input texts.
-        params : TextToBiomeParams, optional
-            Override instance parameters for this call only.
+        Args:
+            texts: One or more input texts.
+            params: Optional override of instance parameters.
+
+        Returns:
+            list[list[str]]: Predicted labels per text.
         """
         # Local import to defer transformers and friends until needed
         from . import text_prediction as tt  # type: ignore
@@ -183,12 +171,10 @@ class TextToBiome:
 
 
 class TrapicheWorkflowFromSequence:
-    """Lightweight wrapper that runs the in-repo `run_workflow` on a sequence
-    of sample dicts and returns the augmented sequence.
+    """Run the Trapiche workflow over a sequence of samples.
 
-    The class mirrors the simple API style used elsewhere in this module and
-    accepts an optional `TrapicheWorkflowParams` instance to control which
-    steps run and whether intermediate results are kept.
+    The wrapper uses in-repo pure functions and respects the provided
+    TrapicheWorkflowParams to select steps and outputs.
     """
 
     def __init__(self, 
@@ -210,14 +196,14 @@ class TrapicheWorkflowFromSequence:
         logger.info("taxonomy_params | %s", self.taxonomy_params)
 
     def run(self, samples: Sequence[Dict[str, Any]], *, model_name: str | None = None, model_version: str | None = None) -> Sequence[Dict[str, Any]]:
-        """Run the workflow on `samples` and return the augmented list.
+        """Execute the configured steps on samples.
 
-        Parameters
-        ----------
-        samples : Sequence[Dict[str, Any]]
-            Each dict should contain optional keys `project_description_file_path`
-            and `taxonomy_files_paths` (list). The function returns a new list
-            of dicts (shallow copies) augmented with results per sample.
+        Args:
+            samples: Input sample dicts. Optional keys include
+                project_description_file_path and taxonomy_files_paths.
+
+        Returns:
+            list[dict]: Shallow copies of inputs augmented with results.
         """
 
         result = run_workflow(
@@ -259,10 +245,9 @@ class TrapicheWorkflowFromSequence:
         return self.filtered
     
     def save(self, path: str | Path) -> None:
-        """Save the latest filtered results to a NDJSON file.
+        """Save the latest filtered results to an NDJSON file.
 
-        Note: This is a convenience method mirroring other wrappers; call
-        run() first to populate filtered.
+        Call run() first to populate filtered.
         """
         if not hasattr(self, 'filtered'):
             raise ValueError("No results to save. Call run() first.")

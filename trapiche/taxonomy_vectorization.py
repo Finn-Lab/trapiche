@@ -1,7 +1,7 @@
-"""Biome2Vec embedding utilities.
+"""Biome2Vec utilities to embed taxonomy into community vectors.
 
-Load pre-trained word2vec style embeddings and provide helpers to aggregate
-taxonomy subgraphs into community vectors.
+Load pre-trained embeddings and aggregate taxonomy subgraphs into fixed-size
+vectors. Heavy assets are accessed lazily via the Hugging Face Hub.
 """
 from __future__ import annotations
 
@@ -97,7 +97,7 @@ def load_biome_embeddings(load_full_model: bool = False, *, model_name: str | No
 
 
 def load_biome2vec(load_full_model: bool = True, *, model_name: str | None = None, model_version: str | None = None) -> KeyedVectors:
-    """Backward-compatible loader returning keyed vectors (full model subset).
+    """Backward-compatible loader returning keyed vectors.
 
     Parameters
     ----------
@@ -114,7 +114,7 @@ def load_biome2vec(load_full_model: bool = True, *, model_name: str | None = Non
 
 @lru_cache
 def load_taxonomy_ids(*, model_name: str | None = None, model_version: str | None = None) -> dict:
-    """Lazy cached load of taxonomy_graph and taxo_ids dictionary."""
+    """Load taxonomy graph and build id mapping (cached)."""
     # Resolve taxonomy graph from the HF model repo used for taxonomy vectorization.
     model_name, model_version = _resolve_model_params(model_name, model_version)
     p = _get_hf_model_path(model_name, model_version, "taxonomy_graph_*.graphml")
@@ -140,8 +140,14 @@ def get_vectors(*, model_name: str | None = None, model_version: str | None = No
 
 
 def sentence_vectorization(terminals, *, model_name: str | None = None, model_version: str | None = None):
-    """Compute mean vector from terminal nodes of a subgraph (community)."""
-    # tax ='Laterosporus'
+    """Compute mean vector from terminal nodes of a subgraph.
+
+    Args:
+        terminals: Iterable of terminal node labels.
+
+    Returns:
+        np.ndarray: Mean embedding vector.
+    """
     emb = load_biome_embeddings(model_name=model_name, model_version=model_version)
     tix_ = [emb.taxo_ids.get(tax) for tax in terminals]
     tixs = [x for x in tix_ if x is not None]
@@ -175,6 +181,14 @@ def get_terminals(edges: list):
 
 
 def get_mean(f):
+    """Read a JSON subgraph file and return terminal nodes per key.
+
+    Args:
+        f: Path to JSON mapping sample keys to edge lists.
+
+    Returns:
+        dict: Map from key to list of terminal nodes.
+    """
     taxo_terminals = {}
     with open(f) as h:
         dct = json.load(h)
@@ -186,6 +200,14 @@ def get_mean(f):
 
 
 def genre_to_taxonomy_vectorization(genres_set, *, model_name: str | None = None, model_version: str | None = None):
+    """Compute mean vector for a set of genera.
+
+    Args:
+        genres_set: Set of genus names.
+
+    Returns:
+        np.ndarray: Mean vector or empty array when none map to the model.
+    """
     emb = load_biome_embeddings(model_name=model_name, model_version=model_version)
     _vectors = []
     for x in genres_set:
@@ -203,7 +225,10 @@ def genre_to_taxonomy_vectorization(genres_set, *, model_name: str | None = None
 
 @lru_cache
 def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None = None):
-    # Resolve mgnify sample vectors from the HF model repo used for taxonomy vectorization.
+    """Load MGnify sample vectors and metadata (cached).
+
+    Assets are fetched from the configured HF model repository.
+    """
     model_name, model_version = _resolve_model_params(model_name, model_version)
     _c2v_file = Path(_get_hf_model_path(model_name, model_version, "mgnify_sample_vectors_v*.h5"))
     if not _c2v_file.exists():

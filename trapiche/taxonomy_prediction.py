@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 @lru_cache
 def load_biome_tags_list():
+    """Load tag list for the taxonomy classifier from HF assets.
+
+    Returns:
+        list[str]: Flat list of tag strings.
+    """
     _p = TaxonomyToVectorParams()
     tags_dct_file = _get_hf_model_path(_p.hf_model, _p.model_version, "biome_tags_*.json")
     logger.debug(f"Loading biome tags dictionary from file={tags_dct_file}")
@@ -39,7 +44,14 @@ def load_biome_tags_list():
 
 
 def generate_all_combinations(s: Sequence[str]):
-    """Generate all combinations (powerset) of an iterable sequence."""
+    """Generate all combinations (powerset) of a sequence.
+
+    Args:
+        s: Input sequence of strings.
+
+    Returns:
+        list[tuple[str, ...]]: All combinations including empty tuple.
+    """
     result = []
     for r in range(len(s) + 1):
         result.extend(combinations(s, r))
@@ -47,6 +59,12 @@ def generate_all_combinations(s: Sequence[str]):
 
 @lru_cache
 def load_tag_biomes():
+    """Map tag combinations to canonical biome lineage.
+
+    Returns:
+        tuple[dict[str, str], dict[str, tuple[set[str], int]]]:
+        A mapping from tag combination to lineage, and auxiliary metadata.
+    """
     biome_herarchy_dct = load_biome_herarchy_dict() 
     tags_li = load_biome_tags_list()
     bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
@@ -70,7 +88,10 @@ def load_tag_biomes():
 
 
 def focal_loss_fixed(y_true, y_pred):
-    # Your implementation of the focal loss
+    """Placeholder for focal loss used by legacy model files.
+
+    This function exists to satisfy custom_objects during model load.
+    """
     pass
 
 # Lazy TensorFlow import helper and model accessors
@@ -89,8 +110,17 @@ def _get_tensorflow():
 # Load the model, including the custom loss function
 @lru_cache
 def load_custom_model(model_file: str | None = None):
-    """Load and compile the Keras model on demand with robust error handling.
-    model_file: optional explicit path; if None, resolve via registry/legacy path.
+    """Load the Keras model on demand.
+
+    Args:
+        model_file: Optional explicit file path. When None, resolve from
+            Hugging Face assets for the configured model and version.
+
+    Returns:
+        Any: Compiled TensorFlow Keras model instance.
+
+    Raises:
+        RuntimeError: If loading fails or TensorFlow is unavailable.
     """
     # Resolve model path via HF hub using taxonomy_to_biome assets in the taxonomy classifier repo
     _p = TaxonomyToBiomeParams()
@@ -131,8 +161,24 @@ def find_best_path(_prediction: str):
     sel = sorted(sels, key=lambda x: x[1])[0][0]
     return sel
 
-def from_probs_to_pred(_probs, potential_space, params: TaxonomyToBiomeParams = TaxonomyToBiomeParams()) -> Tuple[List[Optional[Dict[str, float]]], List[Optional[Dict[str, float]]]]:
-    """Predict biome, optionally constrained to a candidate potential space (mixed prediction)."""
+def from_probs_to_pred(
+    _probs,
+    potential_space,
+    params: TaxonomyToBiomeParams = TaxonomyToBiomeParams(),
+) -> Tuple[List[Optional[Dict[str, float]]], List[Optional[Dict[str, float]]]]:
+    """Convert class probabilities into top predictions.
+
+    Optionally constrain candidates by matching lineage prefixes from text.
+
+    Args:
+        _probs: Array of shape (n_samples, n_classes).
+        potential_space: Per-sample iterable of prefix constraints or None.
+        params: Thresholds and control parameters.
+
+    Returns:
+        tuple: (top_predictions, constrained_top_predictions), both lists of
+        dicts mapping lineage to score, aligned to input samples.
+    """
     tag_biomes,_ = load_tag_biomes()
     tags_li = load_biome_tags_list()
     
@@ -197,11 +243,15 @@ def from_probs_to_pred(_probs, potential_space, params: TaxonomyToBiomeParams = 
 
     return top_predictions,constrained_top_predictions
 
-def get_lineage_frquencies(co,dominance_threshold):  # spelling retained for backwards compatibility
-    """ Calculate fuzzy array for each sample
-    The idea is that each node in the BIOME_AMEND space is a fuzzy category that can be calculated via the frequency of the node in the lineage of the KNN samples:
-    """
-    """ Function to calculate the requency of each node in the lineages of the knn samples
+def get_lineage_frquencies(co, dominance_threshold):  # noqa: D401
+    """Compute node frequencies across KNN lineages.
+
+    Args:
+        co: Pandas Series with counts by lineage string.
+        dominance_threshold: Minimum frequency to keep a node.
+
+    Returns:
+        tuple: (node_frequencies, sorted_passed, top_dominant).
     """
     total_samples = co.sum()
     _node_frquencies = {}
@@ -333,7 +383,11 @@ np.seterr(
 
 
 def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams) -> List[Dict[str, Any]]:
-    """Function for prediction of biome based on taxonomic compositon"""
+    """Predict biome using deep model and KNN refinement.
+
+    Applies optional constraints from text and returns per-sample dicts with
+    raw, constrained, refined, and final selections.
+    """
     # prediction baded on deep learning model
     logger.info("Starting full stack prediction")
     deep_l_probs = bnn_model2gg(query_vector).numpy()
@@ -403,7 +457,7 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     return results_sequence
 
 def chunked_fuzzy_prediction(query_vector, constrain, params:TaxonomyToBiomeParams):
-    """Process prediction in chunks to limit memory usage."""
+    """Process prediction in chunks to limit memory use."""
 
     splits = chunked(range(query_vector.shape[0]), params.batch_size)
 
@@ -419,9 +473,18 @@ def chunked_fuzzy_prediction(query_vector, constrain, params:TaxonomyToBiomePara
 def predict_runs(
     community_vectors,
     constrain,
-    params: TaxonomyToBiomeParams=TaxonomyToBiomeParams(),
+    params: TaxonomyToBiomeParams = TaxonomyToBiomeParams(),
 ):
-    """Predict lineage of runs based on multiple taxonomy files (diamond/SSU/LSU mix)."""
+    """Predict lineage for samples from community vectors.
+
+    Args:
+        community_vectors: Array with shape (n_samples, dim).
+        constrain: Optional per-sample prefixes from text.
+        params: Model and refinement parameters.
+
+    Returns:
+        list[dict]: Prediction dicts aligned with input samples.
+    """
     # Determine number of samples robustly (accept lists or numpy arrays)
     try:
         n_samples = community_vectors.shape[0]

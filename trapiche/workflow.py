@@ -47,23 +47,18 @@ def run_text_step(
     List[Optional[List[str]]],  # sample text predictions (when heuristic active)
     List[bool],                 # heuristic applied per-sample
 ]:
-    """Run TextToBiome on the samples with optional sample-over-study heuristic.
+    """Predict biome labels from texts with an optional heuristic.
 
-    Behaviour
-    - If use_heuristic is False (default):
-      Uses either inline 'project_description_text' or a file path at
-      'project_description_file_path' for each sample, deduplicates identical
-      text contents across samples, runs the text predictor once per unique
-      text, and maps the predictions back to each sample.
-    - If the heuristic is True and a sample provides both keys
-      'project_description_text' and 'sample_description_text', we run the
-      predictor for both texts (with global de-duplication) and then intersect
-      the two prediction lists, keeping the longest string when one matches the
-      other by prefix. If the intersection is empty, we fall back to the
-      project-level predictions for that sample.
+    - When use_heuristic is False, use project text only (inline or from
+      project_description_file_path), de-duplicate globally, predict once per
+      unique text, and map back to samples.
+    - When use_heuristic is True and both project_description_text and
+      sample_description_text are present, predict both and take the union of
+      labels. If no union is possible, fall back to project labels.
 
-    Returns a list aligned with `samples` where each element is either the
-    list of predicted labels or None if no applicable text was provided.
+    Returns:
+        tuple: (combined, project_only, sample_only, heuristic_flags), each
+        aligned to samples. Missing inputs yield None for that position.
     """
 
     logger.info(f"Running TextToBiome step | use_heuristic={use_heuristic}")
@@ -145,7 +140,7 @@ def run_text_step(
             split_sentences=params_obj.split_sentences,
         )
 
-    # Helper for heuristic intersection keeping the longest prefix match
+    # Helper for heuristic union
     def heuristic_function(a: List[str], b: List[str]) -> List[str]:
         selected = set(a) | set(b)
         return list(selected)
@@ -201,12 +196,10 @@ def run_text_step(
 
 
 def run_vectorise_step(samples: Sequence[Dict[str, Any]], *, model_name: str | None = None, model_version: str | None = None) -> np.ndarray:
-    """Run Community2vec.transform over the samples.
+    """Vectorise taxonomy files into community vectors per sample.
 
-    For efficiency this function will deduplicate identical taxonomy file lists
-    (order-insensitive) so repeated samples reuse the same vector.
-    Returns a list of numpy arrays (one per sample) with the community vector
-    or empty arrays if no vector was produced for that sample.
+    Returns:
+        np.ndarray: Matrix (n_samples, dim) or (n_samples, 0) when empty.
     """
 
     logger.info(f"Running Taxonomy Vectorization step | model_name={model_name} | model_version={model_version}")
