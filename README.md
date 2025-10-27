@@ -20,7 +20,7 @@ From source
 
 By default TensorFlow is optional. Choose the extra that matches your needs:
 
-```
+```bash
 # Clone
 git clone <repo_url>
 cd trapiche
@@ -52,14 +52,14 @@ Required/optional keys per sample:
 
 Example input:
 
-```
+```json
 {"project_description_text":"Effect of different fertilization treatments on soil microbiome...", "taxonomy_files_paths":["test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_diamond.tsv.gz","test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_mseq.tsv"]}
 {"project_description_file_path":"test/files/text_files/PRJEB42572_project_description.txt","taxonomy_files_paths":["test/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"]}
 ```
 
 Run the workflow
 
-```
+```bash
 # From file to default output path (<input>_trapiche_results.ndjson)
 # By default the CLI writes a compact (minimal) result. To disable the
 # minimal output and let the workflow params control which
@@ -178,7 +178,7 @@ Input record (API and CLI workflow)
 
 One JSON object per sample in eithe NDJSON (CLI) or List (API), with the following keys:
 
-```
+```json
 {
 	"taxonomy_files_paths": ["/path/to/sample1.tsv", "/path/to/sample1_b.tsv.gz"],
 	"project_description_text": "Free text describing the sample.",
@@ -220,7 +220,7 @@ Integration tests of API and CLI
 
 Run tests:
 
-```
+```bash
 python -m unittest discover -s test -p 'test_*.py' -q
 ```
 
