@@ -22,7 +22,7 @@ By default TensorFlow is optional. Choose the extra that matches your needs:
 
 ```bash
 # Clone
-git clone <repo_url>
+git clone https://github.com/Finn-Lab/trapiche.git
 cd trapiche
 
 # Install without TensorFlow (default)
