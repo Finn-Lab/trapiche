@@ -65,7 +65,7 @@ def load_tag_biomes():
         tuple[dict[str, str], dict[str, tuple[set[str], int]]]:
         A mapping from tag combination to lineage, and auxiliary metadata.
     """
-    biome_herarchy_dct = load_biome_herarchy_dict() 
+    biome_herarchy_dct, _ = load_biome_herarchy_dict() 
     tags_li = load_biome_tags_list()
     bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
     tag_biomes = {}
@@ -199,10 +199,7 @@ def from_probs_to_pred(
             if _pot_space is None or len(_pot_space) == 0:
                 constrained_top_p = None
             else:
-                # Build robust matching patterns from the provided constraints:
-                # - Treat constraints as lineage prefixes (e.g., 'root:Engineered:Built environment')
-                # - Also allow matching on any segment token (e.g., 'Engineered', 'Built environment')
-                # - Always escape regex special chars to avoid unintended regex behaviour
+
                 patterns: List[str] = []
                 for c in _pot_space:
                     if not c:
@@ -243,7 +240,7 @@ def from_probs_to_pred(
 
     return top_predictions,constrained_top_predictions
 
-def get_lineage_frquencies(co, dominance_threshold):  # noqa: D401
+def get_lineage_frquencies(co, dominance_threshold):  
     """Compute node frequencies across KNN lineages.
 
     Args:
@@ -268,8 +265,13 @@ def get_lineage_frquencies(co, dominance_threshold):  # noqa: D401
             ]
             sorted_passed = sorted(_filtered, key=lambda x: len(x[0].split(":")), reverse=True)
             top_dominant = sorted_passed[0] if sorted_passed else None
-
     
+    # Claculate score based on mean of score for each lineage containing the top dominant node
+    top_dominant_score = None
+    if top_dominant is not None:
+        top_dominant_score = np.mean([v/total_samples for k, v in co.items() if top_dominant[0] in k ])
+        top_dominant = {top_dominant[0]: top_dominant_score}
+
     return node_frequencies, sorted_passed, top_dominant
 
 def refine_predictions_knn_batch(
@@ -364,12 +366,12 @@ def refine_predictions_knn_batch(
 
             # Compute frequencies for the selected subset
             _co = selected_df["BIOME_AMEND"].value_counts()
-            node_frequencies, sorted_passed, top_dominant = get_lineage_frquencies(_co, dominance_threshold=params.dominance_threshold)
+            _, _, top_dominant = get_lineage_frquencies(_co, dominance_threshold=params.dominance_threshold)
 
             if not top_dominant:
                 refined_prediction = None
             else:
-                refined_prediction = dict([top_dominant])
+                refined_prediction = top_dominant
 
             results[global_ix] = refined_prediction
 
@@ -408,13 +410,27 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
         _, _, top_dominant_const = get_lineage_frquencies(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
         unambiguous_constrained_predictions.append(top_dominant_const)
     
-    # knn refinement constrained
+    ### KNN refinement. 
+    # string_pattern = "Digestive system"
+    # knn refinement unconstrained
     prediction_keys = [list(d.keys()) if d is not None else None for d in top_predictions]
     refined_predictions = refine_predictions_knn_batch( predictions=prediction_keys, query_vectors=query_vector, params=params)
-    
+    # refined_predictions = [
+    #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
+    #     for crp in refined_predictions
+    # ]
+
     # knn refinement constrained
     constrained_prediction_keys = [list(d.keys()) if d is not None else None for d in constrained_top_predictions]
     constrained_refined_predictions = refine_predictions_knn_batch( predictions=constrained_prediction_keys, query_vectors=query_vector, params=params)
+    # Set to None those refined predictions that do not match the string_pattern. predictions are List[Optional[Dict[str, float]]]
+    # constrained_refined_predictions = [
+    #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
+    #     for crp in constrained_refined_predictions
+    # ]
+
+    # load gold ontology mappings to give gold_final_prediction
+    biome_herarchy_dct, biome_herarchy_dct_reversed = load_biome_herarchy_dict() 
 
     results_sequence = []
     for pred, constr_pred, unambig_pred, unambig_constr_pred, refined_prediction, refined_constrained_prediction in zip(
@@ -443,14 +459,32 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
         else:
             best_heuristic = None
 
+        def normalize_to_amended_ontology(pred,target_ontology="GOLD"):
+            if pred is None:
+                return None
+            if target_ontology=="GOLD":
+                return {biome_herarchy_dct_reversed.get(k, k):v for k, v in pred.items()}
+            else:
+                return {biome_herarchy_dct.get(k, k):v for k, v in pred.items()}
+
+
+
+        best_heuristic_gold = biome_herarchy_dct_reversed.get(
+            list(best_heuristic)[0] if best_heuristic is not None else None,
+            None,
+        )
+        
+        if best_heuristic is not None:
+            best_heuristic_gold = {best_heuristic_gold: best_heuristic[list(best_heuristic)[0]]}
+        
         result = {
-            "raw_top_predictions": pred,
-            "raw_unambiguous_prediction": unambig_pred,
-            "raw_refined_prediction": refined_prediction,
-            "constrained_top_predictions": constr_pred,
-            "constrained_unambiguous_prediction": unambig_constr_pred,
-            "constrained_refined_prediction": refined_constrained_prediction,
-            "final_selected_prediction": best_heuristic,
+            "raw_top_predictions": normalize_to_amended_ontology(pred, target_ontology="AMENDED"),
+            "raw_unambiguous_prediction": normalize_to_amended_ontology(unambig_pred, target_ontology="AMENDED"),
+            "raw_refined_prediction": normalize_to_amended_ontology(refined_prediction, target_ontology="AMENDED"),
+            "constrained_top_predictions": normalize_to_amended_ontology(constr_pred, target_ontology="AMENDED"),
+            "constrained_unambiguous_prediction": normalize_to_amended_ontology(unambig_constr_pred, target_ontology="AMENDED"),
+            "constrained_refined_prediction": normalize_to_amended_ontology(refined_constrained_prediction, target_ontology="AMENDED"),
+            "final_selected_prediction": normalize_to_amended_ontology(best_heuristic, target_ontology="AMENDED"),
         }
         results_sequence.append(result)
 

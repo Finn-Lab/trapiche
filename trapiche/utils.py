@@ -259,7 +259,9 @@ def load_biome_herarchy_dict():
     with open(p, encoding="utf-8") as f:
         biome_herarchy_dct = json.load(f)
     logger.debug(f"biome_herarchy_dct loaded n_keys={len(biome_herarchy_dct) if biome_herarchy_dct else 0}")
-    return biome_herarchy_dct
+    biome_herarchy_dct_reversed = {v: k for k, v in biome_herarchy_dct.items()}
+    return biome_herarchy_dct, biome_herarchy_dct_reversed
+
 
 def parse_diamond(
     content: list,  # diamond_taxo_annotation content. Usually is the result of list(open(PATH_FILE).read())

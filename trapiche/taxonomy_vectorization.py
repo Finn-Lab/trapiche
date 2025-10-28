@@ -236,7 +236,7 @@ def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None 
             f"mgnify_sample_vectors file not found: {_c2v_file} (HF model: {model_name} version {model_version})\n"
         )
     logger.info("Loading mgnify_sample_vectors file=%s", _c2v_file)
-    biome_herarchy_dct = load_biome_herarchy_dict()
+    biome_herarchy_dct, _ = load_biome_herarchy_dict()
 
     __mgnify_sample_vectors = pd.read_hdf(_c2v_file, key="df")
 
