@@ -290,7 +290,7 @@ def refine_predictions_knn_batch(
         A list of refined predictions aligned with the input order.
     """
 
-    logger.debug("Starting batch KNN refinement of predictions")
+    logger.debug("DEPRECATED: Starting batch KNN refinement of predictions")
     
     # Prepare result list in input order
     results: List[Optional[Dict[str, float]]] = [None] * len(predictions)

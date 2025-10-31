@@ -85,7 +85,7 @@ class TestAPIIntegration(unittest.TestCase):
         # In text-only mode we expect exact text_predictions
         self.assertIn("text_predictions", r0)
         self.assertIsInstance(r0["text_predictions"], list)
-        self.assertEqual(r0["text_predictions"], ["root:Engineered:Built environment"])
+        self.assertEqual(r0["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
 
     def test_vector_and_taxonomy_api(self):
         # Require optional heavy deps: tensorflow, pandas, tables, gensim
@@ -113,7 +113,7 @@ class TestAPIIntegration(unittest.TestCase):
         ttb = TextToBiome()
         text_constraints = ttb.predict([SAMPLE["project_description_text"]])
         # Assert exact expected text prediction
-        self.assertEqual(text_constraints, [["root:Engineered:Built environment"]])
+        self.assertEqual(text_constraints, [{'root:Engineered:Built environment': 0.9994168281555176}])
 
         # Vectorise taxonomy files
         c2v = Community2vec()
@@ -163,7 +163,7 @@ class TestCLIIntegration(unittest.TestCase):
             self.assertEqual(len(lines), 1)
             rec = json.loads(lines[0])
             self.assertIn("text_predictions", rec)
-            self.assertEqual(rec["text_predictions"], ["root:Engineered:Built environment"])
+            self.assertEqual(rec["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
         finally:
             tmpdir.cleanup()
 
@@ -200,7 +200,7 @@ class TestCLIIntegration(unittest.TestCase):
             rec = json.loads(lines[0])
             # Assert text predictions are as expected
             self.assertIn("text_predictions", rec)
-            self.assertEqual(rec["text_predictions"], ["root:Engineered:Built environment"])
+            self.assertEqual(rec["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
             # In full mode we expect at least final_selected_prediction key when taxonomy ran successfully
             self.assertIn("final_selected_prediction", rec)
             self.assertIn("root:Engineered:Built environment", rec["final_selected_prediction"]) 
