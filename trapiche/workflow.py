@@ -42,9 +42,9 @@ def run_text_step(
     params_obj: TextToBiomeParams,
     use_heuristic: bool = False,
 ) -> tuple[
-    List[Optional[List[str]]],  # combined predictions (used for constraints)
-    List[Optional[List[str]]],  # project text predictions
-    List[Optional[List[str]]],  # sample text predictions (when heuristic active)
+    List[Optional[Dict[str,float]]],  # combined predictions (used for constraints)
+    List[Optional[Dict[str,float]]],  # project text predictions
+    List[Optional[Dict[str,float]]],  # sample text predictions (when heuristic active)
     List[bool],                 # heuristic applied per-sample
 ]:
     """Predict biome labels from texts with an optional heuristic.
@@ -128,7 +128,7 @@ def run_text_step(
             content_to_union_idx[t] = len(union_unique_texts)
             union_unique_texts.append(t)
 
-    union_preds_unique: List[List[str]] = []
+    union_preds_unique: List[Dict[str,float]] = []
     if union_unique_texts:
         union_preds_unique = tt.predict(
             union_unique_texts,
@@ -141,14 +141,25 @@ def run_text_step(
         )
 
     # Helper for heuristic union
-    def heuristic_function(a: List[str], b: List[str]) -> List[str]:
-        selected = set(a) | set(b)
-        return list(selected)
+    def heuristic_function(proj_preds: Dict[str,float], samp_preds: Dict[str,float]) -> Dict[str,float]:
+        # selected = set(proj_preds) | set(samp_preds) # simple union
+        # keep terms in sample that are substring of project terms ir that have proj terms as substring
+        # selected = set(proj_preds) & set(samp_preds)  # intersection
+        selected = {}
+        for sp,_prob in samp_preds.items():
+            for pp in proj_preds:
+                if sp in pp or pp in sp:
+                    selected[sp] = _prob
+        if not selected:
+            selected.update(proj_preds)
+            selected.update(samp_preds) # simple union
+
+        return selected
 
     # Map back to samples combining with heuristic when applicable
-    combined_results: List[Optional[List[str]]] = []
-    proj_preds_per_sample: List[Optional[List[str]]] = []
-    samp_preds_per_sample: List[Optional[List[str]]] = []
+    combined_results: List[Optional[Dict[str,float]]] = []
+    proj_preds_per_sample: List[Optional[Dict[str,float]]] = []
+    samp_preds_per_sample: List[Optional[Dict[str,float]]] = []
     heuristic_flags: List[bool] = []
 
     for position, (s, pidx, sidx) in enumerate(zip(samples, per_sample_proj_idx, per_sample_samp_idx)):
@@ -177,18 +188,18 @@ def run_text_step(
             samp_preds = union_preds_unique[content_to_union_idx[samp_content]]
             heuristic_result = heuristic_function(proj_preds, samp_preds)
             if heuristic_result:
-                combined_results.append(sorted(heuristic_result))
+                combined_results.append(heuristic_result)
             else:
                 # Fallback to project-level predictions when no intersection
-                combined_results.append(list(proj_preds))
-            proj_preds_per_sample.append(list(proj_preds) if proj_preds is not None else None)
-            samp_preds_per_sample.append(list(samp_preds) if samp_preds is not None else None)
+                combined_results.append(proj_preds)
+            proj_preds_per_sample.append(proj_preds)
+            samp_preds_per_sample.append(samp_preds)
             heuristic_flags.append(True)
         else:
             # Heuristic not active or no sample text: use project-only
-            combined = list(proj_preds) if proj_preds is not None else None
+            combined = proj_preds
             combined_results.append(combined)
-            proj_preds_per_sample.append(list(proj_preds) if proj_preds is not None else None)
+            proj_preds_per_sample.append(proj_preds)
             samp_preds_per_sample.append(None)
             heuristic_flags.append(False)
 
@@ -219,7 +230,7 @@ def run_vectorise_step(samples: Sequence[Dict[str, Any]], *, model_name: str | N
     # Require explicit model parameters
     return c2v_mod.vectorise_sample(sample_lists, model_name=model_name, model_version=model_version)
 
-def run_taxonomy_step(samples: Sequence[Dict[str, Any]], *,params:TaxonomyToBiomeParams, community_vectors: Optional[ np.ndarray | Sequence] = None, text_constraints: Optional[Sequence[Optional[List[str]]]] = None) -> Sequence[Optional[Dict[str, Any]]]:
+def run_taxonomy_step(samples: Sequence[Dict[str, Any]], *,params:TaxonomyToBiomeParams, community_vectors: Optional[ np.ndarray | Sequence] = None, text_constraints: Optional[Sequence[Optional[Dict[str,float]]]] = None) -> Sequence[Optional[Dict[str, Any]]]:
     """Run TaxonomyToBiome using community vectors and optional text constraints.
     Returns for each sample either a dict (row-wise prediction) or None.
     If community_vectors is None the function computes them.

@@ -1,6 +1,37 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 
+
+@dataclass
+class TrapicheWorkflowParams:
+    """Parameters for the Trapiche workflow.
+    Attributes
+    ----------
+    run_text : bool
+        Whether to run the text classification step.
+    keep_text_results : bool
+        Whether to keep text classification results in the output.
+    run_vectorise : bool
+        Whether to run the community vectorisation step.
+    keep_vectorise_results : bool
+        Whether to keep community vectorisation results in the output.
+    run_taxonomy : bool
+        Whether to run the taxonomy prediction step.
+    keep_taxonomy_results : bool
+        Whether to keep taxonomy prediction results in the output.
+    output_keys : list[str] | None
+        If a list, only these keys will be kept in the final output dicts.
+    
+    """
+    run_text: bool = True
+    keep_text_results: bool = True
+    run_vectorise: bool = True
+    keep_vectorise_results: bool = False
+    run_taxonomy: bool = True
+    keep_taxonomy_results: bool = True
+    output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction", "raw_refined_prediction","constrained_unambiguous_prediction", "constrained_refined_prediction", "final_selected_prediction"]) 
+    sample_study_text_heuristic: bool = False
+    
 @dataclass
 class TextToBiomeParams:
     """Configuration parameters for text biome prediction.
@@ -70,43 +101,12 @@ class TaxonomyToBiomeParams:
         Version tag for the taxonomy-to-biome classifier.
     """
     batch_size: int = 200
-    k_knn: int = 20
+    k_knn: int = -1
     dominance_threshold: float = 0.5
     top_prob_diff_threshold: float = 0.05
     top_prob_ratio_threshold: float = 0.9
     hf_model: str = "SantiagoSanchezF/trapiche-biome-classifier-taxonomy"
     model_version: str = "1.0"
-
-@dataclass
-class TrapicheWorkflowParams:
-    """Parameters for the Trapiche workflow.
-    Attributes
-    ----------
-    run_text : bool
-        Whether to run the text classification step.
-    keep_text_results : bool
-        Whether to keep text classification results in the output.
-    run_vectorise : bool
-        Whether to run the community vectorisation step.
-    keep_vectorise_results : bool
-        Whether to keep community vectorisation results in the output.
-    run_taxonomy : bool
-        Whether to run the taxonomy prediction step.
-    keep_taxonomy_results : bool
-        Whether to keep taxonomy prediction results in the output.
-    output_keys : list[str] | None
-        If a list, only these keys will be kept in the final output dicts.
-    
-    """
-    run_text: bool = True
-    keep_text_results: bool = True
-    run_vectorise: bool = True
-    keep_vectorise_results: bool = True
-    run_taxonomy: bool = True
-    keep_taxonomy_results: bool = True
-    output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction", "raw_refined_prediction","constrained_unambiguous_prediction", "constrained_refined_prediction", "final_selected_prediction"]) 
-    sample_study_text_heuristic: bool = False
-    
 
 
 """LOGGING CONFIGURATION

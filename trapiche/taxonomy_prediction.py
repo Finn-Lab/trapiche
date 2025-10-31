@@ -163,8 +163,8 @@ def find_best_path(_prediction: str):
 
 def from_probs_to_pred(
     _probs,
-    potential_space,
-    params: TaxonomyToBiomeParams = TaxonomyToBiomeParams(),
+    potential_space: List[Optional[Dict[str,float]]],
+    params: TaxonomyToBiomeParams,
 ) -> Tuple[List[Optional[Dict[str, float]]], List[Optional[Dict[str, float]]]]:
     """Convert class probabilities into top predictions.
 
@@ -200,29 +200,16 @@ def from_probs_to_pred(
                 constrained_top_p = None
             else:
 
-                patterns: List[str] = []
-                for c in _pot_space:
-                    if not c:
-                        continue
-                    c = c.strip()                   
-                    patterns.append("^" + re.escape(c))
+                # Find matching tags in the potential (text) space
+                potential_tags = {}
+                for k, v in tag_biomes.items():
+                    for pot,_prob in _pot_space.items():
+                        if re.search("^" + re.escape(pot.strip()), v):
+                            potential_tags[k] = _prob
 
-                def _matches_any(v: str,_patterns:List[str]) -> bool:
-                    for pat in _patterns:
-                        try:
-                            if re.search(pat, v):
-                                return True
-                        except re.error:
-                            # In case of an invalid pattern, skip it safely
-                            continue
-                    return False
-
-                potential_tags = {k for k, v in tag_biomes.items() if _matches_any(v,patterns)}
-
-                # If nothing matches, respect the constraint by returning None (do not silently fall back to ALL)
+                # If nothing matches, respect the constraint by returning it
                 if len(potential_tags) == 0:
-
-                    constrained_top_p = {k:0.5 for k in _pot_space}
+                    constrained_top_p = dict(_pot_space)
                 else:
                     non_useful_tags = [ix for ix, x in enumerate(tags_li) if x not in potential_tags]
                     _pr = pr.copy()
@@ -240,7 +227,7 @@ def from_probs_to_pred(
 
     return top_predictions,constrained_top_predictions
 
-def get_lineage_frquencies(co, dominance_threshold):  
+def get_unanbigious_prediction(co, dominance_threshold, best_lineage_min_depth=4):  
     """Compute node frequencies across KNN lineages.
 
     Args:
@@ -250,26 +237,26 @@ def get_lineage_frquencies(co, dominance_threshold):
     Returns:
         tuple: (node_frequencies, sorted_passed, top_dominant).
     """
-    total_samples = co.sum()
     _node_frquencies = {}
     for lineage, count in co.items():
         spl = lineage.split(':')
         for ix in range(1, len(spl) + 1):
             node = ":".join(spl[:ix])
             _node_frquencies.setdefault(node, []).append(count)
-            node_frequencies = {k: sum(v) / total_samples for k, v in _node_frquencies.items()}
-            _filtered = [
-                (k, v)
-                for k, v in node_frequencies.items()
-                if v > dominance_threshold and k != ''
-            ]
-            sorted_passed = sorted(_filtered, key=lambda x: len(x[0].split(":")), reverse=True)
-            top_dominant = sorted_passed[0] if sorted_passed else None
+            
+    node_frequencies = {k: sum(v)  for k, v in _node_frquencies.items()}
+    _filtered = [
+        (k, v)
+        for k, v in node_frequencies.items()
+        if v > dominance_threshold and k != '' and len(k.split(":")) >= best_lineage_min_depth # Only consider nodes with sufficient depth
+    ]
+    sorted_passed = sorted(_filtered, key=lambda x: len(x[0].split(":")), reverse=True)
+    top_dominant = sorted_passed[0] if sorted_passed else [co.index[0],co.iloc[0]]
     
     # Claculate score based on mean of score for each lineage containing the top dominant node
     top_dominant_score = None
     if top_dominant is not None:
-        top_dominant_score = np.mean([v/total_samples for k, v in co.items() if top_dominant[0] in k ])
+        top_dominant_score = np.sum([v for k, v in co.items() if top_dominant[0] in k ])
         top_dominant = {top_dominant[0]: top_dominant_score}
 
     return node_frequencies, sorted_passed, top_dominant
@@ -279,6 +266,8 @@ def refine_predictions_knn_batch(
     query_vectors: np.ndarray,
     params: TaxonomyToBiomeParams,
 ) -> List[Optional[Dict[str, float]]]:
+    """DEPRECATED"""
+    
     """Refine deep model predictions using KNN in the vector space (batch version).
 
     This version processes multiple predictions in parallel by grouping queries
@@ -301,7 +290,14 @@ def refine_predictions_knn_batch(
         A list of refined predictions aligned with the input order.
     """
 
-    logger.info("Starting batch KNN refinement of predictions")
+    logger.debug("Starting batch KNN refinement of predictions")
+    
+    # Prepare result list in input order
+    results: List[Optional[Dict[str, float]]] = [None] * len(predictions)
+    if params.k_knn <= 0:
+        logger.debug("k_knn <= 0; skipping KNN refinement")
+        return results
+
     # Load MGnify sample vectors and metadata
     mgnify_sample_vectors, mgnify_meta = load_mgnify_c2v(
         model_name=params.hf_model,
@@ -319,8 +315,6 @@ def refine_predictions_knn_batch(
         if key:
             groups[key].append(ix)
 
-    # Prepare result list in input order
-    results: List[Optional[Dict[str, float]]] = [None] * len(predictions)
 
     # Process each group once
     for pred_key, indices in groups.items():
@@ -365,8 +359,8 @@ def refine_predictions_knn_batch(
             selected_df = top_df_limited.head(params.k_knn)
 
             # Compute frequencies for the selected subset
-            _co = selected_df["BIOME_AMEND"].value_counts()
-            _, _, top_dominant = get_lineage_frquencies(_co, dominance_threshold=params.dominance_threshold)
+            _co = selected_df["BIOME_AMEND"].value_counts() / selected_df.shape[0]
+            _, _, top_dominant = get_unanbigious_prediction(_co, dominance_threshold=params.dominance_threshold)
 
             if not top_dominant:
                 refined_prediction = None
@@ -394,20 +388,20 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     logger.info("Starting full stack prediction")
     deep_l_probs = bnn_model2gg(query_vector).numpy()
 
-    top_predictions,constrained_top_predictions = from_probs_to_pred(deep_l_probs, potential_space=constrains)
+    top_predictions,constrained_top_predictions = from_probs_to_pred(deep_l_probs, potential_space=constrains,params=params)
 
     # Get unambiguous predictions
     unambiguous_predictions = []
     unambiguous_constrained_predictions = []
     for _top_pred,_constrained_top_pred in zip(top_predictions,constrained_top_predictions):
-        _, _, top_dominant = get_lineage_frquencies(pd.Series(_top_pred), dominance_threshold=params.dominance_threshold)
+        _, _, top_dominant = get_unanbigious_prediction(pd.Series(_top_pred), dominance_threshold=params.dominance_threshold)
         unambiguous_predictions.append(top_dominant)
 
         if _constrained_top_pred is None:
             unambiguous_constrained_predictions.append(None)
             continue
         
-        _, _, top_dominant_const = get_lineage_frquencies(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
+        _, _, top_dominant_const = get_unanbigious_prediction(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
         unambiguous_constrained_predictions.append(top_dominant_const)
     
     ### KNN refinement. 

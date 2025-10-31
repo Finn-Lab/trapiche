@@ -11,14 +11,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from typing import List, Mapping, Sequence, Tuple, Any
+from typing import List, Mapping, Sequence, Tuple, Any, Dict
 from functools import lru_cache
 
 import numpy as np
 import importlib
 
-
-from .utils import _get_hf_model_path
+from .utils import _get_hf_model_path, load_biome_herarchy_dict
 import logging
 logger = logging.getLogger(__name__)
 
@@ -283,7 +282,7 @@ def predict(
     max_length: int = 256,
     threshold_rule: str | float | int = 0.01,
     split_sentences: bool = False,
-) -> List[List[str]]:
+) -> List[Dict[str,float]]:
     """Predict labels for input texts.
 
     Args:
@@ -306,6 +305,8 @@ def predict(
     # Unused tokenizer variable purposefully retained to ensure cache priming above
     _ = tokenizer  # pragma: no cover
 
+    gold_to_ammend_map,_ = load_biome_herarchy_dict()
+
     if split_sentences:
         agg = []
         for t in texts_list:
@@ -318,8 +319,11 @@ def predict(
         probs = predict_probability(texts_list, model_name=model_name, model_version=model_version, device=device, max_length=max_length)
 
     mask = probabilities_to_mask(probs, id2label=id2label, thresholds=thresholds, rule=threshold_rule)
-    predictions: List[List[str]] = []
-    for row in mask:
-        labels = [id2label.get(i, f"label_{i}") for i, v in enumerate(row) if v == 1]
-        predictions.append(labels)
+    predictions: List[Dict[str,float]] = []
+    for ind,row in enumerate(mask):
+        gold_labels = [str(id2label.get(i, f"label_{i}")) for i, v in enumerate(row) if v == 1]
+        _probs = [float(probs[ind][i]) for i, v in enumerate(row) if v == 1]
+        labels =  [gold_to_ammend_map.get(label,label) for label in gold_labels]# amended biome ontology
+        _predicted = dict(zip(labels,_probs))
+        predictions.append(_predicted)
     return predictions

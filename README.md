@@ -110,7 +110,6 @@ from trapiche.api import TrapicheWorkflowFromSequence
 from trapiche.config import TrapicheWorkflowParams
 
 samples = [
-
 	{
 		"project_description_text": "Home Microbiome Metagenomes. The project identifies patterns in microbial communities associated with different home and home occupant (human and pet) surfaces", 
 		"sample_description_text": "Metagenome of microbial community: Bedroom Floor. House_04a-Bedroom_Floor_Day3. House_04a-Bedroom_Floor_Day3", 
@@ -123,7 +122,7 @@ samples = [
 
 workflow_params = TrapicheWorkflowParams(  # defaults shown
 	run_text=True, run_vectorise=True, run_taxonomy=True,
-	keep_text_results=False, keep_vectorise_results=False, keep_taxonomy_results=False,
+	keep_text_results=True, keep_vectorise_results=False, keep_taxonomy_results=True,output_keys=None
 	# When output_keys is None, the keep_* flags decide what to include.
 )
 
@@ -132,7 +131,6 @@ result = runner.run(samples)  # sequence of dicts augmented with predictions
 print(result)
 runner.save("trapiche_results.ndjson")  # optional convenience save
 ```
-
 
 Text prediction
 
