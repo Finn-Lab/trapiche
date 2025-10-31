@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 from .workflow import run_workflow
@@ -123,14 +123,14 @@ class TextToBiome:
 
     def __init__(self, params: TextToBiomeParams | None = None) -> None:
         self.params = params or TextToBiomeParams()
-        self.predictions_: List[List[str]] | None = None  # last predictions (optional convenience)
+        self.predictions_: Sequence[Optional[Dict[str, float]]] | None = None  # last predictions (optional convenience)
         logger.info("TextToBiome created", extra={"params": self.params.__dict__ if hasattr(self.params, '__dict__') else str(self.params)})
 
     def predict(
         self,
         texts: Sequence[str] | str,
         params: TextToBiomeParams | None = None,
-    ) -> List[List[str]]:
+    ) -> Sequence[Optional[Dict[str, float]]] | None:
         """Run text-based biome prediction.
 
         Args:
@@ -167,7 +167,8 @@ class TextToBiome:
             raise ValueError("No predictions to save. Call predict() first.")
         logger.info("Saving text predictions", extra={"path": str(path)})
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(self.predictions_, f, indent=2)
+            json.dump(self.predictions_, 
+            f, indent=2)
 
 
 class TrapicheWorkflowFromSequence:

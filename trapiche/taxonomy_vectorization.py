@@ -236,7 +236,7 @@ def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None 
             f"mgnify_sample_vectors file not found: {_c2v_file} (HF model: {model_name} version {model_version})\n"
         )
     logger.info("Loading mgnify_sample_vectors file=%s", _c2v_file)
-    biome_herarchy_dct = load_biome_herarchy_dict()
+    biome_herarchy_dct, _ = load_biome_herarchy_dict()
 
     __mgnify_sample_vectors = pd.read_hdf(_c2v_file, key="df")
 
@@ -251,6 +251,8 @@ def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None 
         _mgnify_sample_vectors_metadata_file, sep="\t", index_col="SAMPLE_ID"
     )
     _mgnify_sample_vectors_metadata["BIOME_AMEND"] = _mgnify_sample_vectors_metadata.LINEAGE.map(lambda x: biome_herarchy_dct.get(x, x))
+    _mgnify_sample_vectors_metadata["LINEAGE_LENGTH"] = _mgnify_sample_vectors_metadata.LINEAGE.map(lambda x: len(x.split(":")) if pd.notna(x) else 0)
+    _mgnify_sample_vectors_metadata = _mgnify_sample_vectors_metadata[_mgnify_sample_vectors_metadata["LINEAGE_LENGTH"] >= 3]
     return __mgnify_sample_vectors, _mgnify_sample_vectors_metadata
 
 def vectorise_sample(list_of_tax_files, *, model_name: str | None = None, model_version: str | None = None):

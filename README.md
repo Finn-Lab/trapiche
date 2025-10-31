@@ -20,7 +20,7 @@ From source
 
 By default TensorFlow is optional. Choose the extra that matches your needs:
 
-```
+```bash
 # Clone
 git clone https://github.com/Finn-Lab/trapiche.git
 cd trapiche
@@ -52,14 +52,14 @@ Required/optional keys per sample:
 
 Example input:
 
-```
+```json
 {"project_description_text":"Effect of different fertilization treatments on soil microbiome...", "taxonomy_files_paths":["test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_diamond.tsv.gz","test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_mseq.tsv"]}
 {"project_description_file_path":"test/files/text_files/PRJEB42572_project_description.txt","taxonomy_files_paths":["test/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"]}
 ```
 
 Run the workflow
 
-```
+```bash
 # From file to default output path (<input>_trapiche_results.ndjson)
 # By default the CLI writes a compact (minimal) result. To disable the
 # minimal output and let the workflow params control which
@@ -110,7 +110,6 @@ from trapiche.api import TrapicheWorkflowFromSequence
 from trapiche.config import TrapicheWorkflowParams
 
 samples = [
-
 	{
 		"project_description_text": "Home Microbiome Metagenomes. The project identifies patterns in microbial communities associated with different home and home occupant (human and pet) surfaces", 
 		"sample_description_text": "Metagenome of microbial community: Bedroom Floor. House_04a-Bedroom_Floor_Day3. House_04a-Bedroom_Floor_Day3", 
@@ -123,7 +122,7 @@ samples = [
 
 workflow_params = TrapicheWorkflowParams(  # defaults shown
 	run_text=True, run_vectorise=True, run_taxonomy=True,
-	keep_text_results=False, keep_vectorise_results=False, keep_taxonomy_results=False,
+	keep_text_results=True, keep_vectorise_results=False, keep_taxonomy_results=True,output_keys=None
 	# When output_keys is None, the keep_* flags decide what to include.
 )
 
@@ -132,7 +131,6 @@ result = runner.run(samples)  # sequence of dicts augmented with predictions
 print(result)
 runner.save("trapiche_results.ndjson")  # optional convenience save
 ```
-
 
 Text prediction
 
@@ -178,7 +176,7 @@ Input record (API and CLI workflow)
 
 One JSON object per sample in eithe NDJSON (CLI) or List (API), with the following keys:
 
-```
+```json
 {
 	"taxonomy_files_paths": ["/path/to/sample1.tsv", "/path/to/sample1_b.tsv.gz"],
 	"project_description_text": "Free text describing the sample.",
@@ -220,7 +218,7 @@ Integration tests of API and CLI
 
 Run tests:
 
-```
+```bash
 python -m unittest discover -s test -p 'test_*.py' -q
 ```
 
