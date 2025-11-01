@@ -12,7 +12,7 @@ import re
 import importlib
 import logging
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 from itertools import combinations
 import numpy as np
 import pandas as pd
@@ -26,6 +26,8 @@ from .config import TaxonomyToBiomeParams, TaxonomyToVectorParams
 from .utils import cosine_similarity_pairwise, load_biome_herarchy_dict, get_similar_predictions,_get_hf_model_path
 
 logger = logging.getLogger(__name__)
+
+KNN_VALUE_DEFAULT = -1  # THE FUNCTION IS DEPRECATED. TODO: Transform function to KNN tool
 
 @lru_cache
 def load_biome_tags_list():
@@ -261,18 +263,15 @@ def get_unanbigious_prediction(co, dominance_threshold, best_lineage_min_depth=4
 
     return node_frequencies, sorted_passed, top_dominant
 
-def refine_predictions_knn_batch(
+def knn_batch(
     predictions: List[Optional[List[Any]]],
     query_vectors: np.ndarray,
     params: TaxonomyToBiomeParams,
-) -> List[Optional[Dict[str, float]]]:
-    """DEPRECATED"""
+) -> List[Optional[List[Dict[str, Any]]]]:
     
-    """Refine deep model predictions using KNN in the vector space (batch version).
+    """Find KNN  using cosine similarity in the vector space. Return similar samples, but maximum `max_per_study` per project.
 
-    This version processes multiple predictions in parallel by grouping queries
-    by their unique predicted prefix. Each unique prefix is refined once, and
-    results are mapped back to their original order.
+
 
     Parameters
     ----------
@@ -286,16 +285,14 @@ def refine_predictions_knn_batch(
 
     Returns
     -------
-    List[Optional[Dict[str, float]]]
-        A list of refined predictions aligned with the input order.
+    List[Optional[List[Dict[str, Any]]]]
     """
 
     logger.debug("DEPRECATED: Starting batch KNN refinement of predictions")
     
     # Prepare result list in input order
-    results: List[Optional[Dict[str, float]]] = [None] * len(predictions)
-    if params.k_knn <= 0:
-        logger.debug("k_knn <= 0; skipping KNN refinement")
+    results: List[Optional[List[Dict[str, Any]]]]  = [None] * len(predictions)
+    if KNN_VALUE_DEFAULT <= 0:
         return results
 
     # Load MGnify sample vectors and metadata
@@ -304,7 +301,7 @@ def refine_predictions_knn_batch(
         model_version=params.model_version,
     )
 
-    max_per_study = max(1, params.k_knn // 3)
+    max_per_study = max(1, KNN_VALUE_DEFAULT // 3)
 
     # Normalize predictions: None -> empty string
 
@@ -341,7 +338,6 @@ def refine_predictions_knn_batch(
         for local_ix, ass in enumerate(argsort_sims):
             global_ix = indices[local_ix]
 
-            # _co = _subject_df.iloc[ass[-params.k_knn:]]["BIOME_AMEND"].value_counts()
 
             # Take similarity scores for this query
             sim_scores = sims[local_ix]
@@ -351,23 +347,19 @@ def refine_predictions_knn_batch(
 
             # Subset dataframe with similarity order
             top_df = _subject_df.iloc[sorted_ix].copy()
-            top_df["SIM"] = sim_scores[sorted_ix]
+            top_df["COSINE_SIMILARITY"] = sim_scores[sorted_ix]
             
             top_df_limited = top_df.groupby("STUDY_ID", group_keys=False).head(max_per_study)
 
             # Now take the top k_knn overall, after applying the per-study cap
-            selected_df = top_df_limited.head(params.k_knn)
+            _selected_df = top_df_limited.head(KNN_VALUE_DEFAULT)
+            
+            _selected_df = _selected_df[['ACCESSION','COSINE_SIMILARITY','BIOME_AMEND']]
+            _selected_df.columns = ['ACCESSION','COSINE_SIMILARITY','BIOME']
 
-            # Compute frequencies for the selected subset
-            _co = selected_df["BIOME_AMEND"].value_counts() / selected_df.shape[0]
-            _, _, top_dominant = get_unanbigious_prediction(_co, dominance_threshold=params.dominance_threshold)
+            results[global_ix] = cast(List[Dict[str, Any]], _selected_df.to_dict(orient='records'))
 
-            if not top_dominant:
-                refined_prediction = None
-            else:
-                refined_prediction = top_dominant
-
-            results[global_ix] = refined_prediction
+            # results[global_ix] = _selected_df.to_dict(orient='records')
 
     return results
 
@@ -404,11 +396,11 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
         _, _, top_dominant_const = get_unanbigious_prediction(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
         unambiguous_constrained_predictions.append(top_dominant_const)
     
-    ### KNN refinement. 
+    ### KNN . 
     # string_pattern = "Digestive system"
     # knn refinement unconstrained
     prediction_keys = [list(d.keys()) if d is not None else None for d in top_predictions]
-    refined_predictions = refine_predictions_knn_batch( predictions=prediction_keys, query_vectors=query_vector, params=params)
+    refined_predictions = knn_batch( predictions=prediction_keys, query_vectors=query_vector, params=params)
     # refined_predictions = [
     #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
     #     for crp in refined_predictions
@@ -416,7 +408,7 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
 
     # knn refinement constrained
     constrained_prediction_keys = [list(d.keys()) if d is not None else None for d in constrained_top_predictions]
-    constrained_refined_predictions = refine_predictions_knn_batch( predictions=constrained_prediction_keys, query_vectors=query_vector, params=params)
+    constrained_refined_predictions = knn_batch( predictions=constrained_prediction_keys, query_vectors=query_vector, params=params)
     # Set to None those refined predictions that do not match the string_pattern. predictions are List[Optional[Dict[str, float]]]
     # constrained_refined_predictions = [
     #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
@@ -474,10 +466,10 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
         result = {
             "raw_top_predictions": normalize_to_amended_ontology(pred, target_ontology="AMENDED"),
             "raw_unambiguous_prediction": normalize_to_amended_ontology(unambig_pred, target_ontology="AMENDED"),
-            "raw_refined_prediction": normalize_to_amended_ontology(refined_prediction, target_ontology="AMENDED"),
+            "raw_refined_prediction": normalize_to_amended_ontology(refined_prediction, target_ontology="AMENDED"), # DEPRECATED
             "constrained_top_predictions": normalize_to_amended_ontology(constr_pred, target_ontology="AMENDED"),
             "constrained_unambiguous_prediction": normalize_to_amended_ontology(unambig_constr_pred, target_ontology="AMENDED"),
-            "constrained_refined_prediction": normalize_to_amended_ontology(refined_constrained_prediction, target_ontology="AMENDED"),
+            "constrained_refined_prediction": normalize_to_amended_ontology(refined_constrained_prediction, target_ontology="AMENDED"), # DEPRECATED
             "final_selected_prediction": normalize_to_amended_ontology(best_heuristic, target_ontology="AMENDED"),
         }
         results_sequence.append(result)

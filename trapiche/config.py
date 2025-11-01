@@ -29,7 +29,7 @@ class TrapicheWorkflowParams:
     keep_vectorise_results: bool = False
     run_taxonomy: bool = True
     keep_taxonomy_results: bool = True
-    output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction", "raw_refined_prediction","constrained_unambiguous_prediction", "constrained_refined_prediction", "final_selected_prediction"]) 
+    output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction","constrained_unambiguous_prediction", "final_selected_prediction"]) 
     sample_study_text_heuristic: bool = False
     
 @dataclass
@@ -73,8 +73,6 @@ class TaxonomyToBiomeParams:
     ----------
     batch_size : int
         Chunk size for model forward passes.
-    k_knn : int
-        Number of nearest neighbours used during refinement.
     dominance_threshold : float
         Frequency threshold for accepting lineage extensions in KNN refinement.
     In addition to model forward-pass settings, this also includes
@@ -85,8 +83,7 @@ class TaxonomyToBiomeParams:
     ------
     batch_size
         Chunk size for model forward passes.
-    k_knn
-        Number of nearest neighbours used during refinement.
+
     dominance_threshold
         Frequency threshold for accepting lineage extensions in KNN refinement.
     vector_space
@@ -101,7 +98,6 @@ class TaxonomyToBiomeParams:
         Version tag for the taxonomy-to-biome classifier.
     """
     batch_size: int = 200
-    k_knn: int = -1
     dominance_threshold: float = 0.5
     top_prob_diff_threshold: float = 0.05
     top_prob_ratio_threshold: float = 0.9
