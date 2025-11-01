@@ -445,7 +445,7 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
         else:
             best_heuristic = None
 
-        def normalize_to_amended_ontology(pred,target_ontology="GOLD"):
+        def normalize_to_ontology(pred,target_ontology="GOLD"):
             if pred is None:
                 return None
             if target_ontology=="GOLD":
@@ -464,13 +464,12 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
             best_heuristic_gold = {best_heuristic_gold: best_heuristic[list(best_heuristic)[0]]}
         
         result = {
-            "raw_top_predictions": normalize_to_amended_ontology(pred, target_ontology="AMENDED"),
-            "raw_unambiguous_prediction": normalize_to_amended_ontology(unambig_pred, target_ontology="AMENDED"),
-            "raw_refined_prediction": normalize_to_amended_ontology(refined_prediction, target_ontology="AMENDED"), # DEPRECATED
-            "constrained_top_predictions": normalize_to_amended_ontology(constr_pred, target_ontology="AMENDED"),
-            "constrained_unambiguous_prediction": normalize_to_amended_ontology(unambig_constr_pred, target_ontology="AMENDED"),
-            "constrained_refined_prediction": normalize_to_amended_ontology(refined_constrained_prediction, target_ontology="AMENDED"), # DEPRECATED
-            "final_selected_prediction": normalize_to_amended_ontology(best_heuristic, target_ontology="AMENDED"),
+            "raw_top_predictions": normalize_to_ontology(pred, target_ontology="AMENDED"),
+            "raw_unambiguous_prediction": normalize_to_ontology(unambig_pred, target_ontology="AMENDED"),
+            "constrained_top_predictions": normalize_to_ontology(constr_pred, target_ontology="AMENDED"),
+            "constrained_unambiguous_prediction": normalize_to_ontology(unambig_constr_pred, target_ontology="AMENDED"),
+            "final_selected_prediction": normalize_to_ontology(best_heuristic, target_ontology="AMENDED"),
+            "final_selected_prediction_GOLD": normalize_to_ontology(best_heuristic, target_ontology="GOLD"),
         }
         results_sequence.append(result)
 

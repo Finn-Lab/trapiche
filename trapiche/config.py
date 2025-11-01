@@ -29,7 +29,7 @@ class TrapicheWorkflowParams:
     keep_vectorise_results: bool = False
     run_taxonomy: bool = True
     keep_taxonomy_results: bool = True
-    output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction","constrained_unambiguous_prediction", "final_selected_prediction"]) 
+    output_keys: list[str] | None = field(default_factory=lambda: ["text_predictions", "raw_unambiguous_prediction","constrained_unambiguous_prediction", "final_selected_prediction", "final_selected_prediction_GOLD"]) 
     sample_study_text_heuristic: bool = False
     
 @dataclass
