@@ -377,7 +377,7 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     raw, constrained, refined, and final selections.
     """
     # prediction baded on deep learning model
-    logger.info("Starting full stack prediction")
+    logger.debug("Starting full stack prediction")
     deep_l_probs = bnn_model2gg(query_vector).numpy()
 
     top_predictions,constrained_top_predictions = from_probs_to_pred(deep_l_probs, potential_space=constrains,params=params)
@@ -523,8 +523,11 @@ def predict_runs(
     # If community_vectors has zero feature dimension, return early
     try:
         if community_vectors.shape[1] == 0:  # no features extracted
-            logger.warning(f"No features extracted from input; returning empty DataFrame n_samples={n_samples}")
-            return result
+            logger.warning(
+                f"No features extracted from input; returning per-sample None placeholders n_samples={n_samples}"
+            )
+            # Maintain alignment with input samples: one result slot per sample
+            return [None] * n_samples
     except Exception:
         # If shape not available or indexing fails, continue and let downstream code handle it
         pass

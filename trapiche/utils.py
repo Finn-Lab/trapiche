@@ -232,7 +232,7 @@ def tax_annotations_from_file(f):
             with open(f) as content:
                 d = krona_read(content)
         except Exception as e:
-            logger.warning(f"open krona failed file={f} error={e}")
+            logger.debug(f"open krona failed file={f} error={e}")
             try:
                 with gzip.open(f, "rt") as content:  # 'rt' mode for reading text
                     d = krona_read(content)

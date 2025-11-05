@@ -322,9 +322,8 @@ def vectorise_sample(list_of_tax_files, *, model_name: str | None = None, model_
                 d = tax_annotations_from_file(f)
             except Exception as e:  # defensive: keep other files processing
                 print(f"Failed to parse taxonomy file {f}: {e}")
-                d = None
-            if d:
-                samples_annots.setdefault(ix, []).extend(d)
+                d = []
+            samples_annots.setdefault(ix, []).extend(d if d else [])
 
     # Derive genus sets and vectors per sample
     samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}
