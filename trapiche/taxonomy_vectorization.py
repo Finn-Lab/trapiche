@@ -329,12 +329,34 @@ def vectorise_sample(list_of_tax_files, *, model_name: str | None = None, model_
     samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}
     samples_vecs = {k: genre_to_taxonomy_vectorization(gs, model_name=model_name, model_version=model_version) for k, gs in samples_genus.items() if gs}
 
-    if not samples_vecs:
-        # No sample produced a vector -> shape (n_samples, 0)
+    # Some samples may yield empty vectors (e.g., genera not present in the model).
+    # Only consider non-empty vectors to determine the embedding dimensionality.
+    non_empty = {k: v for k, v in samples_vecs.items() if isinstance(v, np.ndarray) and v.size > 0}
+
+    if not non_empty:
+        # No sample produced a non-empty vector -> shape (n_samples, 0)
         return np.zeros((n_samples, 0))
 
-    first_vec = next(iter(samples_vecs.values()))
-    vec_len = len(first_vec)
+    # Embedding dimension inferred from any non-empty vector (all should match model dim)
+    vec_len = len(next(iter(non_empty.values())))
 
-    ordered = [samples_vecs.get(i, np.zeros(vec_len)) for i in range(n_samples)]
+    # Build ordered list aligning to all input samples; use zero vector when empty/missing
+    ordered = []
+    for i in range(n_samples):
+        v = samples_vecs.get(i)
+        if v is None or v.size == 0:
+            ordered.append(np.zeros((vec_len,), dtype=float))
+        else:
+            # Defensive: if a mismatched shape appears, coerce to expected with pad/trunc
+            if len(v) != vec_len:
+                logger.warning(
+                    "Inconsistent vector length for sample index %s: got %s, expected %s; coercing",
+                    i, len(v), vec_len,
+                )
+                if len(v) > vec_len:
+                    v = v[:vec_len]
+                else:
+                    v = np.pad(v, (0, vec_len - len(v)), mode='constant')
+            ordered.append(v.astype(float, copy=False))
+
     return np.stack(ordered, axis=0)
