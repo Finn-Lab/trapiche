@@ -188,7 +188,6 @@ def _split_sentences(text: str) -> List[str]:
 
 
 # ---------------------------------------------------------------------
-# Public API (pure functions)
 # ---------------------------------------------------------------------
 def predict_probability(
     texts: Sequence[str] | str,
@@ -196,7 +195,7 @@ def predict_probability(
     model_version: str,
     device: str | None = None,
     max_length: int = 256,
-) -> np.ndarray:
+) -> Tuple[np.ndarray,np.ndarray]:
     """Compute per-class probabilities for one or many texts.
 
     Args:
@@ -224,8 +223,10 @@ def predict_probability(
     torch = importlib.import_module("torch")  # type: ignore
     with torch.no_grad():
         out = model(**enc)
-        probs = torch.sigmoid(out.logits).cpu().numpy()
-    return probs
+        logits = out.logits  # (n_samples, n_classes)
+        sigmoid_probs = torch.sigmoid(logits).cpu().numpy()
+        softmax_probs = torch.softmax(logits, dim=1).cpu().numpy()
+    return sigmoid_probs,softmax_probs
 
 
 def probabilities_to_mask(
@@ -309,19 +310,28 @@ def predict(
 
     if split_sentences:
         agg = []
+        agg_softmax = []
         for t in texts_list:
             parts = _split_sentences(t)
             parts.append(t)  # include full context
-            p = predict_probability(parts, model_name=model_name, model_version=model_version, device=device, max_length=max_length)
+            p,p_softmax = predict_probability(parts, model_name=model_name, model_version=model_version, device=device, max_length=max_length)
             agg.append(p.max(axis=0))
+            agg_softmax.append(p_softmax.max(axis=0))
         probs = np.vstack(agg) if agg else np.zeros((0, len(id2label)))
+        softmax_probs = np.vstack(agg_softmax) if agg_softmax else np.zeros((0, len(id2label)))
     else:
-        probs = predict_probability(texts_list, model_name=model_name, model_version=model_version, device=device, max_length=max_length)
+        probs,softmax_probs = predict_probability(texts_list, model_name=model_name, model_version=model_version, device=device, max_length=max_length)
 
     mask = probabilities_to_mask(probs, id2label=id2label, thresholds=thresholds, rule=threshold_rule)
+
     predictions: List[Dict[str,float]] = []
     for ind,row in enumerate(mask):
+        # if the mask did not select any label, select the max one
+        if sum(row)==0:
+            max_ind = int(np.argmax(probs[ind]))
+            row[max_ind]=1
         gold_labels = [str(id2label.get(i, f"label_{i}")) for i, v in enumerate(row) if v == 1]
+        # keep softmax probs so that when multisource prediction is unambiguated it has multiclass like probability
         _probs = [float(probs[ind][i]) for i, v in enumerate(row) if v == 1]
         labels =  [gold_to_ammend_map.get(label,label) for label in gold_labels]# amended biome ontology
         _predicted = dict(zip(labels,_probs))

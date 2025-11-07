@@ -152,7 +152,12 @@ def run_text_step(
                     selected[sp] = _prob
         if not selected:
             selected.update(proj_preds)
-            selected.update(samp_preds) # simple union
+            
+            # Update with top prediction from sample predictions if none matched
+            if samp_preds:
+                top_samp_pred = max(samp_preds.keys(), key=lambda k: samp_preds.get(k, 0.0))
+                selected[top_samp_pred] = float(samp_preds.get(top_samp_pred, 0.0))
+            # selected.update(samp_preds) # simple union
 
         return selected
 

@@ -14,6 +14,7 @@ import logging
 
 from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 from itertools import combinations
+from statistics import harmonic_mean
 import numpy as np
 import pandas as pd
 import numpy as np
@@ -385,7 +386,7 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     # Get unambiguous predictions
     unambiguous_predictions = []
     unambiguous_constrained_predictions = []
-    for _top_pred,_constrained_top_pred in zip(top_predictions,constrained_top_predictions):
+    for _top_pred,_constrained_top_pred,constrain in zip(top_predictions,constrained_top_predictions,constrains):
         _, _, top_dominant = get_unanbigious_prediction(pd.Series(_top_pred), dominance_threshold=params.dominance_threshold)
         unambiguous_predictions.append(top_dominant)
 
@@ -393,7 +394,21 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
             unambiguous_constrained_predictions.append(None)
             continue
         
-        _, _, top_dominant_const = get_unanbigious_prediction(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
+        _, _, _top_dominant_const = get_unanbigious_prediction(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
+        # Correct probability to be harmonic mean of top_dominant_const and the constrained term that matched
+        if _top_dominant_const is not None:
+            top_dominant_const_term,top_dominant_const_score = list(_top_dominant_const.items())[0]
+            matching_keys = [k for k in constrain.keys() if k in top_dominant_const_term]
+            if matching_keys:
+                longest_match = max(matching_keys, key=lambda x: len(x))
+                longest_match_score = constrain[longest_match]
+                ## If score are the same means that only text based score is given, reduce to half as this is missing the taxonomy evidence
+                if longest_match_score==top_dominant_const_score:
+                    constrained_score = top_dominant_const_score / 2
+                else:
+                    constrained_score = harmonic_mean([top_dominant_const_score,longest_match_score])
+                top_dominant_const = {top_dominant_const_term: constrained_score}
+                logging.debug(f"Adjusted constrained score for {matching_keys}, {top_dominant_const_term},{top_dominant_const_score}: {constrained_score}")
         unambiguous_constrained_predictions.append(top_dominant_const)
     
     ### KNN . 
