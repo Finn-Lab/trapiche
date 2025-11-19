@@ -387,14 +387,18 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     unambiguous_predictions = []
     unambiguous_constrained_predictions = []
     for _top_pred,_constrained_top_pred,constrain in zip(top_predictions,constrained_top_predictions,constrains):
-        _, _, top_dominant = get_unanbigious_prediction(pd.Series(_top_pred), dominance_threshold=params.dominance_threshold)
+        # _, _, top_dominant = get_unanbigious_prediction(pd.Series(_top_pred), dominance_threshold=params.dominance_threshold)
+        top_dominant_term = max(_top_pred, key=_top_pred.get)
+        top_dominant = {top_dominant_term: _top_pred.get(top_dominant_term,0)}
         unambiguous_predictions.append(top_dominant)
 
         if _constrained_top_pred is None:
             unambiguous_constrained_predictions.append(None)
             continue
         
-        _, _, _top_dominant_const = get_unanbigious_prediction(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
+        # _, _, _top_dominant_const = get_unanbigious_prediction(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
+        top_dominant_term = max(_constrained_top_pred, key=_constrained_top_pred.get)
+        _top_dominant_const = {top_dominant_term: _constrained_top_pred.get(top_dominant_term,0)}
         # Correct probability to be harmonic mean of top_dominant_const and the constrained term that matched
         if _top_dominant_const is not None:
             top_dominant_const_term,top_dominant_const_score = list(_top_dominant_const.items())[0]
