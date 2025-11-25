@@ -1,8 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="526" height="120" viewBox="0 55 526 120">
-  <!-- Cropped viewBox and dimensions to tightly fit artwork -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="386"
+     height="122"
+     viewBox="0 34 522 162">
+
+  <defs>
+    <!-- Mask to carve out a transparent circular hole (r=20) from wedges -->
+    <mask id="wedge-cutout" maskUnits="userSpaceOnUse">
+      <rect x="-50" y="0" width="300" height="200" fill="white" />
+      <!-- Hole: area painted black becomes transparent after mask applied -->
+      <circle cx="52" cy="115" r="20" fill="black" />
+    </mask>
+  </defs>
 
   <!-- Trapiche hexagon emblem -->
-  <g>
+  <g mask="url(#wedge-cutout)">
     <!-- 6 radial wedges -->
     <polygon points="52.00,115.00 103.92,85.00 103.92,145.00" fill="#289848" />
     <polygon points="52.00,115.00 103.92,145.00 52.00,175.00" fill="#005830" />
@@ -10,13 +21,10 @@
     <polygon points="52.00,115.00 0.00,145.00 0.00,85.00" fill="#005830" />
     <polygon points="52.00,115.00 0.00,85.00 52.00,55.00" fill="#289848" />
     <polygon points="52.00,115.00 52.00,55.00 103.92,85.00" fill="#005830" />
-
-    <!-- Central circle (same tone as text) -->
-    <!-- small dark disc to visually separate from wedges -->
-    <circle cx="52" cy="115" r="20" fill="#0D1216" />
-    <!-- main circle -->
-    <circle cx="52" cy="115" r="18" fill="#2880A8" />
   </g>
+
+  <!-- Central circle -->
+  <circle cx="52" cy="115" r="18" fill="#2880A8" />
 
   <!-- Wordmark -->
   <text
