@@ -1,4 +1,8 @@
-Trapiche — Joint biome classification from text and taxonomy
+<p align="left">
+  <img src="assets/logo.svg" width="350" alt="Trapiche logo">
+</p>
+
+Trapiche — Multi-source biome classification from text and taxonomy
 ===========================================================
 
 Trapiche is an open-source tool for biome classification in metagenomic studies. It combines two complementary sources of information:
