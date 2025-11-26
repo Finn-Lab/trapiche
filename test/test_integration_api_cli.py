@@ -60,7 +60,7 @@ class TestAPIIntegration(unittest.TestCase):
         preds = ttb.predict(texts)
         self.assertIsInstance(preds, list)
         self.assertEqual(len(preds), 1)
-        self.assertIsInstance(preds[0], list)
+        self.assertIsInstance(preds[0], dict)
         # Labels (if any) should be strings
         for label in preds[0]:
             self.assertIsInstance(label, str)
@@ -84,7 +84,7 @@ class TestAPIIntegration(unittest.TestCase):
         r0 = res[0]
         # In text-only mode we expect exact text_predictions
         self.assertIn("text_predictions", r0)
-        self.assertIsInstance(r0["text_predictions"], list)
+        self.assertIsInstance(r0["text_predictions"], dict)
         self.assertEqual(r0["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
 
     def test_vector_and_taxonomy_api(self):

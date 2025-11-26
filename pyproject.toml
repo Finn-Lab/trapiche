@@ -39,6 +39,9 @@ trapiche = "trapiche.cli:main"
 [tool.setuptools_scm]
 write_to = "trapiche/_version.py"
 
+[tool.setuptools.packages.find]
+include = ["trapiche*"]
+
 [tool.black]
 line-length = 100
 target-version = ["py310"]
