@@ -151,7 +151,7 @@ class TestCLIIntegration(unittest.TestCase):
         tmpdir, in_path = self._write_ndjson([SAMPLE])
         try:
             # Let CLI derive default output path based on input basename
-            cmd = [sys.executable, "-m", "trapiche.cli", str(in_path), "--no-vectorise", "--no-taxonomy", "--log-file", str(Path(tmpdir.name)/"trapiche.log"), "-v"]
+            cmd = [sys.executable, "-m", "trapiche.cli", str(in_path), "--no-run-vectorise", "--no-run-taxonomy", "--log-file", str(Path(tmpdir.name)/"trapiche.log"), "-v"]
             proc = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
             if proc.returncode != 0:
                 self.fail(f"CLI failed: returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}")

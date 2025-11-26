@@ -99,32 +99,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             " TrapicheWorkflowParams."
         ),
     )
-    # workflow toggles mirroring TrapicheWorkflowParams
-    p.add_argument("--no-text", dest="run_text", action="store_false", help="Do not run text prediction step")
-    p.add_argument("--no-vectorise", dest="run_vectorise", action="store_false", help="Do not run vectorisation step")
-    p.add_argument("--no-taxonomy", dest="run_taxonomy", action="store_false", help="Do not run taxonomy prediction step")
+    bool_opt = argparse.BooleanOptionalAction
+    p.add_argument("--run-text", dest="run_text", action=bool_opt, default=None, help="Enable or disable text prediction step (env: TRAPICHE_RUN_TEXT)")
+    p.add_argument("--run-vectorise", dest="run_vectorise", action=bool_opt, default=None, help="Enable or disable vectorisation step (env: TRAPICHE_RUN_VECTORISE)")
+    p.add_argument("--run-taxonomy", dest="run_taxonomy", action=bool_opt, default=None, help="Enable or disable taxonomy prediction step (env: TRAPICHE_RUN_TAXONOMY)")
+
     # Text params
     p.add_argument(
         "--sample-study-text-heuristic",
         dest="sample_study_text_heuristic",
-        action="store_true",
+        action=bool_opt,
+        default=None,
         help=(
             "When set, if both project_description_text and sample_description_text are provided, "
             "run predictions on both and take union the labels; "
         ),
     )
 
-
-
-    # defaults mirror dataclass defaults from TrapicheWorkflowParams
-    defaults = TrapicheWorkflowParams()
-    p.set_defaults(
-        run_text=defaults.run_text,
-        run_vectorise=defaults.run_vectorise,
-        run_taxonomy=defaults.run_taxonomy,
-        disable_minimal_result=False,
-        sample_study_text_heuristic=defaults.sample_study_text_heuristic,
-    )
+    p.set_defaults(disable_minimal_result=False)
 
     # Logging option: default to trapiche.log when running via the CLI
     p.add_argument(
@@ -186,13 +178,21 @@ def main(argv: list[str] | None = None) -> int:
         # minimal result explicitly disabled
         output_keys = None
 
-    params = TrapicheWorkflowParams(
-        run_text=bool(args.run_text),
-        run_vectorise=bool(args.run_vectorise),
-        run_taxonomy=bool(args.run_taxonomy),
-        output_keys=output_keys,
-        sample_study_text_heuristic=bool(args.sample_study_text_heuristic),
-    )
+    # Load defaults from env via Pydantic, then override with CLI if provided
+    base_params = TrapicheWorkflowParams()
+    update_fields: dict[str, Any] = {}
+    if args.run_text is not None:
+        update_fields["run_text"] = bool(args.run_text)
+    if args.run_vectorise is not None:
+        update_fields["run_vectorise"] = bool(args.run_vectorise)
+    if args.run_taxonomy is not None:
+        update_fields["run_taxonomy"] = bool(args.run_taxonomy)
+    if args.sample_study_text_heuristic is not None:
+        update_fields["sample_study_text_heuristic"] = bool(args.sample_study_text_heuristic)
+    # Output keys are controlled by the CLI flag above
+    update_fields["output_keys"] = output_keys
+
+    params = base_params.model_copy(update=update_fields)
 
 
     # read input

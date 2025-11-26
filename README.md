@@ -78,19 +78,37 @@ trapiche input.ndjson --disable-minimal-result
 cat input.ndjson | trapiche -
 
 # Disable a step
-trapiche input.ndjson --no-text  # no text-based constraints
+trapiche input.ndjson --no-run-text  # no text-based constraints
 
-# Enable the sample-over-study heuristic for text predictions
+# Enable/disable the sample-over-study heuristic for text predictions
 trapiche input.ndjson --sample-study-text-heuristic
+trapiche input.ndjson --no-sample-study-text-heuristic
 ```
 
 Flags
-- --no-text / --no-vectorise / --no-taxonomy
-- --keep-text-results / --keep-vectorise-results / --keep-taxonomy-results
--- --disable-minimal-result (default: false). When set, the default minimal output is disabled and
+- `--run-text/--no-run-text`, `--run-vectorise/--no-run-vectorise`, `--run-taxonomy/--no-run-taxonomy`
+- `--keep-text-results / --keep-vectorise-results / --keep-taxonomy-results`
+- `--disable-minimal-result` (default: false). When set, the default minimal output is disabled and
 	the final keys saved are controlled by `TrapicheWorkflowParams`. By default the CLI produces the compact/minimal
 	output (no flag required).
-- --sample-study-text-heuristic: when both project_description_text and sample_description_text are present, run text prediction on both and keep union of labels. 
+- `--sample-study-text-heuristic` (or `--no-sample-study-text-heuristic`): when both project_description_text and sample_description_text are present, run text prediction on both and keep union of labels.
+
+## Configuration via environment variables
+
+Trapiche CLI and API use Pydantic Settings. You can override defaults with environment variables:
+
+- `TRAPICHE_RUN_TEXT=true|false`
+- `TRAPICHE_RUN_VECTORISE=true|false`
+- `TRAPICHE_RUN_TAXONOMY=true|false`
+- `TRAPICHE_SAMPLE_STUDY_TEXT_HEURISTIC=true|false`
+
+Example:
+
+```bash
+export TRAPICHE_RUN_TEXT=false
+export TRAPICHE_RUN_TAXONOMY=true
+trapiche input.ndjson
+```
 
 
 ## Quick start (Python API)
