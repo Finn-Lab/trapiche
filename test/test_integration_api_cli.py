@@ -60,7 +60,7 @@ class TestAPIIntegration(unittest.TestCase):
         preds = ttb.predict(texts)
         self.assertIsInstance(preds, list)
         self.assertEqual(len(preds), 1)
-        self.assertIsInstance(preds[0], list)
+        self.assertIsInstance(preds[0], dict)
         # Labels (if any) should be strings
         for label in preds[0]:
             self.assertIsInstance(label, str)
@@ -84,7 +84,7 @@ class TestAPIIntegration(unittest.TestCase):
         r0 = res[0]
         # In text-only mode we expect exact text_predictions
         self.assertIn("text_predictions", r0)
-        self.assertIsInstance(r0["text_predictions"], list)
+        self.assertIsInstance(r0["text_predictions"], dict)
         self.assertEqual(r0["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
 
     def test_vector_and_taxonomy_api(self):
@@ -151,7 +151,7 @@ class TestCLIIntegration(unittest.TestCase):
         tmpdir, in_path = self._write_ndjson([SAMPLE])
         try:
             # Let CLI derive default output path based on input basename
-            cmd = [sys.executable, "-m", "trapiche.cli", str(in_path), "--no-vectorise", "--no-taxonomy", "--log-file", str(Path(tmpdir.name)/"trapiche.log"), "-v"]
+            cmd = [sys.executable, "-m", "trapiche.cli", str(in_path), "--no-run-vectorise", "--no-run-taxonomy", "--log-file", str(Path(tmpdir.name)/"trapiche.log"), "-v"]
             proc = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
             if proc.returncode != 0:
                 self.fail(f"CLI failed: returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}")
