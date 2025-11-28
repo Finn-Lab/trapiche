@@ -7,10 +7,13 @@ trapiche/data/biome2vec/mgnify_sample_vectors.h5
 
 .*
 slurm-*.out
-# trapiche/_version.py
+.github/copilot-instructions.md
+trapiche/_version.py
+
 ### EXEPTIONS ###
 !.gitignore
 !.pre-commit-config.yaml
+!.github
 
 ## GENERIC
 ### Python ###

@@ -126,17 +126,17 @@ Uses a sequence of dicts (one dict is one sample) with the following required/op
 **Taxonomy predictions**
 - taxonomy_files_paths (required for taxonomy predictions): list of file paths.
 	- Accepted formats: .tsv, .tsv.gz (non-recursive).
-    
+
 ```python
 from trapiche.api import TrapicheWorkflowFromSequence
 from trapiche.config import TrapicheWorkflowParams
 
 samples = [
 	{
-		"project_description_text": "Home Microbiome Metagenomes. The project identifies patterns in microbial communities associated with different home and home occupant (human and pet) surfaces", 
-		"sample_description_text": "Metagenome of microbial community: Bedroom Floor. House_04a-Bedroom_Floor_Day3. House_04a-Bedroom_Floor_Day3", 
+		"project_description_text": "Home Microbiome Metagenomes. The project identifies patterns in microbial communities associated with different home and home occupant (human and pet) surfaces",
+		"sample_description_text": "Metagenome of microbial community: Bedroom Floor. House_04a-Bedroom_Floor_Day3. House_04a-Bedroom_Floor_Day3",
 		"taxonomy_files_paths": [
-			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv", 
+			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv",
 			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_LSU_OTU.tsv"
 			]
 	}
@@ -269,5 +269,3 @@ Issues and pull requests are welcome. Please open an issue to discuss larger cha
 This project is open source. See the repository metadata for licensing terms.
 
 If you use Trapiche in your work, please cite the Trapiche paper (coming soon). A BibTeX entry will be provided here.
-
-

@@ -4,12 +4,12 @@ These tests exercise the public wrappers and the CLI end to end. Heavy
 dependencies and remote Hugging Face assets are checked and tests are
 skipped when unavailable to keep the suite fast and robust.
 """
+
 import json
-import os
+import subprocess
 import sys
 import tempfile
 import unittest
-import subprocess
 from pathlib import Path
 
 # Reuse local test taxonomy files
@@ -43,6 +43,7 @@ def _hf_asset_available(model_name: str, model_version: str, pattern: str) -> bo
     """Best-effort check for a single HF asset; returns False if download fails."""
     try:
         from trapiche.utils import _get_hf_model_path  # local import
+
         p = _get_hf_model_path(model_name, model_version, pattern)
         return Path(p).exists()
     except Exception:
@@ -67,7 +68,9 @@ class TestAPIIntegration(unittest.TestCase):
 
     def test_workflow_text_only(self):
         if not _have_module("transformers"):
-            self.skipTest("transformers not installed; skipping workflow text-only integration test")
+            self.skipTest(
+                "transformers not installed; skipping workflow text-only integration test"
+            )
         from trapiche.api import TrapicheWorkflowFromSequence
         from trapiche.config import TrapicheWorkflowParams
 
@@ -85,7 +88,9 @@ class TestAPIIntegration(unittest.TestCase):
         # In text-only mode we expect exact text_predictions
         self.assertIn("text_predictions", r0)
         self.assertIsInstance(r0["text_predictions"], dict)
-        self.assertEqual(r0["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
+        self.assertEqual(
+            r0["text_predictions"], {"root:Engineered:Built environment": 0.9994168281555176}
+        )
 
     def test_vector_and_taxonomy_api(self):
         # Require optional heavy deps: tensorflow, pandas, tables, gensim
@@ -99,12 +104,17 @@ class TestAPIIntegration(unittest.TestCase):
             self.skipTest("gensim not installed; skipping taxonomy integration test")
 
         # Check HF assets best-effort; skip if not accessible
-        from trapiche.config import TaxonomyToVectorParams, TaxonomyToBiomeParams
+        from trapiche.config import TaxonomyToBiomeParams, TaxonomyToVectorParams
+
         vec_cfg = TaxonomyToVectorParams()
         tax_cfg = TaxonomyToBiomeParams()
-        if not _hf_asset_available(vec_cfg.hf_model, vec_cfg.model_version, "community2vec_model_vocab_v*.json"):
+        if not _hf_asset_available(
+            vec_cfg.hf_model, vec_cfg.model_version, "community2vec_model_vocab_v*.json"
+        ):
             self.skipTest("HF vectorizer assets unavailable; skipping taxonomy integration test")
-        if not _hf_asset_available(tax_cfg.hf_model, tax_cfg.model_version, "taxonomy_to_biome_v*.model.h5"):
+        if not _hf_asset_available(
+            tax_cfg.hf_model, tax_cfg.model_version, "taxonomy_to_biome_v*.model.h5"
+        ):
             self.skipTest("HF taxonomy model asset unavailable; skipping taxonomy integration test")
 
         from trapiche.api import Community2vec, TaxonomyToBiome, TextToBiome
@@ -113,7 +123,9 @@ class TestAPIIntegration(unittest.TestCase):
         ttb = TextToBiome()
         text_constraints = ttb.predict([SAMPLE["project_description_text"]])
         # Assert exact expected text prediction
-        self.assertEqual(text_constraints, [{'root:Engineered:Built environment': 0.9994168281555176}])
+        self.assertEqual(
+            text_constraints, [{"root:Engineered:Built environment": 0.9994168281555176}]
+        )
 
         # Vectorise taxonomy files
         c2v = Community2vec()
@@ -151,10 +163,22 @@ class TestCLIIntegration(unittest.TestCase):
         tmpdir, in_path = self._write_ndjson([SAMPLE])
         try:
             # Let CLI derive default output path based on input basename
-            cmd = [sys.executable, "-m", "trapiche.cli", str(in_path), "--no-run-vectorise", "--no-run-taxonomy", "--log-file", str(Path(tmpdir.name)/"trapiche.log"), "-v"]
+            cmd = [
+                sys.executable,
+                "-m",
+                "trapiche.cli",
+                str(in_path),
+                "--no-run-vectorise",
+                "--no-run-taxonomy",
+                "--log-file",
+                str(Path(tmpdir.name) / "trapiche.log"),
+                "-v",
+            ]
             proc = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
             if proc.returncode != 0:
-                self.fail(f"CLI failed: returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}")
+                self.fail(
+                    f"CLI failed: returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
+                )
 
             # Default output file name: <input_basename>_trapiche_results.ndjson
             out_path = in_path.with_name("input_trapiche_results.ndjson")
@@ -163,7 +187,9 @@ class TestCLIIntegration(unittest.TestCase):
             self.assertEqual(len(lines), 1)
             rec = json.loads(lines[0])
             self.assertIn("text_predictions", rec)
-            self.assertEqual(rec["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
+            self.assertEqual(
+                rec["text_predictions"], {"root:Engineered:Built environment": 0.9994168281555176}
+            )
         finally:
             tmpdir.cleanup()
 
@@ -178,20 +204,35 @@ class TestCLIIntegration(unittest.TestCase):
         if not _have_module("gensim"):
             self.skipTest("gensim not installed; skipping full CLI integration test")
 
-        from trapiche.config import TaxonomyToVectorParams, TaxonomyToBiomeParams
+        from trapiche.config import TaxonomyToBiomeParams, TaxonomyToVectorParams
+
         vec_cfg = TaxonomyToVectorParams()
         tax_cfg = TaxonomyToBiomeParams()
-        if not _hf_asset_available(vec_cfg.hf_model, vec_cfg.model_version, "community2vec_model_vocab_v*.json"):
+        if not _hf_asset_available(
+            vec_cfg.hf_model, vec_cfg.model_version, "community2vec_model_vocab_v*.json"
+        ):
             self.skipTest("HF vectorizer assets unavailable; skipping full CLI integration test")
-        if not _hf_asset_available(tax_cfg.hf_model, tax_cfg.model_version, "taxonomy_to_biome_v*.model.h5"):
+        if not _hf_asset_available(
+            tax_cfg.hf_model, tax_cfg.model_version, "taxonomy_to_biome_v*.model.h5"
+        ):
             self.skipTest("HF taxonomy model asset unavailable; skipping full CLI integration test")
 
         tmpdir, in_path = self._write_ndjson([SAMPLE])
         try:
-            cmd = [sys.executable, "-m", "trapiche.cli", str(in_path), "--log-file", str(Path(tmpdir.name)/"trapiche_full.log"), "-v"]
+            cmd = [
+                sys.executable,
+                "-m",
+                "trapiche.cli",
+                str(in_path),
+                "--log-file",
+                str(Path(tmpdir.name) / "trapiche_full.log"),
+                "-v",
+            ]
             proc = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
             if proc.returncode != 0:
-                self.fail(f"CLI failed: returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}")
+                self.fail(
+                    f"CLI failed: returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
+                )
 
             out_path = in_path.with_name("input_trapiche_results.ndjson")
             self.assertTrue(out_path.exists(), f"Expected output file not found: {out_path}")
@@ -200,10 +241,12 @@ class TestCLIIntegration(unittest.TestCase):
             rec = json.loads(lines[0])
             # Assert text predictions are as expected
             self.assertIn("text_predictions", rec)
-            self.assertEqual(rec["text_predictions"], {'root:Engineered:Built environment': 0.9994168281555176})
+            self.assertEqual(
+                rec["text_predictions"], {"root:Engineered:Built environment": 0.9994168281555176}
+            )
             # In full mode we expect at least final_selected_prediction key when taxonomy ran successfully
             self.assertIn("final_selected_prediction", rec)
-            self.assertIn("root:Engineered:Built environment", rec["final_selected_prediction"]) 
+            self.assertIn("root:Engineered:Built environment", rec["final_selected_prediction"])
         finally:
             tmpdir.cleanup()
 

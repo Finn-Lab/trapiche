@@ -5,42 +5,54 @@ information-theoretic metrics, coloring utilities, dataset splitting,
 and lightweight web / XML helpers.
 """
 
-__all__ = ['parse_diamond', 'sanity_check_otus_annot_file', 'parse_otus_count', 'sanity_check_diamond_annot_file',
-           'cosine_similarity', 'cosine_similarity_pairwise', 'jaccard_similarity', 'find_common_lineage',
-           'jsonCompressed', 'split_tt', 'three_split', 'subsamp', 'longest_matching_string',
-           'match_metrics', 'build_bayesian_onto', 'ia_v', 'i_T', 'roc_preds', 'semantic_distance',
-           'info_theoretic_metrics', 'fbeta_score', 'set_info_theoretic_metrics', 'fetch_data_from_ebi',
-           'get_project_text_description']
+__all__ = [
+    "parse_diamond",
+    "sanity_check_otus_annot_file",
+    "parse_otus_count",
+    "sanity_check_diamond_annot_file",
+    "cosine_similarity",
+    "cosine_similarity_pairwise",
+    "jaccard_similarity",
+    "find_common_lineage",
+    "jsonCompressed",
+    "split_tt",
+    "three_split",
+    "subsamp",
+    "longest_matching_string",
+    "match_metrics",
+    "build_bayesian_onto",
+    "ia_v",
+    "i_T",
+    "roc_preds",
+    "semantic_distance",
+    "info_theoretic_metrics",
+    "fbeta_score",
+    "set_info_theoretic_metrics",
+    "fetch_data_from_ebi",
+    "get_project_text_description",
+]
 
-from functools import lru_cache
-import glob
 import gzip
+import io
 import json
 import logging
 import math
 import os
 import re
-
-import os
-import re
-import gzip
-from pathlib import Path
-from contextlib import contextmanager
-import io
-
-import requests
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
+from functools import lru_cache
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
+import requests
 from huggingface_hub import hf_hub_download
 
-import os
-
-import logging
 logger = logging.getLogger(__name__)
 
 # --- Path helpers ---
+
 
 def _get_hf_model_path(model_name: str, model_version: str, file_pattern: str) -> Path:
     """Resolve a versioned file path from a Hugging Face model repo.
@@ -64,8 +76,13 @@ def _get_hf_model_path(model_name: str, model_version: str, file_pattern: str) -
         file_path = hf_hub_download(repo_id=model_name, filename=filename, repo_type="model")
         return Path(file_path)
     except Exception as e:
-        raise FileNotFoundError(f"Could not find model file for {model_name} version {model_version} with pattern {file_pattern}: {e}")
+        raise FileNotFoundError(
+            f"Could not find model file for {model_name} version {model_version} with pattern {file_pattern}: {e}"
+        )
+
+
 # --- ---
+
 
 @contextmanager
 def _open_text_auto(path: str | os.PathLike, mode: str = "rt", encoding: str = "utf-8"):
@@ -155,11 +172,11 @@ def diamond_read(f):
             continue
         first_token = str(spl[0])
         if first_token and first_token[0].isalpha() and first_token[0].isupper():
-                edge = (
-                    spl[0],
-                    s if len(spl) > 1 else "",  # pseudo-graph in diamond, connect gr with sp
-                )
-                edges.add(edge)
+            edge = (
+                spl[0],
+                s if len(spl) > 1 else "",  # pseudo-graph in diamond, connect gr with sp
+            )
+            edges.add(edge)
     return list(edges)
 
 
@@ -178,7 +195,7 @@ def krona_read(content):
             continue
         line = _line.replace("Candidatus ", "")
         # Split line and filter out any empty strings or strings representing empty nodes like 'k__'
-        lineage = [bit for bit in re.split("[\t;]",line) if "__" in bit and not bit.endswith("__")]
+        lineage = [bit for bit in re.split("[\t;]", line) if "__" in bit and not bit.endswith("__")]
 
         # Initialize previous valid item variable
         prev = None
@@ -194,14 +211,10 @@ def krona_read(content):
                     (
                         prev1
                         + "__"
-                        + prev2.split("__")[-1]
-                        .replace("_", " ")
-                        .replace("Candidatus ", ""),
+                        + prev2.split("__")[-1].replace("_", " ").replace("Candidatus ", ""),
                         item1
                         + "__"
-                        + item2.split("__")[-1]
-                        .replace("_", " ")
-                        .replace("Candidatus ", ""),
+                        + item2.split("__")[-1].replace("_", " ").replace("Candidatus ", ""),
                     )
                 )
             prev = item
@@ -244,11 +257,13 @@ def tax_annotations_from_file(f):
 
 # --- ---
 
+
 @lru_cache
 def load_biome_herarchy_dict():
     """Load amended biome hierarchy mapping from HF assets (cached)."""
     from .config import TaxonomyToVectorParams as _T2V
     from .utils import _get_hf_model_path
+
     _p = _T2V()
     p = _get_hf_model_path(_p.hf_model, _p.model_version, "biome_herarchy_amended_*.json")
 
@@ -258,7 +273,9 @@ def load_biome_herarchy_dict():
     # Load the biome hierarchy dictionary from the compressed JSON file
     with open(p, encoding="utf-8") as f:
         biome_herarchy_dct = json.load(f)
-    logger.debug(f"biome_herarchy_dct loaded n_keys={len(biome_herarchy_dct) if biome_herarchy_dct else 0}")
+    logger.debug(
+        f"biome_herarchy_dct loaded n_keys={len(biome_herarchy_dct) if biome_herarchy_dct else 0}"
+    )
     biome_herarchy_dct_reversed = {v: k for k, v in biome_herarchy_dct.items()}
     return biome_herarchy_dct, biome_herarchy_dct_reversed
 
@@ -274,16 +291,13 @@ def parse_diamond(
     Returns:
         set[str]: Unique taxon strings.
     """
-    mix = {
-        line.split("\t")[14].split("=")[-1].replace("Candidatus ", "")
-        for line in content[:-1]
-    }
+    mix = {line.split("\t")[14].split("=")[-1].replace("Candidatus ", "") for line in content[:-1]}
     return mix
 
 
 def sanity_check_otus_annot_file(filepath):
     """Collect lines from an OTU annotation file (light validation)."""
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         content = list(f)
     for line in content:
         if not line.startswith("#"):
@@ -325,7 +339,7 @@ def sanity_check_diamond_annot_file(filepath):
     #                  'num_in_cluster', 'taxonomy', 'tax_id', 'rep_id','lenght'}
     # Open the file for reading
     # Support both compressed and uncompressed diamond outputs
-    opener = gzip.open if str(filepath).endswith('.gz') else open
+    opener = gzip.open if str(filepath).endswith(".gz") else open
     with opener(filepath, "rt") as h:  # type: ignore[arg-type]
         content = list(h)
 
@@ -388,10 +402,7 @@ def find_common_lineage(lineages):
     # Iterate over the nodes in the first lineage
     for i, node in enumerate(lineage_nodes[0]):
         # Check if this node is present at the same position in 50% or more of the other lineages
-        if (
-            sum(i < len(l) and l[i] == node for l in lineage_nodes)
-            >= len(lineage_nodes) / 2
-        ):
+        if sum(i < len(l) and l[i] == node for l in lineage_nodes) >= len(lineage_nodes) / 2:
             # If so, append it to the common lineage
             common_lineage.append(node)
         else:
@@ -422,7 +433,6 @@ class jsonCompressed:
             return json.loads(fin.read())
 
 
-
 def split_tt(df, frac, rs, lin):
     """Mark test samples by leaving out complete projects.
 
@@ -441,16 +451,10 @@ def split_tt(df, frac, rs, lin):
         for g, gr in tdf.groupby("d3"):
             expected = int(gr.shape[0] * frac)
             if gr.project.nunique() == 1:
-                test_samples.extend(
-                    gr.sample(frac=frac, random_state=rs).SAMPLE_ID.values
-                )
+                test_samples.extend(gr.sample(frac=frac, random_state=rs).SAMPLE_ID.values)
             else:
                 accum = 0
-                for ix, n in (
-                    gr.project.value_counts()
-                    .sample(frac=1, random_state=rs)
-                    .iteritems()
-                ):
+                for ix, n in gr.project.value_counts().sample(frac=1, random_state=rs).iteritems():
                     momo = tdf[tdf.project == ix].SAMPLE_ID
                     test_samples.extend(momo)
                     accum += momo.shape[0]
@@ -505,14 +509,13 @@ def longest_matching_string(string1, string2):
 def match_metrics(_gt, _pred):
     """Compute simple precision/recall between two lineage strings."""
     # remove the root node
-    gt, pred = [set(x.replace("root:", "").split(":")) for x in [_gt, _pred]]
+    gt, pred = (set(x.replace("root:", "").split(":")) for x in [_gt, _pred])
     recall = len(gt & pred) / len(gt)
     precision = len(gt & pred) / len(pred)
     return recall, precision
 
 
 import networkx as nx
-
 
 """Bayesian network of GOLD."""
 
@@ -617,7 +620,12 @@ def set_info_theoretic_metrics(true, pred, graph, k=1):
         remaining_uncertainty,
         w_precision,
         w_recall,
-    ) = list(zip(*[info_theoretic_metrics(T, P, graph) for T, P in zip(true, pred)]))
+    ) = list(
+        zip(
+            *[info_theoretic_metrics(T, P, graph) for T, P in zip(true, pred, strict=False)],
+            strict=False,
+        )
+    )
 
     ture_info_contents = [i_T(t, graph) for t in true]
 
@@ -629,13 +637,15 @@ def set_info_theoretic_metrics(true, pred, graph, k=1):
 
     # wru(true,pred): "calculate weighted remaining_uncertainty for a set of terms. Downweight shallow terms"
     wru = (
-        sum([tic * _ru for tic, _ru in zip(ture_info_contents, remaining_uncertainty)])
+        sum(
+            [tic * _ru for tic, _ru in zip(ture_info_contents, remaining_uncertainty, strict=False)]
+        )
         / pd.Series(ture_info_contents).sum()
     )
 
     # wmi(true,pred): "calculate weighted misinformation for a set of terms. Downweight shallow terms"
     wmi = (
-        sum([tic * _mi for tic, _mi in zip(ture_info_contents, misinformation)])
+        sum([tic * _mi for tic, _mi in zip(ture_info_contents, misinformation, strict=False)])
         / pd.Series(ture_info_contents).sum()
     )
 
@@ -662,7 +672,7 @@ def fetch_data_from_ebi(acc):
 
     Returns the raw XML string or None if the request fails.
     """
-    url = "https://www.ebi.ac.uk/ena/browser/api/xml/{}?download=false".format(acc)
+    url = f"https://www.ebi.ac.uk/ena/browser/api/xml/{acc}?download=false"
     response = requests.get(url)
     if response.status_code == 200:
         xml_content = response.text
@@ -687,7 +697,6 @@ def get_project_text_description(acc):
     return title, description
 
 
-
 def get_similar_predictions(probabilities, diff_thresh=0.05, ratio_thresh=0.9):
     """
     Identify indices of predictions with probabilities similar to the top one.
@@ -698,7 +707,7 @@ def get_similar_predictions(probabilities, diff_thresh=0.05, ratio_thresh=0.9):
     (`diff_thresh`) or the relative ratio threshold (`ratio_thresh`) compared
     to the top probability. The top (largest) probability's index is always
     included.
-    
+
     Args:
         probabilities (np.ndarray or sequence): 1-D array-like of probabilities.
         diff_thresh (float): Max allowed absolute difference between top and others.
@@ -756,6 +765,7 @@ def get_similar_predictions(probabilities, diff_thresh=0.05, ratio_thresh=0.9):
 
     return similar_indices
 
+
 def obj_to_serializable(obj):
     """Recursively convert common non-JSON types to JSON-serializable Python types.
 
@@ -791,6 +801,7 @@ def obj_to_serializable(obj):
     # Numpy types (best-effort, numpy may not be installed)
     try:
         import numpy as _np
+
         if isinstance(obj, _np.generic):
             return obj.item()
         if isinstance(obj, _np.ndarray):
