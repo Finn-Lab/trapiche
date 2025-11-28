@@ -10,7 +10,9 @@ Trapiche is an open-source tool for biome classification in metagenomic studies.
 - Text-based: an adapted Large Language Model (LLM) predicts candidate biomes from project/sample descriptions.
 - Taxonomy-based: a taxonomy_vectorization embedding of taxonomic profiles is fed to a feed‑forward model for deep biome lineage prediction.
 
-By integrating both views, Trapiche improves accuracy and robustness in biome classification workflows.
+By integrating both views, Trapiche improves accuracy and robustness in biome classification.
+
+![](assets/trapiche_workflow.png)
 
 ## Install
 
