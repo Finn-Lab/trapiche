@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Optional, List
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,7 +19,7 @@ class TrapicheWorkflowParams(BaseSettings):
     keep_vectorise_results: bool = False
     run_taxonomy: bool = True
     keep_taxonomy_results: bool = True
-    output_keys: Optional[List[str]] = Field(
+    output_keys: list[str] | None = Field(
         default_factory=lambda: [
             "text_predictions",
             "raw_unambiguous_prediction",
@@ -41,7 +40,7 @@ class TextToBiomeParams(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="TRAPICHE_", case_sensitive=False)
 
-    device: Optional[str] = None
+    device: str | None = None
     max_length: int = 256
     threshold_rule: float | int | str = 0.01
     split_sentences: bool = False
@@ -50,8 +49,7 @@ class TextToBiomeParams(BaseSettings):
 
 
 class TaxonomyToVectorParams(BaseSettings):
-    """Configuration parameters for taxonomy vectorization.
-    """
+    """Configuration parameters for taxonomy vectorization."""
 
     model_config = SettingsConfigDict(env_prefix="TRAPICHE_", case_sensitive=False)
 
@@ -80,12 +78,11 @@ class TaxonomyToBiomeParams(BaseSettings):
 
 import logging
 import logging.handlers
-from pathlib import Path
 import sys
-from typing import Optional
+from pathlib import Path
 
 
-def setup_logging(logfile: Optional[str] = None, level: int = logging.INFO) -> None:
+def setup_logging(logfile: str | None = None, level: int = logging.INFO) -> None:
     """Configure logging for CLI (file) or API (stdout)."""
     logger = logging.getLogger()
     logger.setLevel(level)
@@ -95,9 +92,11 @@ def setup_logging(logfile: Optional[str] = None, level: int = logging.INFO) -> N
 
     if logfile:
         path = Path(logfile)
-        if path.parent and not str(path.parent) == ".":
+        if path.parent and str(path.parent) != ".":
             path.parent.mkdir(parents=True, exist_ok=True)
-        handler = logging.handlers.RotatingFileHandler(str(path), maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
+        handler = logging.handlers.RotatingFileHandler(
+            str(path), maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+        )
     else:
         handler = logging.StreamHandler(sys.stdout)
 

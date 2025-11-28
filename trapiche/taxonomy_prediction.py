@@ -3,32 +3,36 @@
 Includes model loading (lazy), vectorisation, consensus heuristics and
 prediction refinement utilities.
 """
+
 from __future__ import annotations
-from collections import defaultdict
-from functools import lru_cache
 
-import json
-import re
 import importlib
+import json
 import logging
-
-from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
+import re
+from collections import defaultdict
+from collections.abc import Sequence
+from functools import lru_cache
 from itertools import combinations
 from statistics import harmonic_mean
-import numpy as np
-import pandas as pd
-import numpy as np
-import pandas as pd
-from more_itertools import chunked
-from tqdm import tqdm
+from typing import Any, cast
 
-from .taxonomy_vectorization import load_mgnify_c2v
+import numpy as np
+from more_itertools import chunked
+
 from .config import TaxonomyToBiomeParams, TaxonomyToVectorParams
-from .utils import cosine_similarity_pairwise, load_biome_herarchy_dict, get_similar_predictions,_get_hf_model_path
+from .taxonomy_vectorization import load_mgnify_c2v
+from .utils import (
+    _get_hf_model_path,
+    cosine_similarity_pairwise,
+    get_similar_predictions,
+    load_biome_herarchy_dict,
+)
 
 logger = logging.getLogger(__name__)
 
 KNN_VALUE_DEFAULT = -1  # THE FUNCTION IS DEPRECATED. TODO: Transform function to KNN tool
+
 
 @lru_cache
 def load_biome_tags_list():
@@ -60,6 +64,7 @@ def generate_all_combinations(s: Sequence[str]):
         result.extend(combinations(s, r))
     return result
 
+
 @lru_cache
 def load_tag_biomes():
     """Map tag combinations to canonical biome lineage.
@@ -68,7 +73,7 @@ def load_tag_biomes():
         tuple[dict[str, str], dict[str, tuple[set[str], int]]]:
         A mapping from tag combination to lineage, and auxiliary metadata.
     """
-    biome_herarchy_dct, _ = load_biome_herarchy_dict() 
+    biome_herarchy_dct, _ = load_biome_herarchy_dict()
     tags_li = load_biome_tags_list()
     bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
     tag_biomes = {}
@@ -79,10 +84,16 @@ def load_tag_biomes():
             sels = [(k, size) for k, (se, size) in bioms.items() if len(comb) == len(comb & se)]
             if not sels:
                 _comb = comb - set("Soil|Terrestrial|Non-Defined".split("|"))
-                sels = [(k, size) for k, (se, size) in bioms.items() if len(_comb) == len(_comb & se)]
+                sels = [
+                    (k, size) for k, (se, size) in bioms.items() if len(_comb) == len(_comb & se)
+                ]
                 if not sels:
                     _comb = _comb - {"Rhizosphere"}
-                    sels = [(k, size) for k, (se, size) in bioms.items() if len(_comb) == len(_comb & se)]
+                    sels = [
+                        (k, size)
+                        for k, (se, size) in bioms.items()
+                        if len(_comb) == len(_comb & se)
+                    ]
             if not sels:
                 continue
             sel = sorted(sels, key=lambda x: x[1])[0][0]
@@ -97,7 +108,9 @@ def focal_loss_fixed(y_true, y_pred):
     """
     pass
 
+
 # Lazy TensorFlow import helper and model accessors
+
 
 def _get_tensorflow():
     """Lazily import TensorFlow with a clear error if unavailable."""
@@ -109,6 +122,7 @@ def _get_tensorflow():
             "Install TensorFlow (for CPU-only environments: pip install tensorflow) and ensure it matches your Python version. "
             f"Original error: {e}"
         ) from e
+
 
 # Load the model, including the custom loss function
 @lru_cache
@@ -133,14 +147,12 @@ def load_custom_model(model_file: str | None = None):
     tf = _get_tensorflow()
     try:
         model = tf.keras.models.load_model(
-            model_path,
-            custom_objects={'focal_loss_fixed': focal_loss_fixed},
-            compile=False
+            model_path, custom_objects={"focal_loss_fixed": focal_loss_fixed}, compile=False
         )
         model.compile(
             optimizer=tf.keras.optimizers.Adam(),
-            loss='categorical_crossentropy',
-            metrics=[tf.keras.metrics.AUC()]
+            loss="categorical_crossentropy",
+            metrics=[tf.keras.metrics.AUC()],
         )
         return model
     except Exception as e:
@@ -153,6 +165,7 @@ def load_custom_model(model_file: str | None = None):
 # Backwards-compatible callable used in this module
 # Acts like the original model variable but resolves lazily.
 
+
 def bnn_model2gg(*args, **kwargs):
     return load_custom_model()(*args, **kwargs)
 
@@ -164,11 +177,12 @@ def find_best_path(_prediction: str):
     sel = sorted(sels, key=lambda x: x[1])[0][0]
     return sel
 
+
 def from_probs_to_pred(
     _probs,
-    potential_space: List[Optional[Dict[str,float]]],
+    potential_space: list[dict[str, float] | None],
     params: TaxonomyToBiomeParams,
-) -> Tuple[List[Optional[Dict[str, float]]], List[Optional[Dict[str, float]]]]:
+) -> tuple[list[dict[str, float] | None], list[dict[str, float] | None]]:
     """Convert class probabilities into top predictions.
 
     Optionally constrain candidates by matching lineage prefixes from text.
@@ -182,22 +196,25 @@ def from_probs_to_pred(
         tuple: (top_predictions, constrained_top_predictions), both lists of
         dicts mapping lineage to score, aligned to input samples.
     """
-    tag_biomes,_ = load_tag_biomes()
+    tag_biomes, _ = load_tag_biomes()
     tags_li = load_biome_tags_list()
-    
-    top_predictions= []
-    constrained_top_predictions= []
 
-    
+    top_predictions = []
+    constrained_top_predictions = []
+
     #### WORK IN PROGRESS, HERE GET THE TOP PREDS, AND USE THAT TO REFINEMENT. USE get_similar_predictions
-    for pr,_pot_space in zip(_probs,potential_space):
+    for pr, _pot_space in zip(_probs, potential_space, strict=False):
         if np.isnan(pr).any():
-            top_p=None
-            constrained_top_p=None
+            top_p = None
+            constrained_top_p = None
         else:
             # find top predictions, more than one is there is not a lot of certainty
-            top_predictions_idx = get_similar_predictions(pr, params.top_prob_diff_threshold, params.top_prob_ratio_threshold)
-            top_p = {tag_biomes.get(tags_li[idx],tags_li[idx]): pr[idx] for idx in top_predictions_idx}
+            top_predictions_idx = get_similar_predictions(
+                pr, params.top_prob_diff_threshold, params.top_prob_ratio_threshold
+            )
+            top_p = {
+                tag_biomes.get(tags_li[idx], tags_li[idx]): pr[idx] for idx in top_predictions_idx
+            }
 
             if _pot_space is None or len(_pot_space) == 0:
                 constrained_top_p = None
@@ -206,7 +223,7 @@ def from_probs_to_pred(
                 # Find matching tags in the potential (text) space
                 potential_tags = {}
                 for k, v in tag_biomes.items():
-                    for pot,_prob in _pot_space.items():
+                    for pot, _prob in _pot_space.items():
                         if re.search("^" + re.escape(pot.strip()), v):
                             potential_tags[k] = _prob
 
@@ -214,7 +231,9 @@ def from_probs_to_pred(
                 if len(potential_tags) == 0:
                     constrained_top_p = dict(_pot_space)
                 else:
-                    non_useful_tags = [ix for ix, x in enumerate(tags_li) if x not in potential_tags]
+                    non_useful_tags = [
+                        ix for ix, x in enumerate(tags_li) if x not in potential_tags
+                    ]
                     _pr = pr.copy()
                     _pr[non_useful_tags] = -1
                     # Use the masked probability array when computing constrained top predictions
@@ -223,14 +242,18 @@ def from_probs_to_pred(
                         diff_thresh=params.top_prob_diff_threshold,
                         ratio_thresh=params.top_prob_ratio_threshold,
                     )
-                    constrained_top_p = {tag_biomes.get(tags_li[idx], tags_li[idx]): _pr[idx] for idx in constrained_top_predictions_idx}
+                    constrained_top_p = {
+                        tag_biomes.get(tags_li[idx], tags_li[idx]): _pr[idx]
+                        for idx in constrained_top_predictions_idx
+                    }
 
         top_predictions.append(top_p)
         constrained_top_predictions.append(constrained_top_p)
 
-    return top_predictions,constrained_top_predictions
+    return top_predictions, constrained_top_predictions
 
-def get_unanbigious_prediction(co, dominance_threshold, best_lineage_min_depth=4):  
+
+def get_unanbigious_prediction(co, dominance_threshold, best_lineage_min_depth=4):
     """Compute node frequencies across KNN lineages.
 
     Args:
@@ -242,34 +265,36 @@ def get_unanbigious_prediction(co, dominance_threshold, best_lineage_min_depth=4
     """
     _node_frquencies = {}
     for lineage, count in co.items():
-        spl = lineage.split(':')
+        spl = lineage.split(":")
         for ix in range(1, len(spl) + 1):
             node = ":".join(spl[:ix])
             _node_frquencies.setdefault(node, []).append(count)
-            
-    node_frequencies = {k: sum(v)  for k, v in _node_frquencies.items()}
+
+    node_frequencies = {k: sum(v) for k, v in _node_frquencies.items()}
     _filtered = [
         (k, v)
         for k, v in node_frequencies.items()
-        if v > dominance_threshold and k != '' and len(k.split(":")) >= best_lineage_min_depth # Only consider nodes with sufficient depth
+        if v > dominance_threshold
+        and k != ""
+        and len(k.split(":")) >= best_lineage_min_depth  # Only consider nodes with sufficient depth
     ]
     sorted_passed = sorted(_filtered, key=lambda x: len(x[0].split(":")), reverse=True)
-    top_dominant = sorted_passed[0] if sorted_passed else [co.index[0],co.iloc[0]]
-    
+    top_dominant = sorted_passed[0] if sorted_passed else [co.index[0], co.iloc[0]]
+
     # Claculate score based on mean of score for each lineage containing the top dominant node
     top_dominant_score = None
     if top_dominant is not None:
-        top_dominant_score = np.sum([v for k, v in co.items() if top_dominant[0] in k ])
+        top_dominant_score = np.sum([v for k, v in co.items() if top_dominant[0] in k])
         top_dominant = {top_dominant[0]: top_dominant_score}
 
     return node_frequencies, sorted_passed, top_dominant
 
+
 def knn_batch(
-    predictions: List[Optional[List[Any]]],
+    predictions: list[list[Any] | None],
     query_vectors: np.ndarray,
     params: TaxonomyToBiomeParams,
-) -> List[Optional[List[Dict[str, Any]]]]:
-    
+) -> list[list[dict[str, Any]] | None]:
     """Find KNN  using cosine similarity in the vector space. Return similar samples, but maximum `max_per_study` per project.
 
 
@@ -290,9 +315,9 @@ def knn_batch(
     """
 
     logger.debug("DEPRECATED: Starting batch KNN refinement of predictions")
-    
+
     # Prepare result list in input order
-    results: List[Optional[List[Dict[str, Any]]]]  = [None] * len(predictions)
+    results: list[list[dict[str, Any]] | None] = [None] * len(predictions)
     if KNN_VALUE_DEFAULT <= 0:
         return results
 
@@ -307,16 +332,15 @@ def knn_batch(
     # Normalize predictions: None -> empty string
 
     # Group query indices by unique prediction key
-    groups: Dict[str, List[int]] = defaultdict(list)
+    groups: dict[str, list[int]] = defaultdict(list)
     for ix, pred in enumerate(predictions):
         key = "|".join(sorted(pred)) if pred else None
         if key:
             groups[key].append(ix)
 
-
     # Process each group once
     for pred_key, indices in groups.items():
-        prediction = pred_key if pred_key else ''
+        prediction = pred_key if pred_key else ""
 
         # Restrict subjects to those matching the predicted prefix
         _subject_df = mgnify_meta[mgnify_meta["BIOME_AMEND"].str.contains(prediction)]
@@ -339,7 +363,6 @@ def knn_batch(
         for local_ix, ass in enumerate(argsort_sims):
             global_ix = indices[local_ix]
 
-
             # Take similarity scores for this query
             sim_scores = sims[local_ix]
 
@@ -349,29 +372,28 @@ def knn_batch(
             # Subset dataframe with similarity order
             top_df = _subject_df.iloc[sorted_ix].copy()
             top_df["COSINE_SIMILARITY"] = sim_scores[sorted_ix]
-            
+
             top_df_limited = top_df.groupby("STUDY_ID", group_keys=False).head(max_per_study)
 
             # Now take the top k_knn overall, after applying the per-study cap
             _selected_df = top_df_limited.head(KNN_VALUE_DEFAULT)
-            
-            _selected_df = _selected_df[['ACCESSION','COSINE_SIMILARITY','BIOME_AMEND']]
-            _selected_df.columns = ['ACCESSION','COSINE_SIMILARITY','BIOME']
 
-            results[global_ix] = cast(List[Dict[str, Any]], _selected_df.to_dict(orient='records'))
+            _selected_df = _selected_df[["ACCESSION", "COSINE_SIMILARITY", "BIOME_AMEND"]]
+            _selected_df.columns = ["ACCESSION", "COSINE_SIMILARITY", "BIOME"]
+
+            results[global_ix] = cast(list[dict[str, Any]], _selected_df.to_dict(orient="records"))
 
             # results[global_ix] = _selected_df.to_dict(orient='records')
 
     return results
 
 
-
-np.seterr(
-    divide="ignore", invalid="ignore"
-)  # handle bad files == divition by zero error
+np.seterr(divide="ignore", invalid="ignore")  # handle bad files == divition by zero error
 
 
-def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams) -> List[Dict[str, Any]]:
+def full_stack_prediction(
+    query_vector, constrains, params: TaxonomyToBiomeParams
+) -> list[dict[str, Any]]:
     """Predict biome using deep model and KNN refinement.
 
     Applies optional constraints from text and returns per-sample dicts with
@@ -381,53 +403,75 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     logger.debug("Starting full stack prediction")
     deep_l_probs = bnn_model2gg(query_vector).numpy()
 
-    top_predictions,constrained_top_predictions = from_probs_to_pred(deep_l_probs, potential_space=constrains,params=params)
+    top_predictions, constrained_top_predictions = from_probs_to_pred(
+        deep_l_probs, potential_space=constrains, params=params
+    )
 
     # Get unambiguous predictions
     unambiguous_predictions = []
     unambiguous_constrained_predictions = []
-    for _top_pred,_constrained_top_pred,constrain in zip(top_predictions,constrained_top_predictions,constrains):
+    for _top_pred, _constrained_top_pred, constrain in zip(
+        top_predictions, constrained_top_predictions, constrains, strict=False
+    ):
         # _, _, top_dominant = get_unanbigious_prediction(pd.Series(_top_pred), dominance_threshold=params.dominance_threshold)
-        top_dominant_term = max(_top_pred, key=_top_pred.get)
-        top_dominant = {top_dominant_term: _top_pred.get(top_dominant_term,0)}
+        if _top_pred:
+            top_dominant_term = max(_top_pred.items(), key=lambda kv: kv[1])[0]
+            top_dominant = {top_dominant_term: _top_pred.get(top_dominant_term, 0)}
+        else:
+            top_dominant = None
         unambiguous_predictions.append(top_dominant)
 
-        if _constrained_top_pred is None:
+        if not _constrained_top_pred:
             unambiguous_constrained_predictions.append(None)
             continue
-        
+
         # _, _, _top_dominant_const = get_unanbigious_prediction(pd.Series(_constrained_top_pred), dominance_threshold=params.dominance_threshold)
-        top_dominant_term = max(_constrained_top_pred, key=_constrained_top_pred.get)
-        _top_dominant_const = {top_dominant_term: _constrained_top_pred.get(top_dominant_term,0)}
+        if _constrained_top_pred:
+            top_dominant_term = max(_constrained_top_pred.items(), key=lambda kv: kv[1])[0]
+            _top_dominant_const = {
+                top_dominant_term: _constrained_top_pred.get(top_dominant_term, 0)
+            }
+        else:
+            _top_dominant_const = None
         # Correct probability to be harmonic mean of top_dominant_const and the constrained term that matched
-        if _top_dominant_const is not None:
-            top_dominant_const_term,top_dominant_const_score = list(_top_dominant_const.items())[0]
+        if _top_dominant_const is not None and constrain:
+            top_dominant_const_term, top_dominant_const_score = list(_top_dominant_const.items())[0]
             matching_keys = [k for k in constrain.keys() if k in top_dominant_const_term]
             if matching_keys:
                 longest_match = max(matching_keys, key=lambda x: len(x))
                 longest_match_score = constrain[longest_match]
                 ## If score are the same means that only text based score is given, reduce to half as this is missing the taxonomy evidence
-                if longest_match_score==top_dominant_const_score:
+                if longest_match_score == top_dominant_const_score:
                     constrained_score = top_dominant_const_score / 2
                 else:
-                    constrained_score = harmonic_mean([top_dominant_const_score,longest_match_score])
+                    constrained_score = harmonic_mean(
+                        [top_dominant_const_score, longest_match_score]
+                    )
                 top_dominant_const = {top_dominant_const_term: constrained_score}
-                logging.debug(f"Adjusted constrained score for {matching_keys}, {top_dominant_const_term},{top_dominant_const_score}: {constrained_score}")
+                logging.debug(
+                    f"Adjusted constrained score for {matching_keys}, {top_dominant_const_term},{top_dominant_const_score}: {constrained_score}"
+                )
         unambiguous_constrained_predictions.append(top_dominant_const)
-    
-    ### KNN . 
+
+    ### KNN .
     # string_pattern = "Digestive system"
     # knn refinement unconstrained
     prediction_keys = [list(d.keys()) if d is not None else None for d in top_predictions]
-    refined_predictions = knn_batch( predictions=prediction_keys, query_vectors=query_vector, params=params)
+    refined_predictions = knn_batch(
+        predictions=prediction_keys, query_vectors=query_vector, params=params
+    )
     # refined_predictions = [
     #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
     #     for crp in refined_predictions
     # ]
 
     # knn refinement constrained
-    constrained_prediction_keys = [list(d.keys()) if d is not None else None for d in constrained_top_predictions]
-    constrained_refined_predictions = knn_batch( predictions=constrained_prediction_keys, query_vectors=query_vector, params=params)
+    constrained_prediction_keys = [
+        list(d.keys()) if d is not None else None for d in constrained_top_predictions
+    ]
+    constrained_refined_predictions = knn_batch(
+        predictions=constrained_prediction_keys, query_vectors=query_vector, params=params
+    )
     # Set to None those refined predictions that do not match the string_pattern. predictions are List[Optional[Dict[str, float]]]
     # constrained_refined_predictions = [
     #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
@@ -435,16 +479,24 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
     # ]
 
     # load gold ontology mappings to give gold_final_prediction
-    biome_herarchy_dct, biome_herarchy_dct_reversed = load_biome_herarchy_dict() 
+    biome_herarchy_dct, biome_herarchy_dct_reversed = load_biome_herarchy_dict()
 
     results_sequence = []
-    for pred, constr_pred, unambig_pred, unambig_constr_pred, refined_prediction, refined_constrained_prediction in zip(
+    for (
+        pred,
+        constr_pred,
+        unambig_pred,
+        unambig_constr_pred,
+        refined_prediction,
+        refined_constrained_prediction,
+    ) in zip(
         top_predictions,
         constrained_top_predictions,
         unambiguous_predictions,
         unambiguous_constrained_predictions,
         refined_predictions,
         constrained_refined_predictions,
+        strict=False,
     ):
         # define best using heristic, where the priority is on order:
         # 1. refined_constrained_prediction
@@ -464,37 +516,46 @@ def full_stack_prediction(query_vector, constrains, params:TaxonomyToBiomeParams
         else:
             best_heuristic = None
 
-        def normalize_to_ontology(pred,target_ontology="GOLD"):
+        def normalize_to_ontology(pred, target_ontology="GOLD"):
             if pred is None:
                 return None
-            if target_ontology=="GOLD":
-                return {biome_herarchy_dct_reversed.get(k, k):v for k, v in pred.items()}
+            if target_ontology == "GOLD":
+                return {biome_herarchy_dct_reversed.get(k, k): v for k, v in pred.items()}
             else:
-                return {biome_herarchy_dct.get(k, k):v for k, v in pred.items()}
-
-
+                return {biome_herarchy_dct.get(k, k): v for k, v in pred.items()}
 
         best_heuristic_gold = biome_herarchy_dct_reversed.get(
             list(best_heuristic)[0] if best_heuristic is not None else None,
             None,
         )
-        
+
         if best_heuristic is not None:
             best_heuristic_gold = {best_heuristic_gold: best_heuristic[list(best_heuristic)[0]]}
-        
+
         result = {
             "raw_top_predictions": normalize_to_ontology(pred, target_ontology="AMENDED"),
-            "raw_unambiguous_prediction": normalize_to_ontology(unambig_pred, target_ontology="AMENDED"),
-            "constrained_top_predictions": normalize_to_ontology(constr_pred, target_ontology="AMENDED"),
-            "constrained_unambiguous_prediction": normalize_to_ontology(unambig_constr_pred, target_ontology="AMENDED"),
-            "final_selected_prediction": normalize_to_ontology(best_heuristic, target_ontology="AMENDED"),
-            "final_selected_prediction_GOLD": normalize_to_ontology(best_heuristic, target_ontology="GOLD"),
+            "raw_unambiguous_prediction": normalize_to_ontology(
+                unambig_pred, target_ontology="AMENDED"
+            ),
+            "constrained_top_predictions": normalize_to_ontology(
+                constr_pred, target_ontology="AMENDED"
+            ),
+            "constrained_unambiguous_prediction": normalize_to_ontology(
+                unambig_constr_pred, target_ontology="AMENDED"
+            ),
+            "final_selected_prediction": normalize_to_ontology(
+                best_heuristic, target_ontology="AMENDED"
+            ),
+            "final_selected_prediction_GOLD": normalize_to_ontology(
+                best_heuristic, target_ontology="GOLD"
+            ),
         }
         results_sequence.append(result)
 
     return results_sequence
 
-def chunked_fuzzy_prediction(query_vector, constrain, params:TaxonomyToBiomeParams):
+
+def chunked_fuzzy_prediction(query_vector, constrain, params: TaxonomyToBiomeParams):
     """Process prediction in chunks to limit memory use."""
 
     splits = chunked(range(query_vector.shape[0]), params.batch_size)
@@ -507,6 +568,7 @@ def chunked_fuzzy_prediction(query_vector, constrain, params:TaxonomyToBiomePara
         )
         results.extend(_results)
     return results
+
 
 def predict_runs(
     community_vectors,

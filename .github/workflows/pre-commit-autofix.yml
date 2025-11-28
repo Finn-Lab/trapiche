@@ -1,0 +1,44 @@
+name: Pre-commit Autofix
+
+on:
+  push:
+    branches:
+      - "**" 
+
+jobs:
+  pre-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit on all files
+        run: pre-commit run --all-files || true
+
+      - name: Commit and push changes (if any)
+        if: always()
+        run: |
+          # Check if there are any modifications
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit only tracked files that changed (what pre-commit touched)
+          git commit -am "chore: apply pre-commit fixes"
+          git push

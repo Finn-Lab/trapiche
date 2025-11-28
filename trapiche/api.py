@@ -1,11 +1,19 @@
 import json
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
+
 import numpy as np
 
+from .config import (
+    TaxonomyToBiomeParams,
+    TaxonomyToVectorParams,
+    TextToBiomeParams,
+    TrapicheWorkflowParams,
+    setup_logging,
+)
 from .workflow import run_workflow
-from .config import TaxonomyToBiomeParams, TaxonomyToVectorParams, TextToBiomeParams, TrapicheWorkflowParams, setup_logging
 
 setup_logging(logfile=None)
 logger = logging.getLogger(__name__)
@@ -17,17 +25,22 @@ class Community2vec:
     Use explicit model parameters to resolve assets. Defaults come from
     TaxonomyToVectorParams when not provided.
     """
+
     def __init__(self, model_name: str | None = None, model_version: str | None = None):
         # If not provided, default to config defaults
         if model_name is None or model_version is None:
             from .config import TaxonomyToVectorParams as _T2V
+
             _p = _T2V()
             self.model_name = model_name or _p.hf_model
             self.model_version = model_version or _p.model_version
         else:
             self.model_name = model_name
             self.model_version = model_version
-        logger.info("Community2vec created", extra={"model_name": self.model_name, "model_version": self.model_version})
+        logger.info(
+            "Community2vec created",
+            extra={"model_name": self.model_name, "model_version": self.model_version},
+        )
 
     def transform(self, list_of_tax_files) -> np.ndarray:
         """Vectorise one or many samples from taxonomy files.
@@ -48,12 +61,14 @@ class Community2vec:
             "Vectorising samples",
             extra={"model_name": self.model_name, "model_version": self.model_version},
         )
-        self.vectorised_samples = vectorise_sample(list_of_tax_files, model_name=self.model_name, model_version=self.model_version)
+        self.vectorised_samples = vectorise_sample(
+            list_of_tax_files, model_name=self.model_name, model_version=self.model_version
+        )
         return self.vectorised_samples
-    
+
     def save(self, path: str | Path) -> None:
         """Save the vectorised samples to a .npy file."""
-        if not hasattr(self, 'vectorised_samples'):
+        if not hasattr(self, "vectorised_samples"):
             raise ValueError("No vectorised samples to save. Call transform() first.")
         logger.info("Saving vectorised samples", extra={"path": str(path)})
         np.save(path, self.vectorised_samples)
@@ -67,14 +82,23 @@ class TaxonomyToBiome:
 
     def __init__(self, params: TaxonomyToBiomeParams | None = None):
         self.params = params or TaxonomyToBiomeParams()
-        logger.info("TaxonomyToBiome created", extra={"params": self.params.__dict__ if hasattr(self.params, '__dict__') else str(self.params)})
+        logger.info(
+            "TaxonomyToBiome created",
+            extra={
+                "params": (
+                    self.params.__dict__ if hasattr(self.params, "__dict__") else str(self.params)
+                )
+            },
+        )
 
     def predict(
         self,
         community_vectors: np.ndarray,
         constrain: Sequence[Sequence[str]] | None = None,
         params: TaxonomyToBiomeParams | None = None,
-        *, model_name: str | None = None, model_version: str | None = None,
+        *,
+        model_name: str | None = None,
+        model_version: str | None = None,
     ):
         """Run taxonomy-based prediction.
 
@@ -93,19 +117,16 @@ class TaxonomyToBiome:
         logger.info(
             "Running taxonomy prediction | community_vectors_shape=%s | params=%s",
             getattr(community_vectors, "shape", None),
-            getattr(_params, "__dict__", str(_params))
-        )        
+            getattr(_params, "__dict__", str(_params)),
+        )
         self.results = predict_runs(
-            community_vectors=community_vectors,
-            constrain=constrain,
-            params=_params
+            community_vectors=community_vectors, constrain=constrain, params=_params
         )
         return self.results
 
-
     def save(self, path: str | Path) -> None:
         """Save the predictions list of dicts to ndjson file."""
-        if not hasattr(self, 'results'):
+        if not hasattr(self, "results"):
             raise ValueError("No predictions to save. Call predict() first.")
         logger.info("Saving taxonomy predictions", extra={"path": str(path)})
         with open(path, "w", encoding="utf-8") as f:
@@ -123,14 +144,23 @@ class TextToBiome:
 
     def __init__(self, params: TextToBiomeParams | None = None) -> None:
         self.params = params or TextToBiomeParams()
-        self.predictions_: Sequence[Optional[Dict[str, float]]] | None = None  # last predictions (optional convenience)
-        logger.info("TextToBiome created", extra={"params": self.params.__dict__ if hasattr(self.params, '__dict__') else str(self.params)})
+        self.predictions_: Sequence[dict[str, float] | None] | None = (
+            None  # last predictions (optional convenience)
+        )
+        logger.info(
+            "TextToBiome created",
+            extra={
+                "params": (
+                    self.params.__dict__ if hasattr(self.params, "__dict__") else str(self.params)
+                )
+            },
+        )
 
     def predict(
         self,
         texts: Sequence[str] | str,
         params: TextToBiomeParams | None = None,
-    ) -> Sequence[Optional[Dict[str, float]]] | None:
+    ) -> Sequence[dict[str, float] | None] | None:
         """Run text-based biome prediction.
 
         Args:
@@ -167,8 +197,7 @@ class TextToBiome:
             raise ValueError("No predictions to save. Call predict() first.")
         logger.info("Saving text predictions", extra={"path": str(path)})
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(self.predictions_, 
-            f, indent=2)
+            json.dump(self.predictions_, f, indent=2)
 
 
 class TrapicheWorkflowFromSequence:
@@ -178,25 +207,33 @@ class TrapicheWorkflowFromSequence:
     TrapicheWorkflowParams to select steps and outputs.
     """
 
-    def __init__(self, 
-                 workflow_params: TrapicheWorkflowParams | None = None,
-                 text_params: TextToBiomeParams | None = None,
-                 vectorise_params: TaxonomyToVectorParams | None = None,
-                 taxonomy_params: TaxonomyToBiomeParams | None = None,
-                 ) -> None:
+    def __init__(
+        self,
+        workflow_params: TrapicheWorkflowParams | None = None,
+        text_params: TextToBiomeParams | None = None,
+        vectorise_params: TaxonomyToVectorParams | None = None,
+        taxonomy_params: TaxonomyToBiomeParams | None = None,
+    ) -> None:
         self.workflow_params = workflow_params or TrapicheWorkflowParams()
         self.text_params = text_params or TextToBiomeParams()
         self.vectorise_params = vectorise_params or TaxonomyToVectorParams()
         self.taxonomy_params = taxonomy_params or TaxonomyToBiomeParams()
-        
 
-        logger.info( "TrapicheWorkflowFromSequence created",)
+        logger.info(
+            "TrapicheWorkflowFromSequence created",
+        )
         logger.info("workflow_params | %s", self.workflow_params)
         logger.info("text_params | %s", self.text_params)
         logger.info("vectorise_params | %s", self.vectorise_params)
         logger.info("taxonomy_params | %s", self.taxonomy_params)
 
-    def run(self, samples: Sequence[Dict[str, Any]], *, model_name: str | None = None, model_version: str | None = None) -> Sequence[Dict[str, Any]]:
+    def run(
+        self,
+        samples: Sequence[dict[str, Any]],
+        *,
+        model_name: str | None = None,
+        model_version: str | None = None,
+    ) -> Sequence[dict[str, Any]]:
         """Execute the configured steps on samples.
 
         Args:
@@ -234,23 +271,23 @@ class TrapicheWorkflowFromSequence:
                 # TODO: add a tag to the taxonomy results dict to identify its keys
                 taxonomy_keys = all_keys - ({"text_predictions", "community_vector"} | sample_keys)
                 keep_keys -= taxonomy_keys
-        
+
         self.filtered = []
         for r in result:
-            newr: Dict[str, Any] = {}
+            newr: dict[str, Any] = {}
             for k in keep_keys:
                 if k in r:
                     newr[k] = r[k]
             self.filtered.append(newr)
         logger.info("Workflow finished", extra={"n_results": len(self.filtered)})
         return self.filtered
-    
+
     def save(self, path: str | Path) -> None:
         """Save the latest filtered results to an NDJSON file.
 
         Call run() first to populate filtered.
         """
-        if not hasattr(self, 'filtered'):
+        if not hasattr(self, "filtered"):
             raise ValueError("No results to save. Call run() first.")
         with open(path, "w", encoding="utf-8") as f:
             for record in self.filtered:

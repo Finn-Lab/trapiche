@@ -3,20 +3,23 @@
 Reads NDJSON input (file or stdin), executes selected steps, and writes
 NDJSON output (file or stdout). Supports gzip input/output.
 """
+
 from __future__ import annotations
+
 import argparse
+import gzip
+import json
 import logging
 import sys
-import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Dict, Any
-import gzip
+from typing import Any
 
 from .api import TrapicheWorkflowFromSequence
-from .config import TrapicheWorkflowParams, TaxonomyToVectorParams, setup_logging
+from .config import TaxonomyToVectorParams, TrapicheWorkflowParams, setup_logging
 
 
-def read_ndjson(path: Path | None) -> Iterable[Dict[str, Any]]:
+def read_ndjson(path: Path | None) -> Iterable[dict[str, Any]]:
     """Yield JSON objects from NDJSON input.
 
     Args:
@@ -39,7 +42,7 @@ def read_ndjson(path: Path | None) -> Iterable[Dict[str, Any]]:
         if path.suffix == ".gz":
             fh = gzip.open(path, "rt", encoding="utf-8")
         else:
-            fh = open(path, "r", encoding="utf-8")
+            fh = open(path, encoding="utf-8")
 
         with fh:
             for line in fh:
@@ -53,7 +56,7 @@ def read_ndjson(path: Path | None) -> Iterable[Dict[str, Any]]:
         raise SystemExit(f"Input file not found: {path}")
 
 
-def write_ndjson(records: Iterable[Dict[str, Any]], path: Path | None) -> None:
+def write_ndjson(records: Iterable[dict[str, Any]], path: Path | None) -> None:
     """Write records as NDJSON to a file or stdout.
 
     Args:
@@ -87,8 +90,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="trapiche-cli",
         description="Run Trapiche workflow on a sequence of sample dicts provided as NDJSON.",
     )
-    p.add_argument("input", nargs="?", help="Input NDJSON file path (use - for stdin). Supports .gz")
-    p.add_argument("-o", "--output", help="Output NDJSON file path (defaults to <INPUT_BASENAME>_trapiche_results.ndjson). Use .gz to compress")
+    p.add_argument(
+        "input", nargs="?", help="Input NDJSON file path (use - for stdin). Supports .gz"
+    )
+    p.add_argument(
+        "-o",
+        "--output",
+        help="Output NDJSON file path (defaults to <INPUT_BASENAME>_trapiche_results.ndjson). Use .gz to compress",
+    )
     p.add_argument(
         "--disable-minimal-result",
         dest="disable_minimal_result",
@@ -100,9 +109,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     bool_opt = argparse.BooleanOptionalAction
-    p.add_argument("--run-text", dest="run_text", action=bool_opt, default=None, help="Enable or disable text prediction step (env: TRAPICHE_RUN_TEXT)")
-    p.add_argument("--run-vectorise", dest="run_vectorise", action=bool_opt, default=None, help="Enable or disable vectorisation step (env: TRAPICHE_RUN_VECTORISE)")
-    p.add_argument("--run-taxonomy", dest="run_taxonomy", action=bool_opt, default=None, help="Enable or disable taxonomy prediction step (env: TRAPICHE_RUN_TAXONOMY)")
+    p.add_argument(
+        "--run-text",
+        dest="run_text",
+        action=bool_opt,
+        default=None,
+        help="Enable or disable text prediction step (env: TRAPICHE_RUN_TEXT)",
+    )
+    p.add_argument(
+        "--run-vectorise",
+        dest="run_vectorise",
+        action=bool_opt,
+        default=None,
+        help="Enable or disable vectorisation step (env: TRAPICHE_RUN_VECTORISE)",
+    )
+    p.add_argument(
+        "--run-taxonomy",
+        dest="run_taxonomy",
+        action=bool_opt,
+        default=None,
+        help="Enable or disable taxonomy prediction step (env: TRAPICHE_RUN_TAXONOMY)",
+    )
 
     # Text params
     p.add_argument(
@@ -136,7 +163,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="log_level",
         help="Enable verbose logging output (DEBUG level).",
     )
-    
 
     return p.parse_args(argv)
 
@@ -156,10 +182,8 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(logfile=logfile, level=args.log_level)
     logger = logging.getLogger(__name__)
 
-    logger.info(
-        "trapiche CLI invoked | command_line_arguments='%s'", " ".join(sys.argv)
-    )
-   
+    logger.info("trapiche CLI invoked | command_line_arguments='%s'", " ".join(sys.argv))
+
     logger.info("Parsed arguments: %s", args)
 
     inpath = None
@@ -169,7 +193,6 @@ def main(argv: list[str] | None = None) -> int:
     outpath = None
     if args.output:
         outpath = Path(args.output)
-
 
     if not getattr(args, "disable_minimal_result", False):
         # minimal result enabled -> use compact output_keys from config
@@ -193,7 +216,6 @@ def main(argv: list[str] | None = None) -> int:
     update_fields["output_keys"] = output_keys
 
     params = base_params.model_copy(update=update_fields)
-
 
     # read input
     samples = list(read_ndjson(inpath))

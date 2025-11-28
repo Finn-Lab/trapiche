@@ -12,20 +12,22 @@ The function returns a new list of dicts where each dict is the original one
 augmented with analysis results under keys `text_predictions`,
 `community_vector` and `taxonomy_prediction` when available.
 """
+
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence, List, Dict
+import logging
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
+
 import numpy as np
 
-from . import taxonomy_vectorization as c2v_mod
-from . import text_prediction as tt
-from . import taxonomy_prediction
-from .config import TaxonomyToVectorParams, TextToBiomeParams, TaxonomyToBiomeParams
+from . import taxonomy_prediction, taxonomy_vectorization as c2v_mod, text_prediction as tt
+from .config import TaxonomyToBiomeParams, TaxonomyToVectorParams, TextToBiomeParams
 from .utils import obj_to_serializable
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 def _read_text_file(path: str) -> str:
     p = Path(path)
@@ -38,14 +40,14 @@ def _read_text_file(path: str) -> str:
 
 
 def run_text_step(
-    samples: Sequence[Dict[str, Any]],
+    samples: Sequence[dict[str, Any]],
     params_obj: TextToBiomeParams,
     use_heuristic: bool = False,
 ) -> tuple[
-    List[Optional[Dict[str,float]]],  # combined predictions (used for constraints)
-    List[Optional[Dict[str,float]]],  # project text predictions
-    List[Optional[Dict[str,float]]],  # sample text predictions (when heuristic active)
-    List[bool],                 # heuristic applied per-sample
+    list[dict[str, float] | None],  # combined predictions (used for constraints)
+    list[dict[str, float] | None],  # project text predictions
+    list[dict[str, float] | None],  # sample text predictions (when heuristic active)
+    list[bool],  # heuristic applied per-sample
 ]:
     """Predict biome labels from texts with an optional heuristic.
 
@@ -62,40 +64,45 @@ def run_text_step(
     """
 
     logger.info(f"Running TextToBiome step | use_heuristic={use_heuristic}")
+
     # Helper to normalise text content
     def _norm(v: Any) -> str:
         return str(v).encode("utf-8", errors="replace").decode("utf-8")
 
     # Collect unique contents for project and sample texts separately to avoid duplicate predictions.
-    proj_content_to_idx: Dict[str, int] = {}
-    proj_unique_texts: List[str] = []
-    samp_content_to_idx: Dict[str, int] = {}
-    samp_unique_texts: List[str] = []
+    proj_content_to_idx: dict[str, int] = {}
+    proj_unique_texts: list[str] = []
+    samp_content_to_idx: dict[str, int] = {}
+    samp_unique_texts: list[str] = []
 
     # Per-sample indices into the unique arrays
-    per_sample_proj_idx: List[Optional[int]] = []
-    per_sample_samp_idx: List[Optional[int]] = []
+    per_sample_proj_idx: list[int | None] = []
+    per_sample_samp_idx: list[int | None] = []
 
     for s in samples:
         # Resolve project text: inline text has priority, else from file path
         proj_inline = s.get("project_description_text")
-        proj_text: Optional[str] = None
+        proj_text: str | None = None
         if proj_inline is not None:
             proj_text = _norm(proj_inline)
         else:
             proj_path = s.get("project_description_file_path")
             if proj_path:
                 proj_text = _read_text_file(str(proj_path))
-        
+
         # Resolve sample text only used when heuristic is enabled AND project text exists
         # (heuristic applies when both fields are present)
-        samp_inline = s.get("sample_description_text") if (
-            use_heuristic
-            and proj_text is not None
-            and ("project_description_text" in s)
-            and ("sample_description_text" in s)
-        ) else None
-        samp_text: Optional[str] = _norm(samp_inline) if samp_inline is not None else None
+        samp_inline = (
+            s.get("sample_description_text")
+            if (
+                use_heuristic
+                and proj_text is not None
+                and ("project_description_text" in s)
+                and ("sample_description_text" in s)
+            )
+            else None
+        )
+        samp_text: str | None = _norm(samp_inline) if samp_inline is not None else None
 
         # Map project text to unique index
         if proj_text is None:
@@ -118,17 +125,22 @@ def run_text_step(
     # If there are no texts at all, return all None in all outputs
     if not proj_unique_texts and not samp_unique_texts:
         n = len(samples)
-        return [None for _ in samples], [None for _ in samples], [None for _ in samples], [False for _ in range(n)]
+        return (
+            [None for _ in samples],
+            [None for _ in samples],
+            [None for _ in samples],
+            [False for _ in range(n)],
+        )
 
     # Predict over the union of unique texts to avoid duplicate model calls
-    content_to_union_idx: Dict[str, int] = {}
-    union_unique_texts: List[str] = []
+    content_to_union_idx: dict[str, int] = {}
+    union_unique_texts: list[str] = []
     for t in list(proj_unique_texts) + list(samp_unique_texts):
         if t not in content_to_union_idx:
             content_to_union_idx[t] = len(union_unique_texts)
             union_unique_texts.append(t)
 
-    union_preds_unique: List[Dict[str,float]] = []
+    union_preds_unique: list[dict[str, float]] = []
     if union_unique_texts:
         union_preds_unique = tt.predict(
             union_unique_texts,
@@ -141,18 +153,20 @@ def run_text_step(
         )
 
     # Helper for heuristic union
-    def heuristic_function(proj_preds: Dict[str,float], samp_preds: Dict[str,float]) -> Dict[str,float]:
+    def heuristic_function(
+        proj_preds: dict[str, float], samp_preds: dict[str, float]
+    ) -> dict[str, float]:
         # selected = set(proj_preds) | set(samp_preds) # simple union
         # keep terms in sample that are substring of project terms ir that have proj terms as substring
         # selected = set(proj_preds) & set(samp_preds)  # intersection
         selected = {}
-        for sp,_prob in samp_preds.items():
+        for sp, _prob in samp_preds.items():
             for pp in proj_preds:
                 if sp in pp or pp in sp:
                     selected[sp] = _prob
         if not selected:
             selected.update(proj_preds)
-            
+
             # Update with top prediction from sample predictions if none matched
             if samp_preds:
                 top_samp_pred = max(samp_preds.keys(), key=lambda k: samp_preds.get(k, 0.0))
@@ -162,12 +176,14 @@ def run_text_step(
         return selected
 
     # Map back to samples combining with heuristic when applicable
-    combined_results: List[Optional[Dict[str,float]]] = []
-    proj_preds_per_sample: List[Optional[Dict[str,float]]] = []
-    samp_preds_per_sample: List[Optional[Dict[str,float]]] = []
-    heuristic_flags: List[bool] = []
+    combined_results: list[dict[str, float] | None] = []
+    proj_preds_per_sample: list[dict[str, float] | None] = []
+    samp_preds_per_sample: list[dict[str, float] | None] = []
+    heuristic_flags: list[bool] = []
 
-    for position, (s, pidx, sidx) in enumerate(zip(samples, per_sample_proj_idx, per_sample_samp_idx)):
+    for position, (s, pidx, sidx) in enumerate(
+        zip(samples, per_sample_proj_idx, per_sample_samp_idx, strict=False)
+    ):
         if pidx is None and (sidx is None or not use_heuristic):
             combined_results.append(None)
             proj_preds_per_sample.append(None)
@@ -182,11 +198,15 @@ def run_text_step(
             proj_preds = union_preds_unique[content_to_union_idx[proj_content]]
 
         # Heuristic only when flag is on and both keys exist in the dict
-        heuristic_active = use_heuristic and ("project_description_text" in s) and ("sample_description_text" in s)
-        
+        heuristic_active = (
+            use_heuristic and ("project_description_text" in s) and ("sample_description_text" in s)
+        )
+
         # Log messague if heuristic inactive for use_heuristic=True but sample text missing
         if use_heuristic and not heuristic_active:
-            logger.info(f"Heuristic requested but not applied for sample at position {position}: missing required text fields.")
+            logger.info(
+                f"Heuristic requested but not applied for sample at position {position}: missing required text fields."
+            )
 
         if heuristic_active and sidx is not None and samp_unique_texts and proj_preds is not None:
             samp_content = samp_unique_texts[sidx]
@@ -211,16 +231,23 @@ def run_text_step(
     return combined_results, proj_preds_per_sample, samp_preds_per_sample, heuristic_flags
 
 
-def run_vectorise_step(samples: Sequence[Dict[str, Any]], *, model_name: str | None = None, model_version: str | None = None) -> np.ndarray:
+def run_vectorise_step(
+    samples: Sequence[dict[str, Any]],
+    *,
+    model_name: str | None = None,
+    model_version: str | None = None,
+) -> np.ndarray:
     """Vectorise taxonomy files into community vectors per sample.
 
     Returns:
         np.ndarray: Matrix (n_samples, dim) or (n_samples, 0) when empty.
     """
 
-    logger.info(f"Running Taxonomy Vectorization step | model_name={model_name} | model_version={model_version}")
+    logger.info(
+        f"Running Taxonomy Vectorization step | model_name={model_name} | model_version={model_version}"
+    )
     # Build keys based on sorted tuple of paths so identical sets deduplicate
-    sample_lists: List[List[str]] = []
+    sample_lists: list[list[str]] = []
 
     for s in samples:
         tax_list = s.get("taxonomy_files_paths") or []
@@ -233,33 +260,55 @@ def run_vectorise_step(samples: Sequence[Dict[str, Any]], *, model_name: str | N
 
     # Call the vectoriser directly (avoids importing the API wrapper)
     # Require explicit model parameters
-    return c2v_mod.vectorise_sample(sample_lists, model_name=model_name, model_version=model_version)
+    return c2v_mod.vectorise_sample(
+        sample_lists, model_name=model_name, model_version=model_version
+    )
 
-def run_taxonomy_step(samples: Sequence[Dict[str, Any]], *,params:TaxonomyToBiomeParams, community_vectors: Optional[ np.ndarray | Sequence] = None, text_constraints: Optional[Sequence[Optional[Dict[str,float]]]] = None) -> Sequence[Optional[Dict[str, Any]]]:
+
+def run_taxonomy_step(
+    samples: Sequence[dict[str, Any]],
+    *,
+    params: TaxonomyToBiomeParams,
+    community_vectors: np.ndarray | Sequence | None = None,
+    text_constraints: Sequence[dict[str, float] | None] | None = None,
+) -> Sequence[dict[str, Any] | None]:
     """Run TaxonomyToBiome using community vectors and optional text constraints.
     Returns for each sample either a dict (row-wise prediction) or None.
     If community_vectors is None the function computes them.
     """
 
-    logger.info(f"Running TaxonomyToBiome step | model_name={params.hf_model} | model_version={params.model_version}")
+    logger.info(
+        f"Running TaxonomyToBiome step | model_name={params.hf_model} | model_version={params.model_version}"
+    )
     if community_vectors is None:
         # When used from run_workflow, we pass community vectors explicitly; keep signature for compatibility.
-        community_vectors = run_vectorise_step(samples)  
+        community_vectors = run_vectorise_step(samples)
 
     # Constraints: pass text constraints as-is (list per sample) or None
-    constrain = text_constraints or [None]*len(samples)
+    constrain = text_constraints or [None] * len(samples)
 
     # Use taxonomy_prediction.predict_runs directly and feed it default params from
     # TaxonomyToBiomeParams (this mirrors the behaviour of the API wrapper).
     results = taxonomy_prediction.predict_runs(
         community_vectors=community_vectors,
         constrain=constrain,
-        params= params,
+        params=params,
     )
 
     return results
 
-def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomeParams,  vectorise_params: TaxonomyToVectorParams, taxonomy_params: TaxonomyToBiomeParams, run_text: bool = True, run_vectorise: bool = True, run_taxonomy: bool = True, sample_study_text_heuristic: bool = False) -> Sequence[Dict[str, Any]]:
+
+def run_workflow(
+    samples: Sequence[dict[str, Any]],
+    *,
+    text_params: TextToBiomeParams,
+    vectorise_params: TaxonomyToVectorParams,
+    taxonomy_params: TaxonomyToBiomeParams,
+    run_text: bool = True,
+    run_vectorise: bool = True,
+    run_taxonomy: bool = True,
+    sample_study_text_heuristic: bool = False,
+) -> Sequence[dict[str, Any]]:
     """Run the requested steps and return augmented sample dicts.
 
     The input `samples` is not modified; a new list with shallow-copied dicts is
@@ -267,8 +316,10 @@ def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomePa
     `community_vector` and `taxonomy_prediction` depending on which steps were run.
     """
 
-    logger.info(f"Running Trapiche workflow | run_text={run_text} | run_vectorise={run_vectorise} | run_taxonomy={run_taxonomy} | sample_study_text_heuristic={sample_study_text_heuristic}")
-    
+    logger.info(
+        f"Running Trapiche workflow | run_text={run_text} | run_vectorise={run_vectorise} | run_taxonomy={run_taxonomy} | sample_study_text_heuristic={sample_study_text_heuristic}"
+    )
+
     text_results = None
     proj_text_results = None
     samp_text_results = None
@@ -285,19 +336,37 @@ def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomePa
 
     # If taxonomy is requested, but not taxonomy_vectorization compute community vectors (used internally too)
     if run_vectorise or run_taxonomy:
-        community_vectors = run_vectorise_step(samples, model_name=vectorise_params.hf_model, model_version=vectorise_params.model_version)
+        community_vectors = run_vectorise_step(
+            samples,
+            model_name=vectorise_params.hf_model,
+            model_version=vectorise_params.model_version,
+        )
     else:
         community_vectors = [None for _ in samples]
 
     if run_taxonomy:
-        taxonomy_results = run_taxonomy_step(samples, params=taxonomy_params, community_vectors=community_vectors, text_constraints=text_results)
+        taxonomy_results = run_taxonomy_step(
+            samples,
+            params=taxonomy_params,
+            community_vectors=community_vectors,
+            text_constraints=text_results,
+        )
     else:
         taxonomy_results = [None for _ in samples]
 
     # construct output Sequence[Dict[str, Any]]
     result = [d.copy() for d in samples]
     serializable_results = []
-    for s, tr, cv, txr, pr_tr, sa_tr, hflag in zip(result, text_results, community_vectors, taxonomy_results, proj_text_results, samp_text_results, heuristic_flags):
+    for s, tr, cv, txr, pr_tr, sa_tr, hflag in zip(
+        result,
+        text_results,
+        community_vectors,
+        taxonomy_results,
+        proj_text_results,
+        samp_text_results,
+        heuristic_flags,
+        strict=False,
+    ):
         if tr is not None:
             s["text_predictions"] = tr
         # If heuristic was applied for this sample, also include project and sample text predictions
@@ -309,7 +378,7 @@ def run_workflow(samples: Sequence[Dict[str, Any]], *,text_params: TextToBiomePa
         if cv is not None and isinstance(cv, np.ndarray) and np.any(cv):
             s["community_vector"] = cv.tolist() if cv.size else None
             if txr is not None:
-                s.update(txr)  
+                s.update(txr)
         _s = obj_to_serializable(s)  # convert any non-serializable types in-place
         serializable_results.append(_s)
 
