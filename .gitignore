@@ -1,11 +1,16 @@
-*.egg-info
+## CUSTOM ##
 
+*.egg-info
 trapiche/data/taxonomy_prediction/full_final_taxonomy.model.keras
 trapiche/data/taxonomy_prediction/taxonomy_quant_model.tflite
 trapiche/data/biome2vec/mgnify_sample_vectors.h5
 
 .*
 slurm-*.out
+# trapiche/_version.py
+### EXEPTIONS ###
+!.gitignore
+!.pre-commit-config.yaml
 
 ## GENERIC
 ### Python ###
@@ -180,5 +185,3 @@ poetry.toml
 
 # LSP config files
 pyrightconfig.json
-
-# End of https://www.toptal.com/developers/gitignore/api/python

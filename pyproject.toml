@@ -60,3 +60,8 @@ force-single-line = false
 # Install with one of the extras below, e.g. `pip install .[cpu]` or `pip install .[gpu]`.
 cpu = ["tensorflow-cpu==2.20.0"]
 gpu = ["tensorflow==2.20.0"]
+dev = [
+  "pre-commit>=3.7.0",
+  "ruff==0.6.4",
+  "black==24.10.0",
+]
