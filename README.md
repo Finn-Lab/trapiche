@@ -249,4 +249,3 @@ python -m unittest discover -s test -p 'test_*.py' -q
 ## Data and models
 
 Trapiche ships code only. Models used live in HugginFaceHub, and are downloaded by HF api.
-
