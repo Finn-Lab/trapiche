@@ -250,24 +250,3 @@ python -m unittest discover -s test -p 'test_*.py' -q
 
 Trapiche ships code only. Models used live in HugginFaceHub, and are downloaded by HF api.
 
-
-## Benchmarks (placeholder)
-
-We will release a small benchmarking section here with datasets, metrics (accuracy, F1, calibration), and comparisons against text‑only and taxonomy‑only baselines.
-
-
-## Paper (placeholder)
-
-A preprint/manuscript describing Trapiche’s joint modelling approach and training data will be linked here.
-
-
-## Contributing
-
-Issues and pull requests are welcome. Please open an issue to discuss larger changes.
-
-
-## License and citation
-
-This project is open source. See the repository metadata for licensing terms.
-
-If you use Trapiche in your work, please cite the Trapiche paper (coming soon). A BibTeX entry will be provided here.
