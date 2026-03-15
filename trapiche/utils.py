@@ -10,6 +10,7 @@ __all__ = [
     "sanity_check_otus_annot_file",
     "parse_otus_count",
     "sanity_check_diamond_annot_file",
+    "read_taxonomy_study_tsv_cached",
     "cosine_similarity",
     "cosine_similarity_pairwise",
     "jaccard_similarity",
@@ -39,6 +40,7 @@ import logging
 import math
 import os
 import re
+import csv
 import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 from functools import lru_cache
@@ -179,7 +181,52 @@ def diamond_read(f):
             edges.add(edge)
     return list(edges)
 
+def extract_taxonomic_edges_from_tsv_row(row: str):
 
+    taxonomy_terms = set() 
+    line = row.replace("Candidatus ", "")
+    # Split line and filter out any empty strings or strings representing empty nodes like 'k__'
+    lineage = [bit for bit in re.split("[\t;]", line) if "__" in bit and not bit.endswith("__")]
+
+    # Initialize previous valid item variable
+    prev = None
+    for item in lineage:
+        # Skip empty taxonomy levels
+        if item.endswith("__"):
+            continue
+        if prev is not None:
+            # Create an edge between the previous valid item and the current item
+            prev1, prev2 = prev.split("__")
+            item1, item2 = item.split("__")
+            taxonomy_terms.add(
+                (
+                    prev1
+                    + "__"
+                    + prev2.split("__")[-1].replace("_", " "),
+                    item1
+                    + "__"
+                    + item2.split("__")[-1].replace("_", " "),
+                )
+            )
+        prev = item
+    return taxonomy_terms
+
+def normalize_to_list_of_str(_content):
+    """Normalize input to a list of strings.
+
+    Args:
+        _content: str or list of str|os.PathLikke.
+
+    Returns:
+        list[str]: Normalized list of strings.
+    """
+    if isinstance(_content, str):
+        return [_content]
+    elif isinstance(_content, (list, tuple)):
+        return [str(x) for x in _content]
+    else:
+        raise TypeError("Input must be a string or a list/tuple of strings.")
+    
 def krona_read(content):
     """Parse Krona-style taxonomy content into edge lists.
 
@@ -193,31 +240,9 @@ def krona_read(content):
     for _line in content:
         if _line.startswith("#") or not _line.strip():
             continue
-        line = _line.replace("Candidatus ", "")
-        # Split line and filter out any empty strings or strings representing empty nodes like 'k__'
-        lineage = [bit for bit in re.split("[\t;]", line) if "__" in bit and not bit.endswith("__")]
+        _taxonomy_terms = extract_taxonomic_edges_from_tsv_row(_line)
+        edges.update(_taxonomy_terms)
 
-        # Initialize previous valid item variable
-        prev = None
-        for item in lineage:
-            # Skip empty taxonomy levels
-            if item.endswith("__"):
-                continue
-            if prev is not None:
-                # Create an edge between the previous valid item and the current item
-                prev1, prev2 = prev.split("__")
-                item1, item2 = item.split("__")
-                edges.add(
-                    (
-                        prev1
-                        + "__"
-                        + prev2.split("__")[-1].replace("_", " ").replace("Candidatus ", ""),
-                        item1
-                        + "__"
-                        + item2.split("__")[-1].replace("_", " ").replace("Candidatus ", ""),
-                    )
-                )
-            prev = item
     return list(edges)
 
 
@@ -841,3 +866,120 @@ def obj_to_serializable(obj):
         return str(obj)
     except Exception:
         return None
+
+
+
+@lru_cache
+def read_taxonomy_study_tsv_cached(path: str | os.PathLike) -> dict:
+    """
+    Parse a TSV taxonomy table and return a dict mapping each sample_id to
+    a non-redundant list of taxonomic terms present in that sample.
+
+    The TSV is expected to have:
+      - First column: 'taxonomy'
+      - Remaining columns: sample IDs (e.g. 'SRR12914302')
+      - Rows: taxonomy lineages like
+          'sk__Bacteria;k__;p__Acidobacteriota;c__Holophagae;...'
+        with numerical values in sample columns (0 / non-zero).
+
+    Uses `extract_taxonomic_edges_from_tsv_row` to parse taxonomy and then
+    derives simple taxon names (with the level prefix stripped) from the
+    edge endpoints.
+
+    Returns
+    -------
+    dict
+        { sample_id: [unique_taxon_name_1, unique_taxon_name_2, ...] }
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File not found: {path!r}")
+    if not os.path.isfile(path):
+        raise ValueError(f"Path is not a file: {path!r}")
+
+    with open(path, newline="") as f:
+        reader = csv.reader(f, delimiter="\t")
+
+        try:
+            header = next(reader)
+        except StopIteration:
+            raise ValueError("File is empty.")
+
+        if len(header) < 2:
+            raise ValueError(
+                "Expected at least two columns: 'taxonomy' and at least one sample column."
+            )
+
+        # First column must be 'taxonomy' (case-insensitive)
+        if header[0].strip().lower() != "taxonomy":
+            raise ValueError(
+                f"First column must be 'taxonomy', found {header[0]!r}"
+            )
+
+        sample_ids = header[1:]
+        if any(not s.strip() for s in sample_ids):
+            raise ValueError("Found empty sample ID in header.")
+
+        # Prepare containers: for each sample, keep list and a set to ensure non-redundancy
+        sample_to_terms = {sid: [] for sid in sample_ids}
+        sample_to_seen = {sid: set() for sid in sample_ids}
+
+        expected_len = len(header)
+
+        # --- Iterate over rows and collect taxon names per sample ----
+        for row_index, row in enumerate(reader, start=2):  # 1-based + header
+            if len(row) != expected_len:
+                raise ValueError(
+                    f"Row {row_index} has {len(row)} columns, expected {expected_len}."
+                )
+
+            taxonomy_str = row[0].strip()
+            if not taxonomy_str:
+                continue
+
+            # Reconstruct the full TSV row line (taxonomy + sample columns)
+            full_row_str = "\t".join(row)
+
+            # Use the provided function to get edges (pairs like 'sk__Bacteria', 'p__Acidobacteriota')
+            edges = extract_taxonomic_edges_from_tsv_row(full_row_str)
+
+            # From edges, derive simple taxon names (strip level prefix like 'sk__' / 'p__')
+            taxon_names = set()
+            for src, dst in edges:
+                for node in (src, dst):
+                    if "__" in node:
+                        _, name = node.split("__", 1)
+                        name = name.strip()
+                        if name:
+                            taxon_names.add(name)
+
+            if not taxon_names:
+                continue
+
+            # For each sample column, check if this sample has the taxon(s)
+            for col_idx, sid in enumerate(sample_ids, start=1):
+                value_str = row[col_idx].strip()
+
+                # Treat empty as zero
+                if value_str == "":
+                    continue
+
+                # Try numeric interpretation to decide presence
+                has_taxon = False
+                try:
+                    has_taxon = float(value_str) != 0.0
+                except ValueError:
+                    # If non-numeric but non-empty, consider as present
+                    has_taxon = True
+
+                if not has_taxon:
+                    continue
+
+                # Add all taxon names to the sample, keeping them non-redundant
+                seen = sample_to_seen[sid]
+                lst = sample_to_terms[sid]
+                for name in taxon_names:
+                    if name not in seen:
+                        seen.add(name)
+                        lst.append(name)
+
+    return sample_to_terms

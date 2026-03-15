@@ -12,13 +12,14 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, Dict, Sequence
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 from gensim.models import KeyedVectors, Word2Vec
 
-from .utils import _get_hf_model_path, load_biome_herarchy_dict, tax_annotations_from_file
+from .utils import _get_hf_model_path, load_biome_herarchy_dict, normalize_to_list_of_str, read_taxonomy_study_tsv_cached, tax_annotations_from_file
 
 logger = logging.getLogger(__name__)
 
@@ -298,19 +299,14 @@ def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None 
     return __mgnify_sample_vectors, _mgnify_sample_vectors_metadata
 
 
-def vectorise_sample(
-    list_of_tax_files, *, model_name: str | None = None, model_version: str | None = None
+def vectorise_samples(
+    samples_sequence: Sequence[dict[str,Any]], *, model_name: str | None = None, model_version: str | None = None
 ):
     """Vectorise one or many samples from taxonomy annotation files.
 
-    Flexible input forms are accepted (all are normalised internally to the
-    original list-of-lists of file paths interface):
-
-    1. Single file path (str / Path): that file represents one sample.
-    2. Directory path: every *.tsv or *.tsv.gz file inside (non-recursive)
-       is treated as belonging to one sample.
-    3. Flat list of file paths: all those files together are one sample.
-    4. List of lists of file paths (original behaviour): each inner list is a sample.
+    samples_sequence must have EITHER keys:
+      - {"sample_taxonomy_paths": ...}
+      - {"study_taxonomy_path": ..., "sample_id": ...}
 
     Returns
     -------
@@ -319,60 +315,45 @@ def vectorise_sample(
         produced an array with shape (n_samples, 0) is returned (or (0, 0) if
         there are no samples at all).
     """
-
-    from pathlib import Path
-
-    def _normalise(sources):  # -> list[list[str]]
-        """Normalise user input to list-of-lists of file paths.
-
-        See function docstring for accepted forms.
-        """
-        if isinstance(sources, (str, os.PathLike)):
-            p = Path(sources)
-            if p.is_dir():
-                files = sorted(
-                    [
-                        str(f)
-                        for f in p.iterdir()
-                        if f.is_file()
-                        and (f.suffix in {".tsv", ".gz"} or f.name.endswith(".tsv.gz"))
-                    ]
-                )
-                return [files] if files else [[]]
-            elif p.is_file():
-                return [[str(p)]]
-            else:
-                raise FileNotFoundError(f"Path not found: {p}")
-        if isinstance(sources, list):
-            if not sources:
-                return []
-            # Detect list-of-lists (or other iterables) vs flat list
-            if all(isinstance(x, (list, tuple, set)) for x in sources):
-                return [[str(f) for f in sample] for sample in sources]
-            # Flat list of paths
-            if all(isinstance(x, (str, os.PathLike)) for x in sources):
-                return [[str(f) for f in sources]]
-        raise TypeError(
-            "Unsupported input for vectorise_run. Provide a path, a list of paths, or a list of list of paths."
-        )
-
-    samples_files = _normalise(list_of_tax_files)
-
-    n_samples = len(samples_files)
+    n_samples = len(samples_sequence)
     if n_samples == 0:
         return np.zeros((0, 0))
-
+    
     samples_annots: dict[int, list] = {}
-    for ix, samp_files in enumerate(samples_files):
-        if not samp_files:  # skip empty lists (retain index for shape)
-            continue
-        for f in samp_files:
+    for ix, sample_dict in enumerate(samples_sequence):
+
+        sample_taxonomy_terms = None
+        # check if study_taxonomy_path and sample_id are provided
+        if "study_taxonomy_path" in sample_dict and "sample_id" in sample_dict:
+            study_taxonomy_path = sample_dict["study_taxonomy_path"]
+            sample_id = sample_dict["sample_id"]
             try:
-                d = tax_annotations_from_file(f)
+                sample_taxonomy_terms = read_taxonomy_study_tsv_cached(study_taxonomy_path).get(sample_id)
+                if sample_taxonomy_terms is None:
+                    logger.error(f"Sample ID {sample_id} not found in taxonomy file {study_taxonomy_path} while study_taxonomy_path and sample_id were provided.")
             except Exception as e:  # defensive: keep other files processing
-                print(f"Failed to parse taxonomy file {f}: {e}")
-                d = []
-            samples_annots.setdefault(ix, []).extend(d if d else [])
+                logger.error(f"Failed to parse taxonomy file {study_taxonomy_path}: {e}")
+            samples_annots.setdefault(ix, []).extend(sample_taxonomy_terms if sample_taxonomy_terms else [])
+
+
+        # fallback to taxonomy_paths if sample_taxonomy_terms is not found
+        if sample_taxonomy_terms is None and "sample_taxonomy_paths" in sample_dict:
+            sample_taxonomy_paths = sample_dict["sample_taxonomy_paths"]
+
+            # normalise to list of strings
+            sample_taxonomy_paths = normalize_to_list_of_str(sample_taxonomy_paths)
+
+            if not sample_taxonomy_paths:  # skip empty lists (retain index for shape)
+                logger.warning(f"No taxonomy files provided for sample index {ix}.")
+                continue
+            for f in sample_dict:
+                try:
+                    _sample_taxonomy_terms = tax_annotations_from_file(f)
+                except Exception as e:  # defensive: keep other files processing
+                    print(f"Failed to parse taxonomy file {f}: {e}")
+                    _sample_taxonomy_terms = []
+
+            samples_annots.setdefault(ix, []).extend(_sample_taxonomy_terms if _sample_taxonomy_terms else [])
 
     # Derive genus sets and vectors per sample
     samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}

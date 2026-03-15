@@ -53,14 +53,23 @@ Required/optional keys per sample:
 - sample_description_text (optional): additional text for the specific sample. Used when the sample-over-study heuristic is enabled.
 
 **Taxonomy predictions**
-- taxonomy_files_paths (required for taxonomy predictions): list of file paths.
+- sample_taxonomy_paths (required for taxonomy predictions): list of file paths.
 	- Accepted formats: .tsv, .tsv.gz (non-recursive).
+
+Optional identifiers and study-level input
+- STUDY_ID (optional): identifier to group samples into a project/study.
+- SAMPLE_ID (optional): identifier of the sample within the study.
+- taxonomy_study_tsv (optional): path to a study-level taxonomy summary TSV.
+	- When provided, this is used instead of `sample_taxonomy_paths`.
+	- Requires both `STUDY_ID` and `SAMPLE_ID` to be present.
+	- The TSV file is loaded once per unique path and cached for reuse.
+	- Rows are looked up by `SAMPLE_ID` when deriving per-sample taxonomy data.
 
 Example input:
 
 ```json
-{"project_description_text":"Effect of different fertilization treatments on soil microbiome...", "taxonomy_files_paths":["test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_diamond.tsv.gz","test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_mseq.tsv"]}
-{"project_description_file_path":"test/files/text_files/PRJEB42572_project_description.txt","taxonomy_files_paths":["test/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"]}
+{"project_description_text":"Effect of different fertilization treatments on soil microbiome...", "sample_taxonomy_paths":["test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_diamond.tsv.gz","test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_mseq.tsv"]}
+{"project_description_file_path":"test/files/text_files/PRJEB42572_project_description.txt","sample_taxonomy_paths":["test/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"]}
 ```
 
 Run the workflow
@@ -126,7 +135,7 @@ Uses a sequence of dicts (one dict is one sample) with the following required/op
 - sample_description_text (optional): additional text describing the specific sample. Used only when the heuristic is enabled.
 
 **Taxonomy predictions**
-- taxonomy_files_paths (required for taxonomy predictions): list of file paths.
+- sample_taxonomy_paths (required for taxonomy predictions): list of file paths.
 	- Accepted formats: .tsv, .tsv.gz (non-recursive).
 
 ```python
@@ -137,7 +146,7 @@ samples = [
 	{
 		"project_description_text": "Home Microbiome Metagenomes. The project identifies patterns in microbial communities associated with different home and home occupant (human and pet) surfaces",
 		"sample_description_text": "Metagenome of microbial community: Bedroom Floor. House_04a-Bedroom_Floor_Day3. House_04a-Bedroom_Floor_Day3",
-		"taxonomy_files_paths": [
+		"sample_taxonomy_paths": [
 			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv",
 			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_LSU_OTU.tsv"
 			]
@@ -179,9 +188,7 @@ from trapiche.api import Community2vec, TaxonomyToBiome
 # Vectorise one or more samples from taxonomy annotation files
 c2v = Community2vec()
 
-taxonomy_files = [x["taxonomy_files_paths"] for x in samples]
-
-vectors = c2v.transform(taxonomy_files)
+vectors = c2v.transform(samples)
 
 tax2b = TaxonomyToBiome()
 result = tax2b.predict(community_vectors=vectors,constrain=text_predictions)
@@ -202,11 +209,17 @@ One JSON object per sample in eithe NDJSON (CLI) or List (API), with the followi
 
 ```json
 {
-	"taxonomy_files_paths": ["/path/to/sample1.tsv", "/path/to/sample1_b.tsv.gz"],
+	"sample_taxonomy_paths": ["/path/to/sample1.tsv", "/path/to/sample1_b.tsv.gz"],
 	"project_description_text": "Free text describing the sample.",
 	"sample_description_text": "Free text describing this specific sample variant.",
 	# alternatively (if no inline text):
 	# "project_description_file_path": "path/to/description.txt"
+	# optional project/sample identifiers
+	"STUDY_ID": "PRJEB12345",
+	"SAMPLE_ID": "SAMEA0000001",
+	# optional study-level taxonomy summary (used instead of sample_taxonomy_paths)
+	# requires STUDY_ID and SAMPLE_ID; TSV is cached and looked up by SAMPLE_ID
+	# "taxonomy_study_tsv": "/path/to/study_taxonomy_summary.tsv"
 }
 ```
 
@@ -225,6 +238,32 @@ One JSON object per sample in either NDJSON (CLI) or List (API), with the follow
 ```
 
 Best prediction is in `final_selected_prediction`.
+
+## Project-level analysis (study summary)
+
+Trapiche can produce a study-level summary in addition to per-sample outputs.
+After running the workflow via the API, access `runner.study_summary` on the
+`TrapicheWorkflowFromSequence` instance. The summary groups samples by
+`STUDY_ID` and partitions predictions into confident vs low-confidence based on
+`TrapicheWorkflowParams.study_summary_confidence_threshold` (default: 0.5):
+
+```
+{
+	"<STUDY_ID>": {
+		"confident": {"<biome>": ["<SAMPLE_ID>", ...], ...},
+		"low_confidence": {"<biome>": ["<SAMPLE_ID>", ...], ...}
+	},
+	...
+}
+```
+
+Notes
+- Summary uses the `final_selected_prediction` per sample when available.
+- Samples missing `STUDY_ID`/`SAMPLE_ID` are ignored in the summary.
+- When `taxonomy_study_tsv` is provided, Trapiche loads the TSV once per path
+	and looks up rows using `SAMPLE_ID`. Parsing into vectors may be extended in
+	future versions; current support validates inputs and preserves workflow
+	alignment.
 
 ## Sample-over-study heuristic (optional)
 

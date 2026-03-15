@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from .api import TrapicheWorkflowFromSequence
-from .config import TaxonomyToVectorParams, TrapicheWorkflowParams, setup_logging
+from .config import TrapicheWorkflowParams, setup_logging
 
 
 def read_ndjson(path: Path | None) -> Iterable[dict[str, Any]]:
@@ -215,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     # Output keys are controlled by the CLI flag above
     update_fields["output_keys"] = output_keys
 
-    params = base_params.model_copy(update=update_fields)
+    workflow_params = base_params.model_copy(update=update_fields)
 
     # read input
     samples = list(read_ndjson(inpath))
@@ -234,9 +234,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # Determine taxonomy vectorization model params from config defaults
-    _t2v = TaxonomyToVectorParams()
-    runner = TrapicheWorkflowFromSequence(workflow_params=params)
-    processed = runner.run(samples, model_name=_t2v.hf_model, model_version=_t2v.model_version)
+    runner = TrapicheWorkflowFromSequence(workflow_params=workflow_params)
+    processed = runner.run(samples)
 
     # If no output path specified but an input file was used, generate
     # a default filename: <input_basename>_trapiche_results.ndjson

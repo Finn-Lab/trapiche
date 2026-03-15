@@ -27,7 +27,7 @@ SAMPLE = {
         "Metagenome of microbial community: Bedroom Floor. "
         "House_04a-Bedroom_Floor_Day3. House_04a-Bedroom_Floor_Day3"
     ),
-    "taxonomy_files_paths": [str(SSU), str(LSU)],
+    "sample_taxonomy_paths": [str(SSU), str(LSU)],
 }
 
 
@@ -129,7 +129,7 @@ class TestAPIIntegration(unittest.TestCase):
 
         # Vectorise taxonomy files
         c2v = Community2vec()
-        vectors = c2v.transform([SAMPLE["taxonomy_files_paths"]])
+        vectors = c2v.transform([SAMPLE])
         self.assertEqual(vectors.shape[0], 1)
         self.assertGreaterEqual(vectors.shape[1], 0)
 

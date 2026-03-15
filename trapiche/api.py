@@ -42,27 +42,27 @@ class Community2vec:
             extra={"model_name": self.model_name, "model_version": self.model_version},
         )
 
-    def transform(self, list_of_tax_files) -> np.ndarray:
+    def transform(self, samples_sequence: Sequence[dict[str,Any]]) -> np.ndarray:
         """Vectorise one or many samples from taxonomy files.
 
         Args:
-            list_of_tax_files: Path, list of paths, directory path, or
-                list of list of paths. See taxonomy_vectorization.vectorise_sample
-                for accepted forms.
+            samples_sequence: Sequence[dict[str,Any]] must have EITHER keys:
+              - {"sample_taxonomy_paths": ...}
+              - {"study_taxonomy_path": ..., "sample_id": ...}
 
         Returns:
             np.ndarray: Matrix with shape (n_samples, embedding_dim). If no
             vectors are produced, returns shape (n_samples, 0) or (0, 0) when
             there are no samples.
         """
-        from .taxonomy_vectorization import vectorise_sample
+        from .taxonomy_vectorization import vectorise_samples
 
         logger.info(
             "Vectorising samples",
             extra={"model_name": self.model_name, "model_version": self.model_version},
         )
-        self.vectorised_samples = vectorise_sample(
-            list_of_tax_files, model_name=self.model_name, model_version=self.model_version
+        self.vectorised_samples = vectorise_samples(
+            samples_sequence, model_name=self.model_name, model_version=self.model_version
         )
         return self.vectorised_samples
 
@@ -229,16 +229,13 @@ class TrapicheWorkflowFromSequence:
 
     def run(
         self,
-        samples: Sequence[dict[str, Any]],
-        *,
-        model_name: str | None = None,
-        model_version: str | None = None,
+        samples: Sequence[dict[str, Any]]
     ) -> Sequence[dict[str, Any]]:
         """Execute the configured steps on samples.
 
         Args:
             samples: Input sample dicts. Optional keys include
-                project_description_file_path and taxonomy_files_paths.
+                project_description_file_path and sample_taxonomy_paths.
 
         Returns:
             list[dict]: Shallow copies of inputs augmented with results.
@@ -254,6 +251,18 @@ class TrapicheWorkflowFromSequence:
             taxonomy_params=self.taxonomy_params,
             sample_study_text_heuristic=self.workflow_params.sample_study_text_heuristic,
         )
+
+        # Build study-level summary object from the unfiltered results. This
+        # keeps original identifiers and predictions intact regardless of
+        # output filtering configuration.
+        if self.workflow_params.run_study_summary:
+            try:
+                self.study_summary = self.build_study_summary(
+                    result,
+                    confidence_threshold=self.workflow_params.study_summary_confidence_threshold,
+                )
+            except Exception as e:
+                logger.warning("Failed to build study summary: %s", e)
 
         # process which keys to keep according to config
         keep_keys = set()
@@ -293,3 +302,62 @@ class TrapicheWorkflowFromSequence:
             for record in self.filtered:
                 json.dump(record, f)
                 f.write("\n")
+
+    def build_study_summary( # TODO: implement this function to do study-level summaries. 
+        self,
+        results: Sequence[dict[str, Any]],
+        *,
+        confidence_threshold: float | None = None,
+    ) -> dict:
+        """Build a study-level biome summary object from per-sample results.
+
+        Groups samples by `STUDY_ID` and aggregates the final predictions into
+        two mappings per study:
+          - confident: Dict[biome_string, List[sample_id]]
+          - low_confidence: Dict[biome_string, List[sample_id]]
+
+        Confidence is decided by comparing the selected prediction score
+        against `confidence_threshold`. If the threshold is None, the default
+        from workflow params is used.
+
+        Args:
+            results: Per-sample result dicts (should include STUDY_ID,
+                SAMPLE_ID, and a `final_selected_prediction` dict mapping
+                lineage to score).
+            confidence_threshold: Optional override for confidence threshold.
+
+        Returns:
+            dict: Mapping of STUDY_ID to a summary object with `confident` and
+            `low_confidence` keys.
+        """
+        th = (
+            float(confidence_threshold)
+            if confidence_threshold is not None
+            else float(self.workflow_params.study_summary_confidence_threshold)
+        )
+
+        studies: dict[str, dict[str, dict[str, list[str]]]] = {}
+
+        for rec in results:
+            study_id = rec.get("STUDY_ID")
+            sample_id = rec.get("SAMPLE_ID")
+            if not study_id or not sample_id:
+                # Skip records without identifiers
+                continue
+
+            final_pred = rec.get("final_selected_prediction")
+            if not isinstance(final_pred, dict) or not final_pred:
+                # No prediction available; treat as low confidence under a None label bucket
+                biome = None
+                score = 0.0
+            else:
+                biome = next(iter(final_pred.keys()))
+                score = float(final_pred.get(biome, 0.0))
+
+            bucket = "confident" if score >= th else "low_confidence"
+            biome_key = biome if biome is not None else "__unknown__"
+
+            studies.setdefault(study_id, {"confident": {}, "low_confidence": {}})
+            studies[study_id][bucket].setdefault(biome_key, []).append(sample_id)
+
+        return studies

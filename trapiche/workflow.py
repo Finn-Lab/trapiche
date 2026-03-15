@@ -7,7 +7,7 @@ are intentionally small and pure where possible to keep the tool maintainable.
 
 The public function is `run_workflow(samples, run_text=True, run_taxonomy=True)`
 which accepts a sequence of dicts where each dict has at minimum the keys
-`project_description_file_path` (optional) and `taxonomy_files_paths` (list).
+`project_description_file_path` (optional) and `sample_taxonomy_paths` (list).
 The function returns a new list of dicts where each dict is the original one
 augmented with analysis results under keys `text_predictions`,
 `community_vector` and `taxonomy_prediction` when available.
@@ -231,40 +231,6 @@ def run_text_step(
     return combined_results, proj_preds_per_sample, samp_preds_per_sample, heuristic_flags
 
 
-def run_vectorise_step(
-    samples: Sequence[dict[str, Any]],
-    *,
-    model_name: str | None = None,
-    model_version: str | None = None,
-) -> np.ndarray:
-    """Vectorise taxonomy files into community vectors per sample.
-
-    Returns:
-        np.ndarray: Matrix (n_samples, dim) or (n_samples, 0) when empty.
-    """
-
-    logger.info(
-        f"Running Taxonomy Vectorization step | model_name={model_name} | model_version={model_version}"
-    )
-    # Build keys based on sorted tuple of paths so identical sets deduplicate
-    sample_lists: list[list[str]] = []
-
-    for s in samples:
-        tax_list = s.get("taxonomy_files_paths") or []
-        # ensure strings
-        sample_lists.append([str(x) for x in tax_list])
-
-    if not sample_lists:
-        # no taxonomy files present
-        return np.array([np.zeros((0,)) for _ in samples])
-
-    # Call the vectoriser directly (avoids importing the API wrapper)
-    # Require explicit model parameters
-    return c2v_mod.vectorise_sample(
-        sample_lists, model_name=model_name, model_version=model_version
-    )
-
-
 def run_taxonomy_step(
     samples: Sequence[dict[str, Any]],
     *,
@@ -282,7 +248,7 @@ def run_taxonomy_step(
     )
     if community_vectors is None:
         # When used from run_workflow, we pass community vectors explicitly; keep signature for compatibility.
-        community_vectors = run_vectorise_step(samples)
+        community_vectors = c2v_mod.vectorise_samples(samples)
 
     # Constraints: pass text constraints as-is (list per sample) or None
     constrain = text_constraints or [None] * len(samples)
@@ -336,11 +302,7 @@ def run_workflow(
 
     # If taxonomy is requested, but not taxonomy_vectorization compute community vectors (used internally too)
     if run_vectorise or run_taxonomy:
-        community_vectors = run_vectorise_step(
-            samples,
-            model_name=vectorise_params.hf_model,
-            model_version=vectorise_params.model_version,
-        )
+        community_vectors = c2v_mod.vectorise_samples( samples)
     else:
         community_vectors = [None for _ in samples]
 
@@ -365,7 +327,7 @@ def run_workflow(
         proj_text_results,
         samp_text_results,
         heuristic_flags,
-        strict=False,
+        strict=True,
     ):
         if tr is not None:
             s["text_predictions"] = tr

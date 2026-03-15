@@ -29,6 +29,8 @@ class TrapicheWorkflowParams(BaseSettings):
         ]
     )
     sample_study_text_heuristic: bool = False
+    run_study_summary: bool = True
+    study_summary_confidence_threshold: float = 0.2
 
 
 class TextToBiomeParams(BaseSettings):
