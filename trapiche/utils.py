@@ -258,7 +258,6 @@ def tax_annotations_from_file(f):
 # --- ---
 
 
-
 # Use a default sentinel to maintain backward compatibility while allowing explicit overrides.
 @lru_cache
 def load_biome_herarchy_dict(model_name: str | None = None, model_version: str | None = None):
@@ -453,7 +452,7 @@ def split_tt(df, frac, rs, lin):
     """
     test_samples = []
     if frac != 0:  # skip this step if models are trained with the full dataset
-        if isinstance(lin, str):  
+        if isinstance(lin, str):
             depth = len(lin.split(":"))
             tdf = df[df.max_depth > depth]
             tdf["d3"] = [":".join(x.split(":")[: depth + 1]) for x in tdf.lineage]
@@ -467,9 +466,7 @@ def split_tt(df, frac, rs, lin):
                 test_samples.extend(gr.sample(frac=frac, random_state=rs).SAMPLE_ID.values)
             else:
                 accum = 0
-                for ix, n in (
-                    gr.project.value_counts().sample(frac=1, random_state=rs).items()
-                ):
+                for ix, n in gr.project.value_counts().sample(frac=1, random_state=rs).items():
                     momo = tdf[tdf.project == ix].SAMPLE_ID
                     test_samples.extend(momo)
                     accum += momo.shape[0]
@@ -477,7 +474,7 @@ def split_tt(df, frac, rs, lin):
                         break
     test_ixes = df[df.SAMPLE_ID.isin(test_samples)].index
     df["IS_TEST"] = [False] * df.shape[0]
-    df.loc[test_ixes, "IS_TEST"] = True  
+    df.loc[test_ixes, "IS_TEST"] = True
 
 
 def three_split(df, random_state=None, frac_=0.2):
@@ -560,7 +557,7 @@ def i_T(term, graph):
 
     If term is a string, use its ancestors; if iterable, use the set itself.
     """
-    if isinstance(term, str):  
+    if isinstance(term, str):
         veT = nx.ancestors(graph, term) | {term}
     else:
         veT = term
