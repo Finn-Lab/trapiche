@@ -388,6 +388,39 @@ def knn_batch(
     return results
 
 
+def _knn_records_to_prediction(
+    records: list[dict[str, Any]] | None,
+) -> dict[str, float] | None:
+    """Convert KNN result records into the ``{biome: score}`` dict expected downstream.
+
+    ``knn_batch`` returns, per query, either ``None`` or a list of dicts with
+    keys ``BIOME`` and ``COSINE_SIMILARITY``.  The rest of the pipeline
+    (``full_stack_prediction``) expects ``dict[str, float]`` mapping a biome
+    lineage string to a confidence score.
+
+    The transformation picks the biome with the highest mean cosine similarity
+    across all returned neighbours and returns it as a single-entry dict.
+    """
+    if not records:
+        return None
+
+    # Aggregate cosine similarities per biome
+    biome_scores: dict[str, list[float]] = defaultdict(list)
+    for rec in records:
+        biome = rec.get("BIOME")
+        sim = rec.get("COSINE_SIMILARITY", 0.0)
+        if biome is not None:
+            biome_scores[biome].append(float(sim))
+
+    if not biome_scores:
+        return None
+
+    # Pick the biome with the highest mean similarity
+    best_biome = max(biome_scores, key=lambda b: sum(biome_scores[b]) / len(biome_scores[b]))
+    best_score = sum(biome_scores[best_biome]) / len(biome_scores[best_biome])
+    return {best_biome: best_score}
+
+
 np.seterr(divide="ignore", invalid="ignore")  # handle bad files == divition by zero error
 
 
@@ -457,9 +490,10 @@ def full_stack_prediction(
     # string_pattern = "Digestive system"
     # knn refinement unconstrained
     prediction_keys = [list(d.keys()) if d is not None else None for d in top_predictions]
-    refined_predictions = knn_batch(
+    refined_predictions_raw = knn_batch(
         predictions=prediction_keys, query_vectors=query_vector, params=params
     )
+    refined_predictions = [_knn_records_to_prediction(rp) for rp in refined_predictions_raw]
     # refined_predictions = [
     #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
     #     for crp in refined_predictions
@@ -469,9 +503,12 @@ def full_stack_prediction(
     constrained_prediction_keys = [
         list(d.keys()) if d is not None else None for d in constrained_top_predictions
     ]
-    constrained_refined_predictions = knn_batch(
+    constrained_refined_predictions_raw = knn_batch(
         predictions=constrained_prediction_keys, query_vectors=query_vector, params=params
     )
+    constrained_refined_predictions = [
+        _knn_records_to_prediction(crp) for crp in constrained_refined_predictions_raw
+    ]
     # Set to None those refined predictions that do not match the string_pattern. predictions are List[Optional[Dict[str, float]]]
     # constrained_refined_predictions = [
     #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
