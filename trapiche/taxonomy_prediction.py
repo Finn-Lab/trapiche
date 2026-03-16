@@ -373,7 +373,7 @@ def knn_batch(
             top_df = _subject_df.iloc[sorted_ix].copy()
             top_df["COSINE_SIMILARITY"] = sim_scores[sorted_ix]
 
-            top_df_limited = top_df.groupby("STUDY_ID", group_keys=False).head(max_per_study)
+            top_df_limited = top_df.groupby("project_id", group_keys=False).head(max_per_study)
 
             # Now take the top k_knn overall, after applying the per-study cap
             _selected_df = top_df_limited.head(KNN_VALUE_DEFAULT)

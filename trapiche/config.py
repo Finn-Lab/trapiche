@@ -26,6 +26,8 @@ class TrapicheWorkflowParams(BaseSettings):
             "constrained_unambiguous_prediction",
             "final_selected_prediction",
             "final_selected_prediction_GOLD",
+            "_raw_ext_text_pred_project",
+            "_raw_ext_text_pred_sample",
         ]
     )
     sample_study_text_heuristic: bool = False

@@ -65,3 +65,4 @@ dev = [
   "ruff==0.6.4",
   "black==24.10.0",
 ]
+helpers = ["litellm"]

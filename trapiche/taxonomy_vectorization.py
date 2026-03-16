@@ -285,7 +285,7 @@ def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None 
         "Loading mgnify_sample_vectors metadata file=%s", _mgnify_sample_vectors_metadata_file
     )
     _mgnify_sample_vectors_metadata = pd.read_csv(
-        _mgnify_sample_vectors_metadata_file, sep="\t", index_col="SAMPLE_ID"
+        _mgnify_sample_vectors_metadata_file, sep="\t", index_col="sample_id"
     )
     _mgnify_sample_vectors_metadata["BIOME_AMEND"] = _mgnify_sample_vectors_metadata.LINEAGE.map(
         lambda x: biome_herarchy_dct.get(x, x)
@@ -305,7 +305,8 @@ def vectorise_samples(
     """Vectorise one or many samples from taxonomy annotation files.
 
     samples_sequence must have EITHER keys:
-      - {"sample_taxonomy_paths": ...}
+      - {"sample_taxonomy_paths": ...}  (preferred)
+      - {"taxonomy_files_paths": ...}   (legacy alias)
       - {"study_taxonomy_path": ..., "sample_id": ...}
 
     Returns
@@ -337,8 +338,16 @@ def vectorise_samples(
 
 
         # fallback to taxonomy_paths if sample_taxonomy_terms is not found
-        if sample_taxonomy_terms is None and "sample_taxonomy_paths" in sample_dict:
-            sample_taxonomy_paths = sample_dict["sample_taxonomy_paths"]
+        # support both "sample_taxonomy_paths" and legacy "taxonomy_files_paths" key
+        _tax_paths_key = (
+            "sample_taxonomy_paths"
+            if "sample_taxonomy_paths" in sample_dict
+            else "taxonomy_files_paths"
+            if "taxonomy_files_paths" in sample_dict
+            else None
+        )
+        if sample_taxonomy_terms is None and _tax_paths_key is not None:
+            sample_taxonomy_paths = sample_dict[_tax_paths_key]
 
             # normalise to list of strings
             sample_taxonomy_paths = normalize_to_list_of_str(sample_taxonomy_paths)
@@ -346,7 +355,7 @@ def vectorise_samples(
             if not sample_taxonomy_paths:  # skip empty lists (retain index for shape)
                 logger.warning(f"No taxonomy files provided for sample index {ix}.")
                 continue
-            for f in sample_dict:
+            for f in sample_taxonomy_paths:
                 try:
                     _sample_taxonomy_terms = tax_annotations_from_file(f)
                 except Exception as e:  # defensive: keep other files processing

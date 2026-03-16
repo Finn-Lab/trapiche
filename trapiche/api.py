@@ -311,7 +311,7 @@ class TrapicheWorkflowFromSequence:
     ) -> dict:
         """Build a study-level biome summary object from per-sample results.
 
-        Groups samples by `STUDY_ID` and aggregates the final predictions into
+        Groups samples by `project_id` and aggregates the final predictions into
         two mappings per study:
           - confident: Dict[biome_string, List[sample_id]]
           - low_confidence: Dict[biome_string, List[sample_id]]
@@ -321,13 +321,13 @@ class TrapicheWorkflowFromSequence:
         from workflow params is used.
 
         Args:
-            results: Per-sample result dicts (should include STUDY_ID,
-                SAMPLE_ID, and a `final_selected_prediction` dict mapping
+            results: Per-sample result dicts (should include project_id,
+                sample_id, and a `final_selected_prediction` dict mapping
                 lineage to score).
             confidence_threshold: Optional override for confidence threshold.
 
         Returns:
-            dict: Mapping of STUDY_ID to a summary object with `confident` and
+            dict: Mapping of project_id to a summary object with `confident` and
             `low_confidence` keys.
         """
         th = (
@@ -339,9 +339,9 @@ class TrapicheWorkflowFromSequence:
         studies: dict[str, dict[str, dict[str, list[str]]]] = {}
 
         for rec in results:
-            study_id = rec.get("STUDY_ID")
-            sample_id = rec.get("SAMPLE_ID")
-            if not study_id or not sample_id:
+            project_id = rec.get("project_id")
+            sample_id = rec.get("sample_id")
+            if not project_id or not sample_id:
                 # Skip records without identifiers
                 continue
 
@@ -357,7 +357,7 @@ class TrapicheWorkflowFromSequence:
             bucket = "confident" if score >= th else "low_confidence"
             biome_key = biome if biome is not None else "__unknown__"
 
-            studies.setdefault(study_id, {"confident": {}, "low_confidence": {}})
-            studies[study_id][bucket].setdefault(biome_key, []).append(sample_id)
+            studies.setdefault(project_id, {"confident": {}, "low_confidence": {}})
+            studies[project_id][bucket].setdefault(biome_key, []).append(sample_id)
 
         return studies

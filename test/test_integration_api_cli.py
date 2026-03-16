@@ -251,5 +251,381 @@ class TestCLIIntegration(unittest.TestCase):
             tmpdir.cleanup()
 
 
+class TestExternalTextPredictions(unittest.TestCase):
+    """Tests for the external-label short-circuit in run_text_step.
+
+    These tests do not require model downloads — the internal BERT model is
+    never called when external keys are present.
+    """
+
+    def _run(self, samples, use_heuristic=False):
+        from trapiche.config import TextToBiomeParams
+        from trapiche.workflow import run_text_step
+
+        params = TextToBiomeParams()
+        return run_text_step(samples, params_obj=params, use_heuristic=use_heuristic)
+
+    def test_external_project_only(self):
+        """Single sample with ext_text_pred_project → correct text_predictions."""
+        samples = [{"ext_text_pred_project": ["root:Environmental:Aquatic"]}]
+        combined, proj, samp, flags, raw_proj, raw_samp = self._run(samples)
+        self.assertEqual(combined[0], {"root:Environmental:Aquatic": 1.0})
+        self.assertEqual(proj[0], {"root:Environmental:Aquatic": 1.0})
+        self.assertIsNone(samp[0])
+        self.assertFalse(flags[0])
+
+    def test_external_heuristic(self):
+        """Both ext keys + use_heuristic=True → heuristic applied."""
+        samples = [
+            {
+                "ext_text_pred_project": ["root:Environmental:Aquatic:Marine"],
+                "ext_text_pred_sample": ["root:Environmental:Aquatic"],
+            }
+        ]
+        combined, proj, samp, flags, raw_proj, raw_samp = self._run(samples, use_heuristic=True)
+        # heuristic should fire
+        self.assertTrue(flags[0])
+        self.assertIsNotNone(combined[0])
+        self.assertIsNotNone(proj[0])
+        self.assertIsNotNone(samp[0])
+
+    def test_mixed_batch_skips_internal(self):
+        """Batch where only one sample has ext key → other sample gets None; internal model never called."""
+        from unittest.mock import patch
+
+        samples = [
+            {"ext_text_pred_project": ["root:Environmental:Aquatic"]},
+            {"project_description_text": "some text"},
+        ]
+        with patch("trapiche.workflow.tt") as mock_tt:
+            combined, proj, samp, flags, raw_proj, raw_samp = self._run(samples)
+            mock_tt.predict.assert_not_called()
+
+        self.assertEqual(combined[0], {"root:Environmental:Aquatic": 1.0})
+        self.assertIsNone(combined[1])
+
+    def test_invalid_label_raises(self):
+        """A malformed label raises ValueError."""
+        from trapiche.utils import validate_biome_labels
+
+        with self.assertRaises(ValueError):
+            validate_biome_labels(["not-a-valid-biome"])
+
+        with self.assertRaises(ValueError):
+            validate_biome_labels(["root"])  # no child nodes
+
+    def test_empty_list_is_none(self):
+        """ext_text_pred_project=[] is treated as absent → combined is None."""
+        samples = [{"ext_text_pred_project": []}]
+        combined, proj, samp, flags, raw_proj, raw_samp = self._run(samples)
+        self.assertIsNone(combined[0])
+        self.assertIsNone(proj[0])
+        self.assertFalse(flags[0])
+
+
+class TestBiomeLabelNormalization(unittest.TestCase):
+    """Tests for normalize_and_canonicalize_labels and helpers."""
+
+    def _skip_if_no_asset(self):
+        try:
+            from trapiche.utils import load_biome_herarchy_dict
+
+            load_biome_herarchy_dict()
+        except FileNotFoundError:
+            self.skipTest("Biome hierarchy asset not available")
+
+    def test_normalize_label_str(self):
+        from trapiche.utils import _normalize_label_str
+
+        self.assertEqual(
+            _normalize_label_str(" root : Environmental : Aquatic "),
+            "root:environmental:aquatic",
+        )
+
+    def test_canonicalize_known_label(self):
+        """Exact-match lowercase label resolves to canonical form."""
+        self._skip_if_no_asset()
+        from trapiche.utils import normalize_and_canonicalize_labels
+
+        result = normalize_and_canonicalize_labels(["root:environmental:aquatic"])
+        self.assertEqual(result, ["root:Environmental:Aquatic"])
+
+    def test_canonicalize_label_with_spaces(self):
+        """Label with surrounding spaces/mixed case resolves to canonical form."""
+        self._skip_if_no_asset()
+        from trapiche.utils import normalize_and_canonicalize_labels
+
+        result = normalize_and_canonicalize_labels(["root:Environmental :Aquatic"])
+        self.assertEqual(result, ["root:Environmental:Aquatic"])
+
+    def test_unknown_label_dropped(self):
+        """A label not in the GOLD ontology is dropped and a warning is emitted."""
+        self._skip_if_no_asset()
+        import logging
+
+        from trapiche.utils import normalize_and_canonicalize_labels
+
+        with self.assertLogs("trapiche.utils", level=logging.WARNING):
+            result = normalize_and_canonicalize_labels(["root:Nonexistent:Biome"])
+        self.assertEqual(result, [])
+
+    def test_mixed_labels(self):
+        """One valid + one unknown → only the valid canonical label is returned."""
+        self._skip_if_no_asset()
+        from trapiche.utils import normalize_and_canonicalize_labels
+
+        result = normalize_and_canonicalize_labels(
+            ["root:environmental:aquatic", "root:Nonexistent:Biome"]
+        )
+        self.assertEqual(result, ["root:Environmental:Aquatic"])
+
+    def test_to_trapiche_samples_normalizes(self):
+        """to_trapiche_samples canonicalizes labels with extra whitespace."""
+        self._skip_if_no_asset()
+        from trapiche.helpers.llm_text_pred import to_trapiche_samples
+
+        enriched = [
+            {
+                "project_id": "p1",
+                "project_ecosystems": ["root:Environmental :Aquatic:Marine "],
+                "samples": [
+                    {
+                        "sample_id": "s1",
+                        "sample_ecosystems": [" root:Environmental:Aquatic"],
+                    }
+                ],
+            }
+        ]
+        result = to_trapiche_samples(enriched)
+        self.assertEqual(len(result), 1)
+        self.assertIn("root:Environmental:Aquatic:Marine", result[0]["ext_text_pred_project"])
+        self.assertIn("root:Environmental:Aquatic", result[0]["ext_text_pred_sample"])
+
+    def test_external_step_normalizes(self):
+        """_run_text_step_external accepts lowercase labels and returns canonical predictions."""
+        self._skip_if_no_asset()
+        from trapiche.config import TextToBiomeParams
+        from trapiche.workflow import run_text_step
+
+        samples = [{"ext_text_pred_project": ["root:environmental:aquatic"]}]
+        params = TextToBiomeParams()
+        combined, proj, samp, flags, raw_proj, raw_samp = run_text_step(
+            samples, params_obj=params, use_heuristic=False
+        )
+        self.assertIsNotNone(combined[0])
+        self.assertIn("root:Environmental:Aquatic", combined[0])
+
+    def test_fuzzy_match_label_exact_overlap(self):
+        """_fuzzy_match_label returns expected canonical for partial-overlap label."""
+        from trapiche.utils import _fuzzy_match_label
+
+        lower_to_canonical = {
+            "root:environmental:aquatic": "root:Environmental:Aquatic",
+            "root:environmental:terrestrial": "root:Environmental:Terrestrial",
+            "root:engineered": "root:Engineered",
+        }
+        # "root:environmental:aquatic:marine" shares 3 terms with aquatic key
+        result = _fuzzy_match_label("root:environmental:aquatic:marine", lower_to_canonical)
+        self.assertEqual(result, ["root:Environmental:Aquatic"])
+
+    def test_fuzzy_match_label_tie(self):
+        """_fuzzy_match_label returns all tied candidates."""
+        from trapiche.utils import _fuzzy_match_label
+
+        lower_to_canonical = {
+            "root:a:b": "root:A:B",
+            "root:a:c": "root:A:C",
+        }
+        # "root:a:x" shares 2 terms with both keys
+        result = _fuzzy_match_label("root:a:x", lower_to_canonical)
+        self.assertIn("root:A:B", result)
+        self.assertIn("root:A:C", result)
+        self.assertEqual(len(result), 2)
+
+    def test_fuzzy_match_label_no_overlap(self):
+        """_fuzzy_match_label returns [] when there is no term overlap."""
+        from trapiche.utils import _fuzzy_match_label
+
+        lower_to_canonical = {"root:environmental:aquatic": "root:Environmental:Aquatic"}
+        result = _fuzzy_match_label("completely:different:terms", lower_to_canonical)
+        self.assertEqual(result, [])
+
+    def test_normalize_with_fuzzy_fallback(self):
+        """normalize_and_canonicalize_labels with fuzzy_fallback=True resolves near-miss."""
+        self._skip_if_no_asset()
+        from trapiche.utils import normalize_and_canonicalize_labels
+
+        # "root:Environmental:Aquatic:Marine" may or may not be in the ontology;
+        # "root:Environmental:Aquatic" is known. A near-miss unknown label that
+        # overlaps maximally should resolve rather than being dropped.
+        # Use a mock lower_to_canonical to test the fuzzy path directly.
+        from unittest.mock import patch
+        from trapiche import utils as _utils
+
+        fake_canonical = {
+            "root:environmental:aquatic": "root:Environmental:Aquatic",
+        }
+        with patch.object(_utils, "_build_lower_to_canonical", return_value=fake_canonical):
+            # exact match — should still work
+            result_exact = normalize_and_canonicalize_labels(
+                ["root:Environmental:Aquatic"], fuzzy_fallback=True
+            )
+            self.assertEqual(result_exact, ["root:Environmental:Aquatic"])
+
+            # near-miss: shares root+environmental+aquatic (3 terms)
+            result_fuzzy = normalize_and_canonicalize_labels(
+                ["root:Environmental:Aquatic:Marine"], fuzzy_fallback=True
+            )
+            self.assertEqual(result_fuzzy, ["root:Environmental:Aquatic"])
+
+    def test_normalize_without_fuzzy_fallback_drops(self):
+        """normalize_and_canonicalize_labels without fuzzy_fallback drops unknown labels."""
+        self._skip_if_no_asset()
+        from unittest.mock import patch
+        from trapiche import utils as _utils
+        from trapiche.utils import normalize_and_canonicalize_labels
+
+        fake_canonical = {
+            "root:environmental:aquatic": "root:Environmental:Aquatic",
+        }
+        with patch.object(_utils, "_build_lower_to_canonical", return_value=fake_canonical):
+            import logging
+
+            with self.assertLogs("trapiche.utils", level=logging.WARNING):
+                result = normalize_and_canonicalize_labels(
+                    ["root:Environmental:Aquatic:Marine"], fuzzy_fallback=False
+                )
+            self.assertEqual(result, [])
+
+
+class TestExternalRawLabelPreservation(unittest.TestCase):
+    """Tests for raw label preservation in the external pathway."""
+
+    def _skip_if_no_asset(self):
+        try:
+            from trapiche.utils import load_biome_herarchy_dict
+
+            load_biome_herarchy_dict()
+        except FileNotFoundError:
+            self.skipTest("Biome hierarchy asset not available")
+
+    def test_run_text_step_returns_six_tuple_internal(self):
+        """Internal BERT pathway returns 6-tuple with None raw lists."""
+        from unittest.mock import MagicMock, patch
+        from trapiche.config import TextToBiomeParams
+        from trapiche.workflow import run_text_step
+
+        params = TextToBiomeParams()
+        samples = [{"project_description_text": "some text about the environment"}]
+
+        mock_pred = {"root:Environmental:Aquatic": 0.9}
+        with patch("trapiche.workflow.tt") as mock_tt:
+            mock_tt.predict.return_value = [mock_pred]
+            result = run_text_step(samples, params_obj=params, use_heuristic=False)
+
+        self.assertEqual(len(result), 6)
+        combined, proj, samp, flags, raw_proj, raw_samp = result
+        self.assertIsNone(raw_proj[0])
+        self.assertIsNone(raw_samp[0])
+
+    def test_run_text_step_returns_raw_labels_external(self):
+        """External pathway: raw labels are captured before canonicalization."""
+        from trapiche.config import TextToBiomeParams
+        from trapiche.workflow import run_text_step
+
+        raw_label = "root:Environmental:Aquatic"
+        samples = [{"ext_text_pred_project": [raw_label]}]
+        params = TextToBiomeParams()
+        combined, proj, samp, flags, raw_proj, raw_samp = run_text_step(
+            samples, params_obj=params, use_heuristic=False
+        )
+        self.assertIsNotNone(raw_proj[0])
+        self.assertIn(raw_label, raw_proj[0])
+        self.assertIsNone(raw_samp[0])
+
+    def test_run_workflow_emits_raw_keys(self):
+        """run_workflow includes _raw_ext_text_pred_project/sample in output."""
+        from unittest.mock import patch
+        from trapiche.config import (
+            TaxonomyToBiomeParams,
+            TaxonomyToVectorParams,
+            TextToBiomeParams,
+        )
+        from trapiche.workflow import run_workflow
+
+        raw_label = "root:Environmental:Aquatic"
+        samples = [{"ext_text_pred_project": [raw_label]}]
+
+        with patch("trapiche.workflow.c2v_mod") as mock_c2v, patch(
+            "trapiche.workflow.taxonomy_prediction"
+        ):
+            import numpy as np
+
+            mock_c2v.vectorise_samples.return_value = [np.zeros(128)]
+            result = run_workflow(
+                samples,
+                text_params=TextToBiomeParams(),
+                vectorise_params=TaxonomyToVectorParams(),
+                taxonomy_params=TaxonomyToBiomeParams(),
+                run_text=True,
+                run_vectorise=False,
+                run_taxonomy=False,
+            )
+
+        self.assertEqual(len(result), 1)
+        self.assertIn("_raw_ext_text_pred_project", result[0])
+        self.assertIn(raw_label, result[0]["_raw_ext_text_pred_project"])
+
+    def test_to_trapiche_samples_raw_keys(self):
+        """to_trapiche_samples propagates _raw_ext_text_pred_* keys."""
+        from trapiche.helpers.llm_text_pred import to_trapiche_samples
+
+        enriched = [
+            {
+                "project_id": "p1",
+                "project_ecosystems": ["root:Environmental:Aquatic"],
+                "_raw_project_ecosystems": ["root:Environmental:Aquatic:Marine"],
+                "samples": [
+                    {
+                        "sample_id": "s1",
+                        "sample_ecosystems": ["root:Environmental:Aquatic"],
+                        "_raw_sample_ecosystems": ["root:Environmental :Aquatic"],
+                    }
+                ],
+            }
+        ]
+        result = to_trapiche_samples(enriched)
+        self.assertEqual(len(result), 1)
+        self.assertIn("_raw_ext_text_pred_project", result[0])
+        self.assertIn("_raw_ext_text_pred_sample", result[0])
+        self.assertIn("root:Environmental:Aquatic:Marine", result[0]["_raw_ext_text_pred_project"])
+        self.assertIn("root:Environmental :Aquatic", result[0]["_raw_ext_text_pred_sample"])
+
+    def test_validate_and_clean_saves_raw(self):
+        """_validate_and_clean stores _raw_project_ecosystems and _raw_sample_ecosystems."""
+        from trapiche.helpers.llm_text_pred import _validate_and_clean
+
+        enriched = [
+            {
+                "project_id": "p1",
+                "project_ecosystems": ["root:Environmental:Aquatic"],
+                "samples": [
+                    {
+                        "sample_id": "s1",
+                        "sample_ecosystems": ["root:Environmental:Aquatic:Marine"],
+                    }
+                ],
+            }
+        ]
+        cleaned = _validate_and_clean(enriched)
+        self.assertEqual(len(cleaned), 1)
+        proj = cleaned[0]
+        self.assertIn("_raw_project_ecosystems", proj)
+        self.assertEqual(proj["_raw_project_ecosystems"], ["root:Environmental:Aquatic"])
+        sample = proj["samples"][0]
+        self.assertIn("_raw_sample_ecosystems", sample)
+        self.assertEqual(sample["_raw_sample_ecosystems"], ["root:Environmental:Aquatic:Marine"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,677 @@
+{
+  "root": {
+    "control": null,
+    "engineered": {
+      "biogas plant": {
+        "wet fermentation": null
+      },
+      "bioreactor": {
+        "continuous culture": {
+          "marine intertidal flat sediment inoculum": {
+            "wadden sea-germany": null
+          },
+          "marine sediment inoculum": {
+            "wadden sea-germany": null
+          }
+        }
+      },
+      "bioremediation": {
+        "hydrocarbon": {
+          "benzene": {
+            "bioreactor": null
+          }
+        },
+        "metal": null,
+        "persistent organic pollutants (pop)": {
+          "polycyclic aromatic hydrocarbons": null
+        },
+        "terephthalate": {
+          "wastewater": {
+            "activated sludge": null,
+            "bioreactor": null
+          }
+        },
+        "tetrachloroethylene and derivatives": {
+          "chloroethene": {
+            "bioreactor": null
+          },
+          "tetrachloroethylene": {
+            "bioreactor": null
+          }
+        }
+      },
+      "biotransformation": {
+        "microbial enhanced oil recovery": null,
+        "microbial solubilization of coal": null,
+        "mixed alcohol bioreactor": null
+      },
+      "built environment": null,
+      "food production": {
+        "dairy products": null,
+        "fermented beverages": null,
+        "fermented seafood": null,
+        "fermented vegetables": null,
+        "silage fermentation": null
+      },
+      "industrial production": {
+        "engineered product": null
+      },
+      "lab synthesis": {
+        "genetic cross": null
+      },
+      "lab enrichment": {
+        "defined media": {
+          "aerobic media": null,
+          "anaerobic media": null,
+          "marine media": {
+            "algoconsortia": null
+          }
+        },
+        "undefined media": null
+      },
+      "modeled": {
+        "simulated communities (dna mixture)": null,
+        "simulated communities (microbial mixture)": null,
+        "simulated communities (sequence read mixture)": {
+          "sanger": null
+        }
+      },
+      "solid waste": {
+        "composting": {
+          "bioreactor": null,
+          "grass": {
+            "bioreactor": null
+          },
+          "wood": {
+            "bioreactor": null
+          }
+        },
+        "landfill": null,
+        "solid animal waste": null
+      },
+      "wastewater": {
+        "activated sludge": null,
+        "industrial wastewater": {
+          "agricultural wastewater": null,
+          "landfill leachate": null,
+          "mine water": null,
+          "petrochemical": null,
+          "pulp and paper wastewater": null
+        },
+        "nutrient removal": {
+          "biological phosphorus removal": {
+            "activated sludge": null,
+            "bioreactor": null
+          },
+          "dissolved organics (aerobic)": {
+            "activated sludge": null
+          },
+          "dissolved organics (anaerobic)": {
+            "activated sludge": null
+          },
+          "nitrogen removal": {
+            "anammox": null
+          }
+        },
+        "water and sludge": null
+      }
+    },
+    "environmental": {
+      "air": {
+        "indoor air": null,
+        "outdoor air": null
+      },
+      "aquatic": {
+        "aquaculture": null,
+        "estuary": {
+          "sediment": null
+        },
+        "freshwater": {
+          "drinking water": {
+            "chlorinated": null,
+            "delivery networks": null
+          },
+          "groundwater": {
+            "acid mine drainage": null,
+            "biofilm": null,
+            "cave water": null,
+            "coalbed water": null,
+            "contaminated": null,
+            "mine": null,
+            "mine drainage": null
+          },
+          "ice": {
+            "glacial lake": null,
+            "glacier": null,
+            "ice accretions": null
+          },
+          "lake": null,
+          "lentic": {
+            "epilimnion": null,
+            "hypolimnion": null,
+            "limnetic zone": null,
+            "littoral zone": null,
+            "sediment": null
+          },
+          "lotic": {
+            "acidic": null,
+            "low land river systems": null,
+            "microbial mats": null,
+            "mid stream": null,
+            "sediment": null
+          },
+          "microbialites": null,
+          "pond": {
+            "sediment": null
+          },
+          "sediment": null,
+          "storm water": {
+            "drainage pipe biofilm": null
+          },
+          "subglacial lake": null,
+          "wetlands": {
+            "bog": null,
+            "marsh": null,
+            "sediment": null,
+            "swamp": null
+          }
+        },
+        "lentic": {
+          "brackish": null
+        },
+        "marine": {
+          "brackish": null,
+          "coastal": {
+            "sediment": null
+          },
+          "cold seeps": {
+            "sediment": null
+          },
+          "fossil": {
+            "whale fall": null
+          },
+          "hydrothermal vents": {
+            "black smokers": null,
+            "diffuse flow": null,
+            "microbial mats": null,
+            "sediment": null
+          },
+          "intertidal zone": {
+            "beach": null,
+            "coral reef": null,
+            "estuary": null,
+            "mangrove swamp": null,
+            "microbialites": null,
+            "oil-contaminated": null,
+            "salt marsh": null,
+            "sediment": null
+          },
+          "marginal sea": null,
+          "neritic zone": {
+            "oil-contaminated sediment": null,
+            "sediment": null
+          },
+          "oceanic": {
+            "abyssal plane": null,
+            "aphotic zone": null,
+            "benthic": null,
+            "oil-contaminated": null,
+            "oil-contaminated sediments": null,
+            "photic zone": null,
+            "sediment": null
+          },
+          "oil field": {
+            "bore hole": null
+          },
+          "oil seeps": null,
+          "oil-contaminated sediment": null,
+          "pelagic": null,
+          "sediment": null,
+          "volcanic": null,
+          "wetlands": {
+            "sediment": null
+          }
+        },
+        "meromictic lake": null,
+        "non-marine saline and alkaline": {
+          "alkaline": {
+            "carbonate": null,
+            "microbial mats": null,
+            "sediment": null
+          },
+          "hypersaline": {
+            "microbial mats": null,
+            "sediment": null
+          },
+          "near-boiling (>90c)": {
+            "alkaline": null
+          },
+          "saline": {
+            "athalassic": null,
+            "epilimnion": null,
+            "hypolimnion": null,
+            "microbial mats": null,
+            "sediment": null,
+            "thalassic": null
+          },
+          "salt crystallizer pond": {
+            "microbial mats": null
+          }
+        },
+        "sediment": null,
+        "thermal springs": {
+          "hot (42-90c)": {
+            "acidic": null,
+            "alkaline": null,
+            "neutral": null,
+            "sediment": null
+          },
+          "near-boiling (>90c)": {
+            "alkaline": null
+          },
+          "sediment": null,
+          "tepid (25-34c)": {
+            "sediment": null
+          },
+          "warm (34-42c)": {
+            "neutral": null,
+            "sediment": null
+          }
+        }
+      },
+      "terrestrial": {
+        "agricultural field": null,
+        "asphalt lakes": {
+          "tar": null
+        },
+        "deep subsurface": {
+          "clay": null
+        },
+        "geologic": {
+          "mine": null
+        },
+        "oil reservoir": null,
+        "rock-dwelling (subaerial biofilm)": null,
+        "soil": {
+          "agricultural": null,
+          "boreal forest": null,
+          "clay": {
+            "agricultural land": null,
+            "contaminated": null,
+            "grasslands": null,
+            "oil-contaminated": null
+          },
+          "contaminated": null,
+          "crop": {
+            "agricultural land": null
+          },
+          "desert": null,
+          "forest soil": null,
+          "grasslands": null,
+          "loam": {
+            "agricultural": null,
+            "contaminated": null,
+            "forest soil": null,
+            "grasslands": null
+          },
+          "mine": null,
+          "mine drainage": null,
+          "oil-contaminated": null,
+          "permafrost": null,
+          "sand": {
+            "desert": null,
+            "forest soil": null,
+            "grasslands": null,
+            "oil-contaminated": null
+          },
+          "shrubland": null,
+          "silt": null,
+          "tropical rainforest": null,
+          "uranium contaminated": null,
+          "viriome": null,
+          "wetlands": {
+            "permafrost": null
+          }
+        },
+        "volcanic": {
+          "fumaroles": null
+        }
+      }
+    },
+    "host-associated": {
+      "algae": {
+        "brown algae": null,
+        "green algae": {
+          "ectosymbionts": null
+        },
+        "red algae": {
+          "ectosymbionts": null
+        }
+      },
+      "amphibia": {
+        "digestive system": null,
+        "excretory system": null
+      },
+      "animal": {
+        "circulatory system": null,
+        "digestive system": {
+          "fecal": null
+        },
+        "fossil": {
+          "bone": null,
+          "feces": null
+        },
+        "reproductive system": null,
+        "respiratory system": null,
+        "skin": null
+      },
+      "annelida": {
+        "digestive system": {
+          "digestive tube": {
+            "extracellular symbionts": null
+          }
+        },
+        "integument": {
+          "cuticle": {
+            "epibionts": null
+          },
+          "subcuticular space": {
+            "extracellular symbionts": null
+          }
+        },
+        "intracellular endosymbionts": {
+          "trophosome": null
+        },
+        "reproductive system": {
+          "egg capsule": {
+            "extracellular": null
+          }
+        }
+      },
+      "arthropoda": {
+        "digestive system": {
+          "foregut": null,
+          "gut": {
+            "p3 segment": null,
+            "proctodeal segment": null
+          },
+          "hindgut": {
+            "p1 segment": null,
+            "p3 segment": null
+          },
+          "midgut": null,
+          "oral": {
+            "saliva": null
+          }
+        },
+        "integument": {
+          "cuticle": {
+            "thoracic segments": null
+          }
+        },
+        "intracellular endosymbionts": {
+          "primary": {
+            "bacteriomes": null
+          },
+          "secondary": null
+        },
+        "oral cavity": null,
+        "respiratory system": {
+          "gills": null
+        },
+        "symbiotic fungal gardens and galleries": {
+          "fungus gallery": null,
+          "fungus garden": {
+            "garden dump": null
+          }
+        },
+        "venom gland": {
+          "venom": null
+        }
+      },
+      "birds": {
+        "circulatory system": {
+          "blood": null
+        },
+        "digestive system": {
+          "ceca": {
+            "lumen": null
+          },
+          "crop": {
+            "lumen": null
+          },
+          "digestive tube": {
+            "cecum": null
+          },
+          "fecal": null,
+          "small intestine": {
+            "duodenal": null
+          }
+        },
+        "reproductive system": null,
+        "respiratory system": {
+          "lungs": null
+        }
+      },
+      "cnidaria": null,
+      "echinodermata": null,
+      "endosymbionts": {
+        "fungi": {
+          "endosymbionts": null
+        }
+      },
+      "fish": {
+        "circulatory system": {
+          "blood": null
+        },
+        "digestive system": {
+          "foregut": {
+            "uncharacterized": null
+          },
+          "intestine": null
+        },
+        "excretory system": {
+          "kidneys": null
+        },
+        "reproductive system": null,
+        "skin": {
+          "slime": null
+        }
+      },
+      "fungi": null,
+      "human": {
+        "circulatory system": {
+          "blood": null
+        },
+        "digestive system": {
+          "hindgut": {
+            "rectum": null
+          },
+          "intestine": null,
+          "large intestine": {
+            "fecal": null,
+            "sigmoid colon": null
+          },
+          "oral": {
+            "attached keratinized gingiva": null,
+            "palatine tonsils": null,
+            "periodontal pockets": null,
+            "saliva": null,
+            "subgingival plaque": null,
+            "supragingival plaque": null,
+            "throat": null,
+            "buccal mucosa": null,
+            "hard palate": null,
+            "tongue dorsum": null
+          }
+        },
+        "excretory system": {
+          "urethra": {
+            "urine": null
+          }
+        },
+        "fossil": {
+          "bone": null
+        },
+        "lympathic system": {
+          "lymph nodes": null
+        },
+        "milk": null,
+        "nervous system": {
+          "cerebrospinal fluid": null
+        },
+        "reproductive system": {
+          "female": null,
+          "vagina": {
+            "introitus": null,
+            "midpoint vagina": null,
+            "posterior fornix": null
+          }
+        },
+        "respiratory system": {
+          "nasopharyngeal": {
+            "nasal cavity": null,
+            "pharynx": null,
+            "anterior nares": null
+          },
+          "pulmonary system": {
+            "lung": null,
+            "sputum": null,
+            "trachea": null,
+            "viriome": null
+          }
+        },
+        "skin": {
+          "axilla": null,
+          "medial distal leg": {
+            "venous leg ulcers": null
+          },
+          "naris": null,
+          "umbilicus": null,
+          "volar forearm": null,
+          "retroauricular crease": null
+        }
+      },
+      "insecta": {
+        "digestive system": null
+      },
+      "invertebrates": {
+        "bryozoans": {
+          "gymnolaemates": null
+        },
+        "cnidaria": {
+          "coral": null
+        },
+        "echinodermata": {
+          "sea urchin": null
+        }
+      },
+      "mammals": {
+        "circulatory system": {
+          "blood": null
+        },
+        "digestive system": {
+          "fecal": {
+            "uncharacterized": null
+          },
+          "foregut": {
+            "rumen": null
+          },
+          "large intestine": {
+            "cecum": null,
+            "fecal": null
+          },
+          "midgut": null,
+          "oral cavity": {
+            "buccal mucosa": null
+          },
+          "stomach": {
+            "endoperitrophic space": null,
+            "rumen": null
+          }
+        },
+        "excretory system": {
+          "urine": null
+        },
+        "gastrointestinal tract": {
+          "intestine": {
+            "fecal": null
+          }
+        },
+        "lymphatic": {
+          "lymph nodes": null
+        },
+        "milk": null,
+        "nervous system": {
+          "brain": null
+        },
+        "reproductive system": null,
+        "respiratory system": {
+          "nasopharyngeal": {
+            "nasal cavity": null
+          },
+          "pulmonary system": {
+            "viriome": null
+          }
+        },
+        "skin": null
+      },
+      "microbial": {
+        "bacteria": null,
+        "dinoflagellates": {
+          "endosymbionts": null
+        }
+      },
+      "mollusca": {
+        "digestive system": {
+          "ceca": {
+            "uncharacterized": null
+          },
+          "glands": null
+        },
+        "respiratory system": {
+          "gills": {
+            "extracellular": null,
+            "intracellular": null
+          }
+        },
+        "shell": null
+      },
+      "plants": {
+        "phylloplane": {
+          "endophytes": null,
+          "epiphytes": null
+        },
+        "rhizome": {
+          "epiphytes": null
+        },
+        "rhizoplane": {
+          "endophytes": null,
+          "epiphytes": null,
+          "soil": null
+        },
+        "rhizosphere": {
+          "epiphytes": null,
+          "forest soil": null,
+          "soil": null
+        },
+        "root": null
+      },
+      "porifera": null,
+      "protists": null,
+      "protozoa": null,
+      "reptile": {
+        "oral cavity": {
+          "venom gland": {
+            "venom": null
+          }
+        }
+      },
+      "spiralia": null,
+      "tunicates": {
+        "ascidians": null
+      }
+    },
+    "mixed": null
+  }
+}

@@ -31,6 +31,7 @@ __all__ = [
     "set_info_theoretic_metrics",
     "fetch_data_from_ebi",
     "get_project_text_description",
+    "normalize_and_canonicalize_labels",
 ]
 
 import gzip
@@ -488,16 +489,16 @@ def split_tt(df, frac, rs, lin):
         for g, gr in tdf.groupby("d3"):
             expected = int(gr.shape[0] * frac)
             if gr.project.nunique() == 1:
-                test_samples.extend(gr.sample(frac=frac, random_state=rs).SAMPLE_ID.values)
+                test_samples.extend(gr.sample(frac=frac, random_state=rs).sample_id.values)
             else:
                 accum = 0
                 for ix, n in gr.project.value_counts().sample(frac=1, random_state=rs).items():
-                    momo = tdf[tdf.project == ix].SAMPLE_ID
+                    momo = tdf[tdf.project == ix].sample_id
                     test_samples.extend(momo)
                     accum += momo.shape[0]
                     if accum >= expected:
                         break
-    test_ixes = df[df.SAMPLE_ID.isin(test_samples)].index
+    test_ixes = df[df.sample_id.isin(test_samples)].index
     df["IS_TEST"] = [False] * df.shape[0]
     df.loc[test_ixes, "IS_TEST"] = True
 
@@ -526,10 +527,10 @@ def subsamp(df, random_state=None, top=1200):
     samps = []
     for g, gr in df.groupby("lineage"):
         if gr.shape[0] > top:
-            samps.extend(gr.sample(top, random_state=random_state).SAMPLE_ID.values)
+            samps.extend(gr.sample(top, random_state=random_state).sample_id.values)
         else:
-            samps.extend(gr.SAMPLE_ID.values)
-    new_df = df[df.SAMPLE_ID.isin(samps)]
+            samps.extend(gr.sample_id.values)
+    new_df = df[df.sample_id.isin(samps)]
     return new_df
 
 
@@ -801,6 +802,170 @@ def get_similar_predictions(probabilities, diff_thresh=0.05, ratio_thresh=0.9):
             break
 
     return similar_indices
+
+
+_BIOME_LABEL_RE = re.compile(r"^root(:[^:]+)+$")
+
+
+def validate_biome_labels(labels: list) -> None:
+    """Validate that each label follows the root:... hierarchy format.
+
+    Args:
+        labels: List of biome label strings to validate.
+
+    Raises:
+        ValueError: If any label is not a non-empty string matching
+            the expected format.
+    """
+    for label in labels:
+        if not isinstance(label, str) or not _BIOME_LABEL_RE.match(label):
+            raise ValueError(
+                f"Invalid biome label {label!r}. "
+                "Expected format: 'root:Category[:Subcategory...]'."
+            )
+
+
+def _normalize_label_str(label: str) -> str:
+    """Normalize a biome label string for case-insensitive lookup.
+
+    Splits on ':', strips and lowercases each term, rejoins with ':'.
+
+    Args:
+        label: Raw biome label string.
+
+    Returns:
+        str: Normalized label string.
+    """
+    return ":".join(term.strip().lower() for term in label.split(":"))
+
+
+@lru_cache(maxsize=1)
+def _build_lower_to_canonical() -> dict:
+    """Build a mapping from normalized label to canonical GOLD form.
+
+    Returns:
+        dict: Maps normalized label string to canonical label string.
+            Returns {} if the biome hierarchy asset is not yet available.
+    """
+    try:
+        biome_herarchy_dct, _ = load_biome_herarchy_dict()
+    except FileNotFoundError:
+        logger.warning(
+            "Biome hierarchy asset not found; label canonicalization unavailable."
+            " Falling back to format-only validation."
+        )
+        return {}
+    return {_normalize_label_str(k): k for k in biome_herarchy_dct}
+
+def _sorensen_dice_index(set_a: set, set_b: set) -> float:
+    """
+    Compute the Sørensen–Dice similarity between two sets.
+
+    Formula:
+        D(A, B) = 2 * |A ∩ B| / (|A| + |B|)
+
+    Returns:
+        A value between 0 and 1.
+        - 1.0 if the sets are identical
+        - 0.0 if they share no elements
+        - 1.0 if both sets are empty
+    """
+    if not set_a and not set_b:
+        return 1.0
+
+    intersection_size = len(set_a & set_b)
+    return 2 * intersection_size / (len(set_a) + len(set_b))
+
+def _fuzzy_match_label(normalized_label: str, lower_to_canonical: dict) -> list[str]:
+    """Return canonical labels whose normalized keys have maximum term overlap.
+
+    Overlap = |terms(normalized_label) ∩ terms(candidate_key)|.
+    Returns the canonical form(s) of all tied best-matching keys.
+    Returns [] when no term overlap exists at all.
+
+    Args:
+        normalized_label: Already-normalized label string (output of
+            ``_normalize_label_str``).
+        lower_to_canonical: Mapping from normalized label to canonical form.
+
+    Returns:
+        list[str]: Best-matching canonical label(s), or [] if no overlap.
+    """
+    query_terms = set(normalized_label.split(":"))
+    best_score = 0
+    best_canonicals: list[str] = []
+    for key, canonical in lower_to_canonical.items():
+        score = _sorensen_dice_index(query_terms, set(key.split(":")))
+        if score > best_score:
+            best_score = score
+            best_canonicals = [canonical]
+        elif score == best_score and score > 0:
+            best_canonicals.append(canonical)
+    return best_canonicals if best_score > 0 else []
+
+
+def normalize_and_canonicalize_labels(
+    labels: list, *, warn_prefix: str = "", fuzzy_fallback: bool = False
+) -> list:
+    """Normalize whitespace/case and resolve each label to its canonical GOLD form.
+
+    Unknown labels (not present in the GOLD ontology) are dropped with a
+    warning. When the biome hierarchy asset is unavailable the original
+    labels are validated by format only and returned unchanged.
+
+    Args:
+        labels: List of raw biome label strings.
+        warn_prefix: Optional string prepended to warning messages
+            (e.g. sample identifier).
+        fuzzy_fallback: When True, labels not found by exact lookup are
+            resolved via term-overlap fuzzy matching against the ontology.
+            Unambiguous matches are info-logged; ambiguous matches are
+            warning-logged and all tied candidates are added; zero-overlap
+            labels are still dropped with a warning.
+
+    Returns:
+        list[str]: Cleaned list of canonical GOLD label strings.
+    """
+    lower_to_canonical = _build_lower_to_canonical()
+
+    if not lower_to_canonical:
+        # Asset unavailable — fall back to format-only validation
+        validate_biome_labels(labels)
+        return list(labels)
+
+    result = []
+    for label in labels:
+        key = _normalize_label_str(label)
+        canonical = lower_to_canonical.get(key)
+        if canonical is not None:
+            result.append(canonical)
+        elif fuzzy_fallback:
+            matches = _fuzzy_match_label(key, lower_to_canonical)
+            if not matches:
+                logger.warning(
+                    "%sUnknown biome label %r; dropping.", warn_prefix, label
+                )
+            elif len(matches) == 1:
+                logger.info(
+                    "%sUnknown biome label %r; resolved via fuzzy match to %r.",
+                    warn_prefix,
+                    label,
+                    matches[0],
+                )
+                result.append(matches[0])
+            else:
+                logger.warning(
+                    "%sUnknown biome label %r; ambiguous fuzzy match: %r; adding all.",
+                    warn_prefix,
+                    label,
+                    matches,
+                )
+                result.extend(matches)
+        else:
+            logger.warning(
+                "%sUnknown biome label %r; dropping.", warn_prefix, label
+            )
+    return result
 
 
 def obj_to_serializable(obj):
