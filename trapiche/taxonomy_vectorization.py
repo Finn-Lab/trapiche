@@ -8,18 +8,24 @@ from __future__ import annotations
 
 import json
 import logging
-import os
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Sequence
+from typing import Any
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 from gensim.models import KeyedVectors, Word2Vec
 
-from .utils import _get_hf_model_path, load_biome_herarchy_dict, normalize_to_list_of_str, read_taxonomy_study_tsv_cached, tax_annotations_from_file
+from .utils import (
+    _get_hf_model_path,
+    load_biome_herarchy_dict,
+    normalize_to_list_of_str,
+    read_taxonomy_study_tsv_cached,
+    tax_annotations_from_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +306,10 @@ def load_mgnify_c2v(*, model_name: str | None = None, model_version: str | None 
 
 
 def vectorise_samples(
-    samples_sequence: Sequence[dict[str,Any]], *, model_name: str | None = None, model_version: str | None = None
+    samples_sequence: Sequence[dict[str, Any]],
+    *,
+    model_name: str | None = None,
+    model_version: str | None = None,
 ):
     """Vectorise one or many samples from taxonomy annotation files.
 
@@ -319,7 +328,7 @@ def vectorise_samples(
     n_samples = len(samples_sequence)
     if n_samples == 0:
         return np.zeros((0, 0))
-    
+
     samples_annots: dict[int, list] = {}
     for ix, sample_dict in enumerate(samples_sequence):
 
@@ -329,22 +338,25 @@ def vectorise_samples(
             study_taxonomy_path = sample_dict["study_taxonomy_path"]
             sample_id = sample_dict["sample_id"]
             try:
-                sample_taxonomy_terms = read_taxonomy_study_tsv_cached(study_taxonomy_path).get(sample_id)
+                sample_taxonomy_terms = read_taxonomy_study_tsv_cached(study_taxonomy_path).get(
+                    sample_id
+                )
                 if sample_taxonomy_terms is None:
-                    logger.error(f"Sample ID {sample_id} not found in taxonomy file {study_taxonomy_path} while study_taxonomy_path and sample_id were provided.")
+                    logger.error(
+                        f"Sample ID {sample_id} not found in taxonomy file {study_taxonomy_path} while study_taxonomy_path and sample_id were provided."
+                    )
             except Exception as e:  # defensive: keep other files processing
                 logger.error(f"Failed to parse taxonomy file {study_taxonomy_path}: {e}")
-            samples_annots.setdefault(ix, []).extend(sample_taxonomy_terms if sample_taxonomy_terms else [])
-
+            samples_annots.setdefault(ix, []).extend(
+                sample_taxonomy_terms if sample_taxonomy_terms else []
+            )
 
         # fallback to taxonomy_paths if sample_taxonomy_terms is not found
         # support both "sample_taxonomy_paths" and legacy "taxonomy_files_paths" key
         _tax_paths_key = (
             "sample_taxonomy_paths"
             if "sample_taxonomy_paths" in sample_dict
-            else "taxonomy_files_paths"
-            if "taxonomy_files_paths" in sample_dict
-            else None
+            else "taxonomy_files_paths" if "taxonomy_files_paths" in sample_dict else None
         )
         if sample_taxonomy_terms is None and _tax_paths_key is not None:
             sample_taxonomy_paths = sample_dict[_tax_paths_key]
@@ -362,7 +374,9 @@ def vectorise_samples(
                     print(f"Failed to parse taxonomy file {f}: {e}")
                     _sample_taxonomy_terms = []
 
-            samples_annots.setdefault(ix, []).extend(_sample_taxonomy_terms if _sample_taxonomy_terms else [])
+            samples_annots.setdefault(ix, []).extend(
+                _sample_taxonomy_terms if _sample_taxonomy_terms else []
+            )
 
     # Derive genus sets and vectors per sample
     samples_genus = {k: genus_from_edges_subgraph(e) for k, e in samples_annots.items()}

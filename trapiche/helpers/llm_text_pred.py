@@ -179,7 +179,10 @@ def _build_batches(
             # take as many samples as the sample limit allows
             if sample_batch_size is not None:
                 available = sample_batch_size - current_sample_count
-                chunk, remaining_samples = remaining_samples[:available], remaining_samples[available:]
+                chunk, remaining_samples = (
+                    remaining_samples[:available],
+                    remaining_samples[available:],
+                )
             else:
                 chunk, remaining_samples = remaining_samples, []
 
@@ -209,7 +212,7 @@ def predict_biomes_from_text(
     model: str | None = None,
     *,
     litellm_kwargs: dict[str, Any] | None = None,
-    config: "LLMTextPredConfig | None" = None,
+    config: LLMTextPredConfig | None = None,
     dry_run: bool = False,
     save_prompts_dir: str | Path | None = None,
 ) -> list:
@@ -432,7 +435,9 @@ def from_workflow_samples(samples: list[dict]) -> list[dict]:
     for row in samples:
         project_id = row["project_id"]
         if "project_description_text" not in row:
-            raise ValueError(f"Row for project_id {project_id!r} is missing 'project_description_text'.")
+            raise ValueError(
+                f"Row for project_id {project_id!r} is missing 'project_description_text'."
+            )
 
         if project_id not in projects:
             projects[project_id] = {
@@ -443,7 +448,9 @@ def from_workflow_samples(samples: list[dict]) -> list[dict]:
 
         sample_id = row.get("sample_id")
         if not sample_id:
-            logger.debug("Row for project_id %r has no sample_id; skipping sample entry.", project_id)
+            logger.debug(
+                "Row for project_id %r has no sample_id; skipping sample entry.", project_id
+            )
             continue
 
         sample_desc = row.get("sample_description_text")

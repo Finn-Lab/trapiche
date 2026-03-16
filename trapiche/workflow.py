@@ -24,7 +24,7 @@ import numpy as np
 
 from . import taxonomy_prediction, taxonomy_vectorization as c2v_mod, text_prediction as tt
 from .config import TaxonomyToBiomeParams, TaxonomyToVectorParams, TextToBiomeParams
-from .utils import normalize_and_canonicalize_labels, obj_to_serializable, validate_biome_labels
+from .utils import normalize_and_canonicalize_labels, obj_to_serializable
 
 logger = logging.getLogger(__name__)
 

@@ -42,7 +42,7 @@ class Community2vec:
             extra={"model_name": self.model_name, "model_version": self.model_version},
         )
 
-    def transform(self, samples_sequence: Sequence[dict[str,Any]]) -> np.ndarray:
+    def transform(self, samples_sequence: Sequence[dict[str, Any]]) -> np.ndarray:
         """Vectorise one or many samples from taxonomy files.
 
         Args:
@@ -227,10 +227,7 @@ class TrapicheWorkflowFromSequence:
         logger.info("vectorise_params | %s", self.vectorise_params)
         logger.info("taxonomy_params | %s", self.taxonomy_params)
 
-    def run(
-        self,
-        samples: Sequence[dict[str, Any]]
-    ) -> Sequence[dict[str, Any]]:
+    def run(self, samples: Sequence[dict[str, Any]]) -> Sequence[dict[str, Any]]:
         """Execute the configured steps on samples.
 
         Args:
@@ -303,7 +300,7 @@ class TrapicheWorkflowFromSequence:
                 json.dump(record, f)
                 f.write("\n")
 
-    def build_study_summary( # TODO: implement this function to do study-level summaries. 
+    def build_study_summary(  # TODO: implement this function to do study-level summaries.
         self,
         results: Sequence[dict[str, Any]],
         *,

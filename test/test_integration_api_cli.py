@@ -453,14 +453,14 @@ class TestBiomeLabelNormalization(unittest.TestCase):
     def test_normalize_with_fuzzy_fallback(self):
         """normalize_and_canonicalize_labels with fuzzy_fallback=True resolves near-miss."""
         self._skip_if_no_asset()
-        from trapiche.utils import normalize_and_canonicalize_labels
-
         # "root:Environmental:Aquatic:Marine" may or may not be in the ontology;
         # "root:Environmental:Aquatic" is known. A near-miss unknown label that
         # overlaps maximally should resolve rather than being dropped.
         # Use a mock lower_to_canonical to test the fuzzy path directly.
         from unittest.mock import patch
+
         from trapiche import utils as _utils
+        from trapiche.utils import normalize_and_canonicalize_labels
 
         fake_canonical = {
             "root:environmental:aquatic": "root:Environmental:Aquatic",
@@ -482,6 +482,7 @@ class TestBiomeLabelNormalization(unittest.TestCase):
         """normalize_and_canonicalize_labels without fuzzy_fallback drops unknown labels."""
         self._skip_if_no_asset()
         from unittest.mock import patch
+
         from trapiche import utils as _utils
         from trapiche.utils import normalize_and_canonicalize_labels
 
@@ -511,7 +512,8 @@ class TestExternalRawLabelPreservation(unittest.TestCase):
 
     def test_run_text_step_returns_six_tuple_internal(self):
         """Internal BERT pathway returns 6-tuple with None raw lists."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
+
         from trapiche.config import TextToBiomeParams
         from trapiche.workflow import run_text_step
 
@@ -546,6 +548,7 @@ class TestExternalRawLabelPreservation(unittest.TestCase):
     def test_run_workflow_emits_raw_keys(self):
         """run_workflow includes _raw_ext_text_pred_project/sample in output."""
         from unittest.mock import patch
+
         from trapiche.config import (
             TaxonomyToBiomeParams,
             TaxonomyToVectorParams,
@@ -556,8 +559,9 @@ class TestExternalRawLabelPreservation(unittest.TestCase):
         raw_label = "root:Environmental:Aquatic"
         samples = [{"ext_text_pred_project": [raw_label]}]
 
-        with patch("trapiche.workflow.c2v_mod") as mock_c2v, patch(
-            "trapiche.workflow.taxonomy_prediction"
+        with (
+            patch("trapiche.workflow.c2v_mod") as mock_c2v,
+            patch("trapiche.workflow.taxonomy_prediction"),
         ):
             import numpy as np
 

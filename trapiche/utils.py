@@ -34,6 +34,7 @@ __all__ = [
     "normalize_and_canonicalize_labels",
 ]
 
+import csv
 import gzip
 import io
 import json
@@ -41,7 +42,6 @@ import logging
 import math
 import os
 import re
-import csv
 import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 from functools import lru_cache
@@ -182,9 +182,10 @@ def diamond_read(f):
             edges.add(edge)
     return list(edges)
 
+
 def extract_taxonomic_edges_from_tsv_row(row: str):
 
-    taxonomy_terms = set() 
+    taxonomy_terms = set()
     line = row.replace("Candidatus ", "")
     # Split line and filter out any empty strings or strings representing empty nodes like 'k__'
     lineage = [bit for bit in re.split("[\t;]", line) if "__" in bit and not bit.endswith("__")]
@@ -201,16 +202,13 @@ def extract_taxonomic_edges_from_tsv_row(row: str):
             item1, item2 = item.split("__")
             taxonomy_terms.add(
                 (
-                    prev1
-                    + "__"
-                    + prev2.split("__")[-1].replace("_", " "),
-                    item1
-                    + "__"
-                    + item2.split("__")[-1].replace("_", " "),
+                    prev1 + "__" + prev2.split("__")[-1].replace("_", " "),
+                    item1 + "__" + item2.split("__")[-1].replace("_", " "),
                 )
             )
         prev = item
     return taxonomy_terms
+
 
 def normalize_to_list_of_str(_content):
     """Normalize input to a list of strings.
@@ -227,7 +225,8 @@ def normalize_to_list_of_str(_content):
         return [str(x) for x in _content]
     else:
         raise TypeError("Input must be a string or a list/tuple of strings.")
-    
+
+
 def krona_read(content):
     """Parse Krona-style taxonomy content into edge lists.
 
@@ -857,6 +856,7 @@ def _build_lower_to_canonical() -> dict:
         return {}
     return {_normalize_label_str(k): k for k in biome_herarchy_dct}
 
+
 def _sorensen_dice_index(set_a: set, set_b: set) -> float:
     """
     Compute the Sørensen–Dice similarity between two sets.
@@ -875,6 +875,7 @@ def _sorensen_dice_index(set_a: set, set_b: set) -> float:
 
     intersection_size = len(set_a & set_b)
     return 2 * intersection_size / (len(set_a) + len(set_b))
+
 
 def _fuzzy_match_label(normalized_label: str, lower_to_canonical: dict) -> list[str]:
     """Return canonical labels whose normalized keys have maximum term overlap.
@@ -942,9 +943,7 @@ def normalize_and_canonicalize_labels(
         elif fuzzy_fallback:
             matches = _fuzzy_match_label(key, lower_to_canonical)
             if not matches:
-                logger.warning(
-                    "%sUnknown biome label %r; dropping.", warn_prefix, label
-                )
+                logger.warning("%sUnknown biome label %r; dropping.", warn_prefix, label)
             elif len(matches) == 1:
                 logger.info(
                     "%sUnknown biome label %r; resolved via fuzzy match to %r.",
@@ -962,9 +961,7 @@ def normalize_and_canonicalize_labels(
                 )
                 result.extend(matches)
         else:
-            logger.warning(
-                "%sUnknown biome label %r; dropping.", warn_prefix, label
-            )
+            logger.warning("%sUnknown biome label %r; dropping.", warn_prefix, label)
     return result
 
 
@@ -1033,7 +1030,6 @@ def obj_to_serializable(obj):
         return None
 
 
-
 @lru_cache
 def read_taxonomy_study_tsv_cached(path: str | os.PathLike) -> dict:
     """
@@ -1076,9 +1072,7 @@ def read_taxonomy_study_tsv_cached(path: str | os.PathLike) -> dict:
 
         # First column must be 'taxonomy' (case-insensitive)
         if header[0].strip().lower() != "taxonomy":
-            raise ValueError(
-                f"First column must be 'taxonomy', found {header[0]!r}"
-            )
+            raise ValueError(f"First column must be 'taxonomy', found {header[0]!r}")
 
         sample_ids = header[1:]
         if any(not s.strip() for s in sample_ids):
