@@ -301,8 +301,10 @@ def run_text_step(
             model_version=params_obj.model_version,
             device=params_obj.device,
             max_length=params_obj.max_length,
+            batch_size=params_obj.batch_size,
             threshold_rule=params_obj.threshold_rule,
             split_sentences=params_obj.split_sentences,
+            local_model_dir=params_obj.local_model_dir,
         )
 
     # Map back to samples combining with heuristic when applicable
@@ -387,7 +389,10 @@ def run_taxonomy_step(
         # When used from run_workflow, we pass community vectors explicitly; keep signature for compatibility.
         _vec_p = TaxonomyToVectorParams()
         community_vectors = c2v_mod.vectorise_samples(
-            samples, model_name=_vec_p.hf_model, model_version=_vec_p.model_version
+            samples,
+            model_name=_vec_p.hf_model,
+            model_version=_vec_p.model_version,
+            local_model_dir=_vec_p.local_model_dir,
         )
 
     # Constraints: pass text constraints as-is (list per sample) or None
@@ -455,6 +460,7 @@ def run_workflow(
             samples,
             model_name=vectorise_params.hf_model,
             model_version=vectorise_params.model_version,
+            local_model_dir=vectorise_params.local_model_dir,
         )
     else:
         community_vectors = [None for _ in samples]

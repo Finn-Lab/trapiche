@@ -47,7 +47,10 @@ def choose_device(device: str | None = None) -> str:
 
 @lru_cache(maxsize=2)
 def load_text_model(
-    model_name: str, model_version: str, device: str | None = None
+    model_name: str,
+    model_version: str,
+    device: str | None = None,
+    local_model_dir: str | None = None,
 ) -> tuple[Any, Any, Mapping[int, str], Any, Mapping[str, float]]:
     """Load tokenizer, config, model, and thresholds (cached).
 
@@ -55,23 +58,20 @@ def load_text_model(
         model_name: HF model repo.
         model_version: Semantic version or tag.
         device: Preferred device (e.g. 'cpu', 'cuda').
+        local_model_dir: Optional local directory to resolve assets from
+            instead of downloading from Hugging Face Hub (see
+            :func:`trapiche.utils._get_hf_model_path`).
 
     Returns:
         tuple: (tokenizer, config, id2label, model, thresholds).
     """
     dev = choose_device(device)
 
-    vocab_path = _get_hf_model_path(model_name, model_version, "vocab_*.txt")
-    tokenizer_json_path = _get_hf_model_path(model_name, model_version, "tokenizer_*.json")
-    tokenizer_config_path = _get_hf_model_path(model_name, model_version, "tokenizer_config_*.json")
-    special_tokens_map_path = _get_hf_model_path(
-        model_name, model_version, "special_tokens_map_*.json"
+    vocab_path = _get_hf_model_path(model_name, model_version, "vocab_*.txt", local_model_dir)
+    config_path = _get_hf_model_path(model_name, model_version, "config_*.json", local_model_dir)
+    model_weights_path = _get_hf_model_path(
+        model_name, model_version, "model_*.safetensors", local_model_dir
     )
-    config_path = _get_hf_model_path(model_name, model_version, "config_*.json")
-    model_weights_path = _get_hf_model_path(model_name, model_version, "model_*.safetensors")
-
-    with open(tokenizer_config_path) as h:
-        tokenizer_config = json.load(h)
 
     # Lazy imports for transformers and safetensors
     transformers = importlib.import_module("transformers")  # type: ignore
@@ -95,11 +95,13 @@ def load_text_model(
     state_dict = load_file(model_weights_path)
     model.load_state_dict(state_dict, strict=False)
 
-    try:  # pragma: no cover - trivial
-        torch = importlib.import_module("torch")  # type: ignore
-        model.to(dev)
-    except Exception:
-        pass
+    torch = importlib.import_module("torch")  # type: ignore
+    if dev.startswith("cuda"):
+        # Optionally limit how much GPU memory this process can use.
+        fraction = os.environ.get("TRAPICHE_TORCH_GPU_MEMORY_FRACTION")
+        if fraction:
+            torch.cuda.set_per_process_memory_fraction(float(fraction))
+    model.to(dev)
     model.eval()
 
     thresholds = _load_thresholds_multi_path(model_name, tokenizer, model)
@@ -200,6 +202,8 @@ def predict_probability(
     model_version: str,
     device: str | None = None,
     max_length: int = 256,
+    batch_size: int = 8,
+    local_model_dir: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute per-class probabilities for one or many texts.
 
@@ -209,6 +213,9 @@ def predict_probability(
         model_version: Semantic version or tag.
         device: Preferred device.
         max_length: Maximum token length.
+        batch_size: Maximum number of texts processed per inference batch.
+        local_model_dir: Optional local directory to resolve the model from
+            instead of downloading from Hugging Face Hub.
 
     Returns:
         np.ndarray: Array of shape (n_samples, n_classes).
@@ -216,24 +223,38 @@ def predict_probability(
     if isinstance(texts, str):  # type: ignore
         texts = [texts]  # type: ignore
     tokenizer, _config, _id2label, model, _thresholds = load_text_model(
-        model_name, model_version, device
-    )
-    enc = tokenizer(
-        list(texts),
-        padding=True,
-        truncation=True,
-        max_length=max_length,
-        return_tensors="pt",
+        model_name, model_version, device, local_model_dir
     )
     dev = choose_device(device)
-    enc = {k: v.to(dev) for k, v in enc.items()}
     torch = importlib.import_module("torch")  # type: ignore
-    with torch.no_grad():
-        out = model(**enc)
-        logits = out.logits  # (n_samples, n_classes)
-        sigmoid_probs = torch.sigmoid(logits).cpu().numpy()
-        softmax_probs = torch.softmax(logits, dim=1).cpu().numpy()
-    return sigmoid_probs, softmax_probs
+    if batch_size <= 0:
+        raise ValueError("batch_size must be greater than zero")
+
+    sigmoid_batches = []
+    softmax_batches = []
+    texts_list = list(texts)
+    if not texts_list:
+        n_classes = int(getattr(getattr(model, "config", None), "num_labels", 0))
+        empty = np.empty((0, n_classes), dtype=np.float32)
+        return empty, empty.copy()
+    # Bound activation memory while still amortising tokenisation and model-call
+    # overhead; callers can increase ``batch_size`` when their hardware allows it.
+    for start in range(0, len(texts_list), batch_size):
+        enc = tokenizer(
+            texts_list[start : start + batch_size],
+            padding=True,
+            truncation=True,
+            max_length=max_length,
+            return_tensors="pt",
+        )
+        enc = {k: v.to(dev) for k, v in enc.items()}
+        with torch.no_grad():
+            out = model(**enc)
+            logits = out.logits  # (n_samples, n_classes)
+            sigmoid_batches.append(torch.sigmoid(logits).cpu().numpy())
+            softmax_batches.append(torch.softmax(logits, dim=1).cpu().numpy())
+        del enc, out, logits
+    return np.vstack(sigmoid_batches), np.vstack(softmax_batches)
 
 
 def probabilities_to_mask(
@@ -260,7 +281,7 @@ def probabilities_to_mask(
 
     # Build per-class thresholds (if numeric rule)
     per_class = None
-    if isinstance(rule, (int, float)):
+    if isinstance(rule, int | float):
         per_class = [
             thresholds.get(id2label.get(i, f"label_{i}"), float(rule)) for i in range(n_classes)
         ]
@@ -292,6 +313,8 @@ def predict(
     max_length: int = 256,
     threshold_rule: str | float | int = 0.01,
     split_sentences: bool = False,
+    batch_size: int = 8,
+    local_model_dir: str | None = None,
 ) -> list[dict[str, float]]:
     """Predict labels for input texts.
 
@@ -303,16 +326,16 @@ def predict(
         max_length: Maximum token length.
         threshold_rule: Selection rule for probabilities.
         split_sentences: If True, aggregate over sentences using max.
+        batch_size: Maximum number of texts per inference batch.
+        local_model_dir: Optional local directory to resolve the model from
+            instead of downloading from Hugging Face Hub.
 
     Returns:
         list[list[str]]: Predicted labels per text.
     """
-    if isinstance(texts, str):
-        texts_list = [texts]
-    else:
-        texts_list = list(texts)
+    texts_list = [texts] if isinstance(texts, str) else list(texts)
     tokenizer, _config, id2label, _model, thresholds = load_text_model(
-        model_name, model_version, device
+        model_name, model_version, device, local_model_dir
     )
     # Unused tokenizer variable purposefully retained to ensure cache priming above
     _ = tokenizer  # pragma: no cover
@@ -331,6 +354,8 @@ def predict(
                 model_version=model_version,
                 device=device,
                 max_length=max_length,
+                batch_size=batch_size,
+                local_model_dir=local_model_dir,
             )
             agg.append(p.max(axis=0))
             agg_softmax.append(p_softmax.max(axis=0))
@@ -343,6 +368,8 @@ def predict(
             model_version=model_version,
             device=device,
             max_length=max_length,
+            batch_size=batch_size,
+            local_model_dir=local_model_dir,
         )
 
     mask = probabilities_to_mask(

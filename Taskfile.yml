@@ -1,0 +1,36 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: Create the uv environment and install project/dev/TF dependencies
+    # tensorflow-cpu has no macOS arm64 wheels, so macOS uses the `gpu` extra
+    # (plain tensorflow). Override with `task setup TF_EXTRA=none` to skip TF.
+    vars:
+      TF_EXTRA: '{{.TF_EXTRA | default (ternary "gpu" "cpu" (eq OS "darwin"))}}'
+      TF_EXTRA_ARGS: '{{if ne .TF_EXTRA "none"}}--extra {{.TF_EXTRA}}{{end}}'
+    cmds:
+      - uv sync --extra dev {{.TF_EXTRA_ARGS}}
+
+  format:
+    desc: Format Python code with Ruff
+    deps: [setup]
+    cmds:
+      - uv run ruff format .
+
+  lint:
+    desc: Check and automatically fix Python lint issues with Ruff
+    deps: [setup]
+    cmds:
+      - uv run ruff check . --fix
+
+  test:
+    desc: Run the test suite
+    deps: [setup]
+    cmds:
+      - uv run pytest
+
+  run:
+    desc: Run trapiche on an input NDJSON file, e.g. `task run -- input.ndjson` (extra CLI flags allowed after the file)
+    deps: [setup]
+    cmds:
+      - uv run trapiche {{.CLI_ARGS}}

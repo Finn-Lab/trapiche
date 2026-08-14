@@ -9,7 +9,7 @@ description = "Trapiche biome prediction toolkit"
 readme = "README.md"
 authors = [{name = "Santiago Sanchez Fragoso", email = "fragoso@ebi.ac.uk"}]
 license = {text = "Apache-2.0"}
-requires-python = ">=3.10"
+requires-python = ">=3.11,<3.13"
 dependencies = [
   "numpy",
   "pandas",
@@ -44,7 +44,7 @@ include = ["trapiche*"]
 
 [tool.black]
 line-length = 100
-target-version = ["py310"]
+target-version = ["py311"]
 
 [tool.ruff]
 line-length = 100
@@ -62,6 +62,7 @@ cpu = ["tensorflow-cpu==2.20.0"]
 gpu = ["tensorflow==2.20.0"]
 dev = [
   "pre-commit>=3.7.0",
+  "pytest>=8.0",
   "ruff==0.6.4",
   "black==24.10.0",
 ]

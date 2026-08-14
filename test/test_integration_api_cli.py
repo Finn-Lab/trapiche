@@ -51,6 +51,24 @@ def _hf_asset_available(model_name: str, model_version: str, pattern: str) -> bo
 
 
 class TestAPIIntegration(unittest.TestCase):
+    def test_workflow_preserves_optional_sample_and_project_ids(self):
+        """Compact workflow output retains supplied sample and project identifiers."""
+        from trapiche.api import TrapicheWorkflowFromSequence
+        from trapiche.config import TrapicheWorkflowParams
+
+        runner = TrapicheWorkflowFromSequence(
+            workflow_params=TrapicheWorkflowParams(
+                run_text=False,
+                run_vectorise=False,
+                run_taxonomy=False,
+                run_study_summary=False,
+            )
+        )
+
+        result = runner.run([{"project_id": "project-1", "sample_id": "sample-1"}])
+
+        self.assertEqual(result, [{"project_id": "project-1", "sample_id": "sample-1"}])
+
     def test_text_api_predict(self):
         if not _have_module("transformers"):
             self.skipTest("transformers not installed; skipping text prediction integration test")
@@ -398,6 +416,32 @@ class TestBiomeLabelNormalization(unittest.TestCase):
         ]
         result = to_trapiche_samples(enriched)
         self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["sample_id"], "s1")
+        self.assertIn("root:Environmental:Aquatic:Marine", result[0]["ext_text_pred_project"])
+        self.assertIn("root:Environmental:Aquatic", result[0]["ext_text_pred_sample"])
+
+    def test_to_trapiche_samples_base_samples_preserves_sample_id(self):
+        """to_trapiche_samples joins on and preserves sample_id."""
+        self._skip_if_no_asset()
+        from trapiche.helpers.llm_text_pred import to_trapiche_samples
+
+        enriched = [
+            {
+                "project_id": "p1",
+                "project_ecosystems": ["root:Environmental:Aquatic:Marine"],
+                "samples": [
+                    {
+                        "sample_id": "s1",
+                        "sample_ecosystems": ["root:Environmental:Aquatic"],
+                    }
+                ],
+            }
+        ]
+        base_samples = [{"project_id": "p1", "sample_id": "s1"}]
+
+        result = to_trapiche_samples(enriched, base_samples=base_samples)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["sample_id"], "s1")
         self.assertIn("root:Environmental:Aquatic:Marine", result[0]["ext_text_pred_project"])
         self.assertIn("root:Environmental:Aquatic", result[0]["ext_text_pred_sample"])
 
@@ -600,6 +644,7 @@ class TestExternalRawLabelPreservation(unittest.TestCase):
         ]
         result = to_trapiche_samples(enriched)
         self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["sample_id"], "s1")
         self.assertIn("_raw_ext_text_pred_project", result[0])
         self.assertIn("_raw_ext_text_pred_sample", result[0])
         self.assertIn("root:Environmental:Aquatic:Marine", result[0]["_raw_ext_text_pred_project"])

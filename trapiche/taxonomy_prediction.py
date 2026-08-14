@@ -9,9 +9,11 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import os
 import re
 from collections import defaultdict
 from collections.abc import Sequence
+from contextlib import suppress
 from functools import lru_cache
 from itertools import combinations
 from statistics import harmonic_mean
@@ -38,11 +40,17 @@ KNN_VALUE_DEFAULT = -1  # THE FUNCTION IS DEPRECATED. TODO: Transform function t
 def load_biome_tags_list():
     """Load tag list for the taxonomy classifier from HF assets.
 
+    Model repo/version/local override are read from a freshly constructed
+    `TaxonomyToVectorParams` (env vars / config file), so CLI flags that set
+    `TRAPICHE_VECTOR_*` before this is first called take effect.
+
     Returns:
         list[str]: Flat list of tag strings.
     """
     _p = TaxonomyToVectorParams()
-    tags_dct_file = _get_hf_model_path(_p.hf_model, _p.model_version, "biome_tags_*.json")
+    tags_dct_file = _get_hf_model_path(
+        _p.hf_model, _p.model_version, "biome_tags_*.json", _p.local_model_dir
+    )
     logger.debug(f"Loading biome tags dictionary from file={tags_dct_file}")
     with open(tags_dct_file) as h:
         tags_dct = json.load(h)
@@ -115,13 +123,43 @@ def focal_loss_fixed(y_true, y_pred):
 def _get_tensorflow():
     """Lazily import TensorFlow with a clear error if unavailable."""
     try:
-        return importlib.import_module("tensorflow")
-    except Exception as e:
+        tf = importlib.import_module("tensorflow")
+    except ImportError as e:
         raise RuntimeError(
             "TensorFlow is required for deep prediction but could not be imported. "
             "Install TensorFlow (for CPU-only environments: pip install tensorflow) and ensure it matches your Python version. "
             f"Original error: {e}"
         ) from e
+
+    # TODO: this, I'm not super sure about it. The robots think this is a good way.abs
+    #       I've introduced this because running a test locally was killing my machine.
+    gpu_limit_mb = os.environ.get("TRAPICHE_TF_GPU_MEMORY_LIMIT_MB")
+    if gpu_limit_mb:
+        try:
+            gpu_limit_mb_value = int(gpu_limit_mb)
+        except ValueError as e:
+            raise ValueError(
+                "TRAPICHE_TF_GPU_MEMORY_LIMIT_MB must be an integer number of megabytes"
+            ) from e
+        if gpu_limit_mb_value <= 0:
+            raise ValueError("TRAPICHE_TF_GPU_MEMORY_LIMIT_MB must be greater than zero")
+
+    gpus = tf.config.list_physical_devices("GPU")
+    for gpu in gpus:
+        with suppress(RuntimeError):
+            if gpu_limit_mb:
+                config = [
+                    tf.config.experimental.VirtualDeviceConfiguration(
+                        memory_limit=gpu_limit_mb_value
+                    )
+                ]
+                tf.config.experimental.set_virtual_device_configuration(gpu, config)
+            else:
+                tf.config.experimental.set_memory_growth(gpu, True)
+    with suppress(RuntimeError):
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+    return tf
 
 
 # Load the model, including the custom loss function
@@ -130,8 +168,12 @@ def load_custom_model(model_file: str | None = None):
     """Load the Keras model on demand.
 
     Args:
-        model_file: Optional explicit file path. When None, resolve from
-            Hugging Face assets for the configured model and version.
+        model_file: Optional explicit path to the ``.model.h5`` file. When
+            given, it is loaded directly and no Hugging Face/local-dir
+            resolution is performed. When None (the default), the file is
+            resolved from a freshly constructed `TaxonomyToBiomeParams`
+            (env vars / config file), honoring `hf_model`, `model_version`,
+            and `local_model_dir` (`TRAPICHE_TAXONOMY_*`).
 
     Returns:
         Any: Compiled TensorFlow Keras model instance.
@@ -139,9 +181,15 @@ def load_custom_model(model_file: str | None = None):
     Raises:
         RuntimeError: If loading fails or TensorFlow is unavailable.
     """
-    # Resolve model path via HF hub using taxonomy_to_biome assets in the taxonomy classifier repo
-    _p = TaxonomyToBiomeParams()
-    model_path = _get_hf_model_path(_p.hf_model, _p.model_version, "taxonomy_to_biome_v*.model.h5")
+    if model_file is not None:
+        model_path = model_file
+    else:
+        # Resolve model path via HF hub (or local_model_dir) using taxonomy_to_biome
+        # assets in the taxonomy classifier repo.
+        _p = TaxonomyToBiomeParams()
+        model_path = _get_hf_model_path(
+            _p.hf_model, _p.model_version, "taxonomy_to_biome_v*.model.h5", _p.local_model_dir
+        )
     logger.debug(f"Loading model from file={model_path}")
 
     tf = _get_tensorflow()
@@ -168,6 +216,18 @@ def load_custom_model(model_file: str | None = None):
 
 def bnn_model2gg(*args, **kwargs):
     return load_custom_model()(*args, **kwargs)
+
+
+def _resolve_model_file(params: TaxonomyToBiomeParams) -> str:
+    """Resolve the taxonomy classifier asset for explicit parameters."""
+    return str(
+        _get_hf_model_path(
+            params.hf_model,
+            params.model_version,
+            "taxonomy_to_biome_v*.model.h5",
+            params.local_model_dir,
+        )
+    )
 
 
 def find_best_path(_prediction: str):
@@ -219,7 +279,6 @@ def from_probs_to_pred(
             if _pot_space is None or len(_pot_space) == 0:
                 constrained_top_p = None
             else:
-
                 # Find matching tags in the potential (text) space
                 potential_tags = {}
                 for k, v in tag_biomes.items():
@@ -325,6 +384,7 @@ def knn_batch(
     mgnify_sample_vectors, mgnify_meta = load_mgnify_c2v(
         model_name=params.hf_model,
         model_version=params.model_version,
+        local_model_dir=params.local_model_dir,
     )
 
     max_per_study = max(1, KNN_VALUE_DEFAULT // 3)
@@ -357,10 +417,8 @@ def knn_batch(
         # Compute cosine similarities
         sims = cosine_similarity_pairwise(query_subset, subject_vector)
         sims[np.isnan(sims)] = 0
-        argsort_sims = np.argsort(sims)
-
         # Process each query in this group
-        for local_ix, ass in enumerate(argsort_sims):
+        for local_ix in range(len(indices)):
             global_ix = indices[local_ix]
 
             # Take similarity scores for this query
@@ -401,7 +459,8 @@ def full_stack_prediction(
     """
     # prediction baded on deep learning model
     logger.debug("Starting full stack prediction")
-    deep_l_probs = bnn_model2gg(query_vector).numpy()
+    model = load_custom_model(_resolve_model_file(params))
+    deep_l_probs = model(query_vector).numpy()
 
     top_predictions, constrained_top_predictions = from_probs_to_pred(
         deep_l_probs, potential_space=constrains, params=params
@@ -436,7 +495,7 @@ def full_stack_prediction(
         # Correct probability to be harmonic mean of top_dominant_const and the constrained term that matched
         if _top_dominant_const is not None and constrain:
             top_dominant_const_term, top_dominant_const_score = list(_top_dominant_const.items())[0]
-            matching_keys = [k for k in constrain.keys() if k in top_dominant_const_term]
+            matching_keys = [k for k in constrain if k in top_dominant_const_term]
             if matching_keys:
                 longest_match = max(matching_keys, key=lambda x: len(x))
                 longest_match_score = constrain[longest_match]
@@ -573,7 +632,7 @@ def chunked_fuzzy_prediction(query_vector, constrain, params: TaxonomyToBiomePar
 def predict_runs(
     community_vectors,
     constrain,
-    params: TaxonomyToBiomeParams = TaxonomyToBiomeParams(),
+    params: TaxonomyToBiomeParams | None = None,
 ):
     """Predict lineage for samples from community vectors.
 
@@ -585,6 +644,8 @@ def predict_runs(
     Returns:
         list[dict]: Prediction dicts aligned with input samples.
     """
+    params = params or TaxonomyToBiomeParams()
+
     # Determine number of samples robustly (accept lists or numpy arrays)
     try:
         n_samples = community_vectors.shape[0]
@@ -592,8 +653,8 @@ def predict_runs(
         # Fall back to len() for sequences
         try:
             n_samples = len(community_vectors)
-        except Exception:
-            raise TypeError("Unable to determine number of samples from community_vectors")
+        except Exception as exc:
+            raise TypeError("Unable to determine number of samples from community_vectors") from exc
 
     logger.info(f"predict_runs called n_samples={n_samples}")
     # Log shape when available

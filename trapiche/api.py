@@ -26,20 +26,32 @@ class Community2vec:
     TaxonomyToVectorParams when not provided.
     """
 
-    def __init__(self, model_name: str | None = None, model_version: str | None = None):
-        # If not provided, default to config defaults
-        if model_name is None or model_version is None:
+    def __init__(
+        self,
+        model_name: str | None = None,
+        model_version: str | None = None,
+        local_model_dir: str | None = None,
+    ):
+        # Fall back to TaxonomyToVectorParams (env vars / config file) for any
+        # field left unset.
+        if model_name is None or model_version is None or local_model_dir is None:
             from .config import TaxonomyToVectorParams as _T2V
 
             _p = _T2V()
             self.model_name = model_name or _p.hf_model
             self.model_version = model_version or _p.model_version
+            self.local_model_dir = local_model_dir or _p.local_model_dir
         else:
             self.model_name = model_name
             self.model_version = model_version
+            self.local_model_dir = local_model_dir
         logger.info(
             "Community2vec created",
-            extra={"model_name": self.model_name, "model_version": self.model_version},
+            extra={
+                "model_name": self.model_name,
+                "model_version": self.model_version,
+                "local_model_dir": self.local_model_dir,
+            },
         )
 
     def transform(self, samples_sequence: Sequence[dict[str, Any]]) -> np.ndarray:
@@ -62,7 +74,10 @@ class Community2vec:
             extra={"model_name": self.model_name, "model_version": self.model_version},
         )
         self.vectorised_samples = vectorise_samples(
-            samples_sequence, model_name=self.model_name, model_version=self.model_version
+            samples_sequence,
+            model_name=self.model_name,
+            model_version=self.model_version,
+            local_model_dir=self.local_model_dir,
         )
         return self.vectorised_samples
 
@@ -181,8 +196,10 @@ class TextToBiome:
             model_version=_p.model_version,
             device=_p.device,
             max_length=_p.max_length,
+            batch_size=_p.batch_size,
             threshold_rule=_p.threshold_rule,
             split_sentences=_p.split_sentences,
+            local_model_dir=_p.local_model_dir,
         )
         self.predictions_ = preds
         return preds
@@ -277,6 +294,14 @@ class TrapicheWorkflowFromSequence:
                 # TODO: add a tag to the taxonomy results dict to identify its keys
                 taxonomy_keys = all_keys - ({"text_predictions", "community_vector"} | sample_keys)
                 keep_keys -= taxonomy_keys
+
+        # Preserve existing record identifiers in compact output without making
+        # either identifier mandatory.
+        keep_keys.update(
+            identifier
+            for identifier in ("sample_id", "project_id")
+            if any(identifier in sample for sample in samples)
+        )
 
         self.filtered = []
         for r in result:
