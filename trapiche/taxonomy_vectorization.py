@@ -412,9 +412,7 @@ def vectorise_samples(
         _tax_paths_key = (
             "sample_taxonomy_paths"
             if "sample_taxonomy_paths" in sample_dict
-            else "taxonomy_files_paths"
-            if "taxonomy_files_paths" in sample_dict
-            else None
+            else "taxonomy_files_paths" if "taxonomy_files_paths" in sample_dict else None
         )
         if sample_taxonomy_terms is None and _tax_paths_key is not None:
             sample_taxonomy_paths = sample_dict[_tax_paths_key]

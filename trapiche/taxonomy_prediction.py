@@ -131,8 +131,8 @@ def _get_tensorflow():
             f"Original error: {e}"
         ) from e
 
-    # TODO: this, I'm not super sure about it. The robots think this is a good way.abs
-    #       I've introduced this because running a test locally was killing my machine.
+    # TODO: this, I'm not super sure about it. The robots think this is a good way.abs
+    #       I've introduced this because running a test locally was killing my machine.
     gpu_limit_mb = os.environ.get("TRAPICHE_TF_GPU_MEMORY_LIMIT_MB")
     if gpu_limit_mb:
         try:
