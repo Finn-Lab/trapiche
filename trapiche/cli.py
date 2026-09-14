@@ -286,8 +286,31 @@ def main(argv: list[str] | None = None) -> int:
     """
     args = parse_args(argv)
 
+    # --config and the model flags are applied through the process environment
+    # so that lazily constructed settings objects see them. Snapshot and restore
+    # the caller's environment so overrides do not leak into later in-process
+    # calls (test suites, notebooks, service wrappers).
+    env_snapshot = dict(os.environ)
+    try:
+        return _run(args)
+    finally:
+        _restore_environ(env_snapshot)
+
+
+def _restore_environ(snapshot: dict[str, str]) -> None:
+    """Reset ``os.environ`` to ``snapshot``, dropping keys added since."""
+    for key in set(os.environ) - set(snapshot):
+        os.environ.pop(key, None)
+    for key, value in snapshot.items():
+        if os.environ.get(key) != value:
+            os.environ[key] = value
+
+
+def _run(args: argparse.Namespace) -> int:
+    """Execute the workflow for parsed CLI arguments (see :func:`main`)."""
     # Load config file (if any) before anything else reads TRAPICHE_* env
-    # vars, then apply explicit CLI flags on top (flags take precedence).
+    # vars. It does not override variables already exported by the caller;
+    # explicit CLI flags are applied afterwards and take precedence over both.
     if args.config_file:
         load_config_file(args.config_file)
     for dest, env_var in _MODEL_ENV_VARS.items():

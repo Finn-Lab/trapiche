@@ -29,6 +29,7 @@ from .utils import (
     cosine_similarity_pairwise,
     get_similar_predictions,
     load_biome_herarchy_dict,
+    shared_asset_params,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,19 +38,31 @@ KNN_VALUE_DEFAULT = -1  # THE FUNCTION IS DEPRECATED. TODO: Transform function t
 
 
 @lru_cache
-def load_biome_tags_list():
-    """Load tag list for the taxonomy classifier from HF assets.
+def load_biome_tags_list(
+    model_name: str | None = None,
+    model_version: str | None = None,
+    local_model_dir: str | None = None,
+):
+    """Load tag list for the taxonomy classifier from the vectorizer repo assets.
 
-    Model repo/version/local override are read from a freshly constructed
-    `TaxonomyToVectorParams` (env vars / config file), so CLI flags that set
-    `TRAPICHE_VECTOR_*` before this is first called take effect.
+    Args:
+        model_name: HF repository id. Defaults to TaxonomyToVectorParams.hf_model.
+        model_version: Model version. Defaults to TaxonomyToVectorParams.model_version.
+        local_model_dir: Optional local directory to resolve the asset from
+            instead of Hugging Face Hub. Defaults to
+            TaxonomyToVectorParams.local_model_dir when not provided.
 
     Returns:
         list[str]: Flat list of tag strings.
     """
-    _p = TaxonomyToVectorParams()
+    if model_name is None or model_version is None:
+        _name, _version, _dir = shared_asset_params()
+        model_name = model_name or _name
+        model_version = model_version or _version
+        if local_model_dir is None:
+            local_model_dir = _dir
     tags_dct_file = _get_hf_model_path(
-        _p.hf_model, _p.model_version, "biome_tags_*.json", _p.local_model_dir
+        model_name, model_version, "biome_tags_*.json", local_model_dir
     )
     logger.debug(f"Loading biome tags dictionary from file={tags_dct_file}")
     with open(tags_dct_file) as h:
@@ -74,15 +87,24 @@ def generate_all_combinations(s: Sequence[str]):
 
 
 @lru_cache
-def load_tag_biomes():
+def load_tag_biomes(
+    model_name: str | None = None,
+    model_version: str | None = None,
+    local_model_dir: str | None = None,
+):
     """Map tag combinations to canonical biome lineage.
+
+    Args:
+        model_name: Vectorizer HF repository id (defaults to config).
+        model_version: Vectorizer model version (defaults to config).
+        local_model_dir: Optional local directory for offline resolution.
 
     Returns:
         tuple[dict[str, str], dict[str, tuple[set[str], int]]]:
         A mapping from tag combination to lineage, and auxiliary metadata.
     """
-    biome_herarchy_dct, _ = load_biome_herarchy_dict()
-    tags_li = load_biome_tags_list()
+    biome_herarchy_dct, _ = load_biome_herarchy_dict(model_name, model_version, local_model_dir)
+    tags_li = load_biome_tags_list(model_name, model_version, local_model_dir)
     bioms = {x: ((set(x.split(":"))), len(x.split(":"))) for x in biome_herarchy_dct.values()}
     tag_biomes = {}
     for _prediction in tags_li:
@@ -120,45 +142,67 @@ def focal_loss_fixed(y_true, y_pred):
 # Lazy TensorFlow import helper and model accessors
 
 
+def _positive_int_env(name: str) -> int | None:
+    """Read an optional positive-integer environment variable.
+
+    Args:
+        name: Environment variable name.
+
+    Returns:
+        int | None: Parsed value, or None when the variable is unset/empty.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    raw = os.environ.get(name)
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except ValueError as e:
+        raise ValueError(f"{name} must be a positive integer (got {raw!r})") from e
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than zero (got {raw!r})")
+    return value
+
+
 def _get_tensorflow():
-    """Lazily import TensorFlow with a clear error if unavailable."""
+    """Lazily import TensorFlow with a clear error if unavailable.
+
+    Optional resource limits are read from the environment on every call
+    (TensorFlow ignores them after its runtime has been initialised):
+
+    - ``TRAPICHE_TF_GPU_MEMORY_LIMIT_MB``: cap GPU memory per device (MB);
+      when unset, GPU memory growth is enabled instead.
+    - ``TRAPICHE_TF_NUM_THREADS``: pin intra- and inter-op parallelism to this
+      many threads; when unset TensorFlow's defaults (all cores) are kept.
+    """
     try:
         tf = importlib.import_module("tensorflow")
-    except ImportError as e:
+    except Exception as e:
         raise RuntimeError(
             "TensorFlow is required for deep prediction but could not be imported. "
             "Install TensorFlow (for CPU-only environments: pip install tensorflow) and ensure it matches your Python version. "
             f"Original error: {e}"
         ) from e
 
-    # TODO: this, I'm not super sure about it. The robots think this is a good way.abs
-    #       I've introduced this because running a test locally was killing my machine.
-    gpu_limit_mb = os.environ.get("TRAPICHE_TF_GPU_MEMORY_LIMIT_MB")
-    if gpu_limit_mb:
-        try:
-            gpu_limit_mb_value = int(gpu_limit_mb)
-        except ValueError as e:
-            raise ValueError(
-                "TRAPICHE_TF_GPU_MEMORY_LIMIT_MB must be an integer number of megabytes"
-            ) from e
-        if gpu_limit_mb_value <= 0:
-            raise ValueError("TRAPICHE_TF_GPU_MEMORY_LIMIT_MB must be greater than zero")
+    gpu_limit_mb = _positive_int_env("TRAPICHE_TF_GPU_MEMORY_LIMIT_MB")
+    num_threads = _positive_int_env("TRAPICHE_TF_NUM_THREADS")
 
     gpus = tf.config.list_physical_devices("GPU")
     for gpu in gpus:
         with suppress(RuntimeError):
-            if gpu_limit_mb:
+            if gpu_limit_mb is not None:
                 config = [
-                    tf.config.experimental.VirtualDeviceConfiguration(
-                        memory_limit=gpu_limit_mb_value
-                    )
+                    tf.config.experimental.VirtualDeviceConfiguration(memory_limit=gpu_limit_mb)
                 ]
                 tf.config.experimental.set_virtual_device_configuration(gpu, config)
             else:
                 tf.config.experimental.set_memory_growth(gpu, True)
-    with suppress(RuntimeError):
-        tf.config.threading.set_intra_op_parallelism_threads(1)
-        tf.config.threading.set_inter_op_parallelism_threads(1)
+    if num_threads is not None:
+        with suppress(RuntimeError):
+            tf.config.threading.set_intra_op_parallelism_threads(num_threads)
+            tf.config.threading.set_inter_op_parallelism_threads(num_threads)
     return tf
 
 
@@ -171,9 +215,11 @@ def load_custom_model(model_file: str | None = None):
         model_file: Optional explicit path to the ``.model.h5`` file. When
             given, it is loaded directly and no Hugging Face/local-dir
             resolution is performed. When None (the default), the file is
-            resolved from a freshly constructed `TaxonomyToBiomeParams`
-            (env vars / config file), honoring `hf_model`, `model_version`,
-            and `local_model_dir` (`TRAPICHE_TAXONOMY_*`).
+            resolved via :func:`_resolve_model_file` from a freshly constructed
+            `TaxonomyToBiomeParams` (env vars / config file), honoring
+            `hf_model`, `model_version`, and `local_model_dir`
+            (`TRAPICHE_TAXONOMY_*`). Both call styles share one cache entry
+            per resolved path.
 
     Returns:
         Any: Compiled TensorFlow Keras model instance.
@@ -181,15 +227,10 @@ def load_custom_model(model_file: str | None = None):
     Raises:
         RuntimeError: If loading fails or TensorFlow is unavailable.
     """
-    if model_file is not None:
-        model_path = model_file
-    else:
-        # Resolve model path via HF hub (or local_model_dir) using taxonomy_to_biome
-        # assets in the taxonomy classifier repo.
-        _p = TaxonomyToBiomeParams()
-        model_path = _get_hf_model_path(
-            _p.hf_model, _p.model_version, "taxonomy_to_biome_v*.model.h5", _p.local_model_dir
-        )
+    if model_file is None:
+        # Delegate to the explicit-path branch so the cache is keyed by path only.
+        return load_custom_model(_resolve_model_file(TaxonomyToBiomeParams()))
+    model_path = model_file
     logger.debug(f"Loading model from file={model_path}")
 
     tf = _get_tensorflow()
@@ -206,32 +247,37 @@ def load_custom_model(model_file: str | None = None):
     except Exception as e:
         raise RuntimeError(
             "Failed to load the TensorFlow model. Ensure the model file is compatible with your installed TensorFlow/Keras version "
-            f"and that custom objects are provided. File: {model_file}. Original error: {e}"
+            f"and that custom objects are provided. File: {model_path}. Original error: {e}"
         ) from e
 
 
-# Backwards-compatible callable used in this module
-# Acts like the original model variable but resolves lazily.
-
-
 def bnn_model2gg(*args, **kwargs):
+    """Backwards-compatible callable that behaves like the lazily loaded model."""
     return load_custom_model()(*args, **kwargs)
 
 
-def _resolve_model_file(params: TaxonomyToBiomeParams) -> str:
-    """Resolve the taxonomy classifier asset for explicit parameters."""
+@lru_cache
+def _resolve_model_file_cached(
+    hf_model: str, model_version: str, local_model_dir: str | None
+) -> str:
     return str(
         _get_hf_model_path(
-            params.hf_model,
-            params.model_version,
-            "taxonomy_to_biome_v*.model.h5",
-            params.local_model_dir,
+            hf_model, model_version, "taxonomy_to_biome_v*.model.h5", local_model_dir
         )
     )
 
 
-def find_best_path(_prediction: str):
-    _, bioms = load_tag_biomes()
+def _resolve_model_file(params: TaxonomyToBiomeParams) -> str:
+    """Resolve the taxonomy classifier asset path for explicit parameters.
+
+    The result is cached per ``(hf_model, model_version, local_model_dir)`` so
+    that per-chunk calls do not repeat the Hugging Face Hub lookup.
+    """
+    return _resolve_model_file_cached(params.hf_model, params.model_version, params.local_model_dir)
+
+
+def find_best_path(_prediction: str, *, vector_params: TaxonomyToVectorParams | None = None):
+    _, bioms = load_tag_biomes(*shared_asset_params(vector_params))
     _n_pots = set(_prediction.split("|"))
     sels = [(k, size) for k, (se, size) in bioms.items() if len(_n_pots) == len(_n_pots & se)]
     sel = sorted(sels, key=lambda x: x[1])[0][0]
@@ -242,6 +288,7 @@ def from_probs_to_pred(
     _probs,
     potential_space: list[dict[str, float] | None],
     params: TaxonomyToBiomeParams,
+    vector_params: TaxonomyToVectorParams | None = None,
 ) -> tuple[list[dict[str, float] | None], list[dict[str, float] | None]]:
     """Convert class probabilities into top predictions.
 
@@ -251,13 +298,16 @@ def from_probs_to_pred(
         _probs: Array of shape (n_samples, n_classes).
         potential_space: Per-sample iterable of prefix constraints or None.
         params: Thresholds and control parameters.
+        vector_params: Optional vectorizer params used to resolve the shared
+            biome hierarchy / tag-list assets (offline use).
 
     Returns:
         tuple: (top_predictions, constrained_top_predictions), both lists of
         dicts mapping lineage to score, aligned to input samples.
     """
-    tag_biomes, _ = load_tag_biomes()
-    tags_li = load_biome_tags_list()
+    _asset_args = shared_asset_params(vector_params)
+    tag_biomes, _ = load_tag_biomes(*_asset_args)
+    tags_li = load_biome_tags_list(*_asset_args)
 
     top_predictions = []
     constrained_top_predictions = []
@@ -353,6 +403,7 @@ def knn_batch(
     predictions: list[list[Any] | None],
     query_vectors: np.ndarray,
     params: TaxonomyToBiomeParams,
+    vector_params: TaxonomyToVectorParams | None = None,
 ) -> list[list[dict[str, Any]] | None]:
     """Find KNN  using cosine similarity in the vector space. Return similar samples, but maximum `max_per_study` per project.
 
@@ -381,10 +432,14 @@ def knn_batch(
         return results
 
     # Load MGnify sample vectors and metadata
+    _hier_name, _hier_version, _hier_dir = shared_asset_params(vector_params)
     mgnify_sample_vectors, mgnify_meta = load_mgnify_c2v(
         model_name=params.hf_model,
         model_version=params.model_version,
         local_model_dir=params.local_model_dir,
+        hierarchy_model_name=_hier_name,
+        hierarchy_model_version=_hier_version,
+        hierarchy_local_model_dir=_hier_dir,
     )
 
     max_per_study = max(1, KNN_VALUE_DEFAULT // 3)
@@ -450,12 +505,17 @@ np.seterr(divide="ignore", invalid="ignore")  # handle bad files == divition by 
 
 
 def full_stack_prediction(
-    query_vector, constrains, params: TaxonomyToBiomeParams
+    query_vector,
+    constrains,
+    params: TaxonomyToBiomeParams,
+    vector_params: TaxonomyToVectorParams | None = None,
 ) -> list[dict[str, Any]]:
     """Predict biome using deep model and KNN refinement.
 
     Applies optional constraints from text and returns per-sample dicts with
-    raw, constrained, refined, and final selections.
+    raw, constrained, refined, and final selections. ``vector_params`` is
+    forwarded to the shared-asset loaders (biome hierarchy, tag list, KNN
+    reference vectors) so explicit ``local_model_dir`` overrides apply.
     """
     # prediction baded on deep learning model
     logger.debug("Starting full stack prediction")
@@ -463,7 +523,7 @@ def full_stack_prediction(
     deep_l_probs = model(query_vector).numpy()
 
     top_predictions, constrained_top_predictions = from_probs_to_pred(
-        deep_l_probs, potential_space=constrains, params=params
+        deep_l_probs, potential_space=constrains, params=params, vector_params=vector_params
     )
 
     # Get unambiguous predictions
@@ -517,7 +577,10 @@ def full_stack_prediction(
     # knn refinement unconstrained
     prediction_keys = [list(d.keys()) if d is not None else None for d in top_predictions]
     refined_predictions = knn_batch(
-        predictions=prediction_keys, query_vectors=query_vector, params=params
+        predictions=prediction_keys,
+        query_vectors=query_vector,
+        params=params,
+        vector_params=vector_params,
     )
     # refined_predictions = [
     #     crp if crp is None or re.search(string_pattern, list(crp.keys())[0], re.I) else None
@@ -529,7 +592,10 @@ def full_stack_prediction(
         list(d.keys()) if d is not None else None for d in constrained_top_predictions
     ]
     constrained_refined_predictions = knn_batch(
-        predictions=constrained_prediction_keys, query_vectors=query_vector, params=params
+        predictions=constrained_prediction_keys,
+        query_vectors=query_vector,
+        params=params,
+        vector_params=vector_params,
     )
     # Set to None those refined predictions that do not match the string_pattern. predictions are List[Optional[Dict[str, float]]]
     # constrained_refined_predictions = [
@@ -538,7 +604,9 @@ def full_stack_prediction(
     # ]
 
     # load gold ontology mappings to give gold_final_prediction
-    biome_herarchy_dct, biome_herarchy_dct_reversed = load_biome_herarchy_dict()
+    biome_herarchy_dct, biome_herarchy_dct_reversed = load_biome_herarchy_dict(
+        *shared_asset_params(vector_params)
+    )
 
     results_sequence = []
     for (
@@ -614,7 +682,12 @@ def full_stack_prediction(
     return results_sequence
 
 
-def chunked_fuzzy_prediction(query_vector, constrain, params: TaxonomyToBiomeParams):
+def chunked_fuzzy_prediction(
+    query_vector,
+    constrain,
+    params: TaxonomyToBiomeParams,
+    vector_params: TaxonomyToVectorParams | None = None,
+):
     """Process prediction in chunks to limit memory use."""
 
     splits = chunked(range(query_vector.shape[0]), params.batch_size)
@@ -623,7 +696,10 @@ def chunked_fuzzy_prediction(query_vector, constrain, params: TaxonomyToBiomePar
 
     for spl in splits:
         _results = full_stack_prediction(
-            query_vector[spl], [constrain[ix] for ix in spl], params=params
+            query_vector[spl],
+            [constrain[ix] for ix in spl],
+            params=params,
+            vector_params=vector_params,
         )
         results.extend(_results)
     return results
@@ -633,6 +709,7 @@ def predict_runs(
     community_vectors,
     constrain,
     params: TaxonomyToBiomeParams | None = None,
+    vector_params: TaxonomyToVectorParams | None = None,
 ):
     """Predict lineage for samples from community vectors.
 
@@ -640,6 +717,9 @@ def predict_runs(
         community_vectors: Array with shape (n_samples, dim).
         constrain: Optional per-sample prefixes from text.
         params: Model and refinement parameters.
+        vector_params: Optional vectorizer parameters; when given, their
+            ``local_model_dir``/repo settings are used for the shared biome
+            hierarchy and tag-list assets instead of the environment.
 
     Returns:
         list[dict]: Prediction dicts aligned with input samples.
@@ -678,7 +758,9 @@ def predict_runs(
     if constrain is None:
         constrain = [None] * n_samples
 
-    result = chunked_fuzzy_prediction(community_vectors, constrain, params=params)
+    result = chunked_fuzzy_prediction(
+        community_vectors, constrain, params=params, vector_params=vector_params
+    )
     logger.info(f"chunked_fuzzy_prediction output size={len(result)}")
 
     return result

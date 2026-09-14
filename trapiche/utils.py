@@ -306,6 +306,30 @@ def tax_annotations_from_file(f):
 # --- ---
 
 
+def shared_asset_params(vector_params=None) -> tuple[str, str, str | None]:
+    """Return ``(hf_model, model_version, local_model_dir)`` for shared ontology assets.
+
+    The biome hierarchy and tag-list files used by both the text and the
+    taxonomy pathways live in the community2vec (vectorizer) repository.
+    Callers holding an explicit `TaxonomyToVectorParams` pass it here so that
+    `local_model_dir` overrides reach every loader (offline use); when
+    ``vector_params`` is None the values are read from a freshly constructed
+    `TaxonomyToVectorParams` (env vars / config file).
+
+    Args:
+        vector_params: Optional `TaxonomyToVectorParams` instance.
+
+    Returns:
+        tuple: Hashable ``(hf_model, model_version, local_model_dir)`` triple
+        suitable for the ``lru_cache``-decorated loaders.
+    """
+    if vector_params is None:
+        from .config import TaxonomyToVectorParams as _T2V
+
+        vector_params = _T2V()
+    return vector_params.hf_model, vector_params.model_version, vector_params.local_model_dir
+
+
 # Use a default sentinel to maintain backward compatibility while allowing explicit overrides.
 @lru_cache
 def load_biome_herarchy_dict(

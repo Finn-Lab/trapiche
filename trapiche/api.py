@@ -114,6 +114,7 @@ class TaxonomyToBiome:
         *,
         model_name: str | None = None,
         model_version: str | None = None,
+        vector_params: TaxonomyToVectorParams | None = None,
     ):
         """Run taxonomy-based prediction.
 
@@ -121,6 +122,9 @@ class TaxonomyToBiome:
             community_vectors: Array of shape (n_samples, dim).
             constrain: Optional per-sample candidate labels.
             params: Optional override of instance parameters.
+            vector_params: Optional vectorizer parameters selecting the repo
+                (or local directory) hosting the shared biome-ontology assets;
+                defaults to the environment-backed config.
 
         Returns:
             list[dict]: One result dict per sample with prediction keys.
@@ -135,7 +139,10 @@ class TaxonomyToBiome:
             getattr(_params, "__dict__", str(_params)),
         )
         self.results = predict_runs(
-            community_vectors=community_vectors, constrain=constrain, params=_params
+            community_vectors=community_vectors,
+            constrain=constrain,
+            params=_params,
+            vector_params=vector_params,
         )
         return self.results
 
@@ -175,12 +182,16 @@ class TextToBiome:
         self,
         texts: Sequence[str] | str,
         params: TextToBiomeParams | None = None,
+        vector_params: TaxonomyToVectorParams | None = None,
     ) -> Sequence[dict[str, float] | None] | None:
         """Run text-based biome prediction.
 
         Args:
             texts: One or more input texts.
             params: Optional override of instance parameters.
+            vector_params: Optional vectorizer parameters selecting the repo
+                (or local directory) hosting the shared biome hierarchy asset
+                used to canonicalize labels; defaults to the environment.
 
         Returns:
             list[list[str]]: Predicted labels per text.
@@ -200,6 +211,7 @@ class TextToBiome:
             threshold_rule=_p.threshold_rule,
             split_sentences=_p.split_sentences,
             local_model_dir=_p.local_model_dir,
+            vector_params=vector_params,
         )
         self.predictions_ = preds
         return preds
@@ -294,14 +306,6 @@ class TrapicheWorkflowFromSequence:
                 # TODO: add a tag to the taxonomy results dict to identify its keys
                 taxonomy_keys = all_keys - ({"text_predictions", "community_vector"} | sample_keys)
                 keep_keys -= taxonomy_keys
-
-        # Preserve existing record identifiers in compact output without making
-        # either identifier mandatory.
-        keep_keys.update(
-            identifier
-            for identifier in ("sample_id", "project_id")
-            if any(identifier in sample for sample in samples)
-        )
 
         self.filtered = []
         for r in result:

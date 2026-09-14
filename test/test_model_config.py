@@ -219,12 +219,10 @@ class TestCliModelFlags(unittest.TestCase):
             self.assertEqual(kwargs["text_params"].hf_model, "org/custom-text")
             self.assertEqual(kwargs["text_params"].model_version, "9.9")
             self.assertEqual(kwargs["taxonomy_params"].local_model_dir, "/models/taxonomy")
-            # Env vars are also set, so any lazily-reinstantiated config
-            # elsewhere in the process picks up the same override.
-            self.assertEqual(os.environ.get("TRAPICHE_TEXT_HF_MODEL"), "org/custom-text")
-            self.assertEqual(
-                os.environ.get("TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR"), "/models/taxonomy"
-            )
+            # Overrides are applied through the environment for the duration of
+            # the run only; the caller's environment is restored afterwards.
+            self.assertIsNone(os.environ.get("TRAPICHE_TEXT_HF_MODEL"))
+            self.assertIsNone(os.environ.get("TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR"))
 
     def test_config_file_applied_and_overridden_by_explicit_flag(self):
         from trapiche import cli
@@ -289,3 +287,149 @@ class TestTaxonomyModelResolution(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBatchSizeEnvIsolation(unittest.TestCase):
+    ENV_KEYS = ["TRAPICHE_BATCH_SIZE", "TRAPICHE_TEXT_BATCH_SIZE", "TRAPICHE_TAXONOMY_BATCH_SIZE"]
+
+    def test_legacy_batch_size_only_affects_taxonomy(self):
+        from trapiche.config import TaxonomyToBiomeParams, TextToBiomeParams
+
+        with _EnvCleanup(self.ENV_KEYS):
+            os.environ["TRAPICHE_BATCH_SIZE"] = "4"
+            self.assertEqual(TaxonomyToBiomeParams().batch_size, 4)
+            self.assertEqual(TextToBiomeParams().batch_size, 8)
+
+    def test_model_specific_batch_size_env_vars(self):
+        from trapiche.config import TaxonomyToBiomeParams, TextToBiomeParams
+
+        with _EnvCleanup(self.ENV_KEYS):
+            os.environ["TRAPICHE_TEXT_BATCH_SIZE"] = "2"
+            os.environ["TRAPICHE_TAXONOMY_BATCH_SIZE"] = "50"
+            os.environ["TRAPICHE_BATCH_SIZE"] = "999"
+            self.assertEqual(TextToBiomeParams().batch_size, 2)
+            self.assertEqual(TaxonomyToBiomeParams().batch_size, 50)
+
+    def test_batch_size_still_settable_by_keyword(self):
+        from trapiche.config import TaxonomyToBiomeParams, TextToBiomeParams
+
+        self.assertEqual(TextToBiomeParams(batch_size=3).batch_size, 3)
+        self.assertEqual(TaxonomyToBiomeParams(batch_size=7).batch_size, 7)
+
+
+class TestConfigFilePrecedence(unittest.TestCase):
+    def test_config_file_does_not_override_exported_env_var(self):
+        from trapiche.config import TextToBiomeParams, load_config_file
+
+        with _EnvCleanup(TestModelConfigAliases.ENV_KEYS), tempfile.TemporaryDirectory() as tmp:
+            os.environ["TRAPICHE_TEXT_HF_MODEL"] = "from-env"
+            config_path = Path(tmp) / "trapiche.env"
+            config_path.write_text(
+                "TRAPICHE_TEXT_HF_MODEL=from-file\n" "TRAPICHE_TEXT_MODEL_VERSION=7.7\n"
+            )
+            load_config_file(config_path)
+            params = TextToBiomeParams()
+            # Exported value wins over the file; unset keys come from the file.
+            self.assertEqual(params.hf_model, "from-env")
+            self.assertEqual(params.model_version, "7.7")
+
+    def test_cli_config_file_loses_to_exported_env_var(self):
+        from trapiche import cli
+
+        with _EnvCleanup(TestModelConfigAliases.ENV_KEYS), tempfile.TemporaryDirectory() as tmp:
+            os.environ["TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR"] = "/exported/taxonomy"
+            input_path = Path(tmp) / "input.ndjson"
+            input_path.write_text(json.dumps({"sample_id": "s1"}) + "\n")
+            config_path = Path(tmp) / "trapiche.env"
+            config_path.write_text("TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR=/from/file\n")
+
+            mock_instance = MagicMock()
+            mock_instance.run.return_value = []
+            mock_runner_cls = MagicMock(return_value=mock_instance)
+            with patch.object(cli, "TrapicheWorkflowFromSequence", mock_runner_cls):
+                cli.main(
+                    [
+                        str(input_path),
+                        "-o",
+                        str(Path(tmp) / "out.ndjson"),
+                        "--log-file",
+                        str(Path(tmp) / "trapiche.log"),
+                        "--config",
+                        str(config_path),
+                    ]
+                )
+            _, kwargs = mock_runner_cls.call_args
+            self.assertEqual(kwargs["taxonomy_params"].local_model_dir, "/exported/taxonomy")
+            # And the exported value is untouched after the run.
+            self.assertEqual(os.environ["TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR"], "/exported/taxonomy")
+
+
+class TestResourceLimitEnvVars(unittest.TestCase):
+    def test_torch_gpu_memory_fraction_validation(self):
+        from trapiche.text_prediction import _torch_gpu_memory_fraction
+
+        with _EnvCleanup(["TRAPICHE_TORCH_GPU_MEMORY_FRACTION"]):
+            os.environ.pop("TRAPICHE_TORCH_GPU_MEMORY_FRACTION", None)
+            self.assertIsNone(_torch_gpu_memory_fraction())
+            os.environ["TRAPICHE_TORCH_GPU_MEMORY_FRACTION"] = "0.5"
+            self.assertEqual(_torch_gpu_memory_fraction(), 0.5)
+            for bad in ("50%", "0", "1.5", "-0.1"):
+                os.environ["TRAPICHE_TORCH_GPU_MEMORY_FRACTION"] = bad
+                with self.assertRaises(ValueError) as ctx:
+                    _torch_gpu_memory_fraction()
+                self.assertIn("TRAPICHE_TORCH_GPU_MEMORY_FRACTION", str(ctx.exception))
+
+    def test_positive_int_env_validation(self):
+        from trapiche.taxonomy_prediction import _positive_int_env
+
+        with _EnvCleanup(["TRAPICHE_TF_NUM_THREADS"]):
+            os.environ.pop("TRAPICHE_TF_NUM_THREADS", None)
+            self.assertIsNone(_positive_int_env("TRAPICHE_TF_NUM_THREADS"))
+            os.environ["TRAPICHE_TF_NUM_THREADS"] = "4"
+            self.assertEqual(_positive_int_env("TRAPICHE_TF_NUM_THREADS"), 4)
+            for bad in ("0", "-1", "two"):
+                os.environ["TRAPICHE_TF_NUM_THREADS"] = bad
+                with self.assertRaises(ValueError) as ctx:
+                    _positive_int_env("TRAPICHE_TF_NUM_THREADS")
+                self.assertIn("TRAPICHE_TF_NUM_THREADS", str(ctx.exception))
+
+
+class TestSharedAssetResolution(unittest.TestCase):
+    def test_explicit_vector_params_reach_shared_asset_loaders(self):
+        """Explicit local_model_dir on TaxonomyToVectorParams is used for the
+        biome hierarchy / tag list instead of the environment."""
+        from trapiche import taxonomy_prediction as tp
+        from trapiche.config import TaxonomyToVectorParams
+        from trapiche.utils import shared_asset_params
+
+        vp = TaxonomyToVectorParams(
+            hf_model="org/vec", model_version="3.1", local_model_dir="/models/vec"
+        )
+        self.assertEqual(shared_asset_params(vp), ("org/vec", "3.1", "/models/vec"))
+
+        tp.load_biome_tags_list.cache_clear()
+        with patch("trapiche.taxonomy_prediction._get_hf_model_path") as m:
+            m.side_effect = FileNotFoundError("stop here")
+            with self.assertRaises(FileNotFoundError):
+                tp.load_biome_tags_list(*shared_asset_params(vp))
+        m.assert_called_once_with("org/vec", "3.1", "biome_tags_*.json", "/models/vec")
+
+    def test_model_file_resolution_is_cached_per_params(self):
+        from trapiche import taxonomy_prediction as tp
+        from trapiche.config import TaxonomyToBiomeParams
+
+        tp._resolve_model_file_cached.cache_clear()
+        params = TaxonomyToBiomeParams(hf_model="org/tax", model_version="2.0")
+        with patch(
+            "trapiche.taxonomy_prediction._get_hf_model_path", return_value="/cache/model.h5"
+        ) as m:
+            self.assertEqual(tp._resolve_model_file(params), "/cache/model.h5")
+            self.assertEqual(tp._resolve_model_file(params), "/cache/model.h5")
+            self.assertEqual(
+                tp._resolve_model_file(
+                    TaxonomyToBiomeParams(hf_model="org/tax", model_version="2.0")
+                ),
+                "/cache/model.h5",
+            )
+        m.assert_called_once()
+        tp._resolve_model_file_cached.cache_clear()

@@ -15,11 +15,14 @@ import logging
 import os
 from collections.abc import Mapping, Sequence
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from .utils import _get_hf_model_path, load_biome_herarchy_dict
+from .utils import _get_hf_model_path, load_biome_herarchy_dict, shared_asset_params
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from .config import TaxonomyToVectorParams
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +48,29 @@ def choose_device(device: str | None = None) -> str:
     return "cpu"
 
 
+def _torch_gpu_memory_fraction() -> float | None:
+    """Read ``TRAPICHE_TORCH_GPU_MEMORY_FRACTION`` from the environment.
+
+    Returns:
+        float | None: Fraction in ``(0, 1]``, or None when unset/empty.
+
+    Raises:
+        ValueError: If the value is not a number in ``(0, 1]``.
+    """
+    raw = os.environ.get("TRAPICHE_TORCH_GPU_MEMORY_FRACTION")
+    if not raw:
+        return None
+    try:
+        fraction = float(raw)
+    except ValueError as e:
+        raise ValueError(
+            f"TRAPICHE_TORCH_GPU_MEMORY_FRACTION must be a number in (0, 1] (got {raw!r})"
+        ) from e
+    if not 0.0 < fraction <= 1.0:
+        raise ValueError(f"TRAPICHE_TORCH_GPU_MEMORY_FRACTION must be in (0, 1] (got {raw!r})")
+    return fraction
+
+
 @lru_cache(maxsize=2)
 def load_text_model(
     model_name: str,
@@ -66,6 +92,9 @@ def load_text_model(
         tuple: (tokenizer, config, id2label, model, thresholds).
     """
     dev = choose_device(device)
+    # Validate the optional GPU memory cap up front so a bad value fails before
+    # the (expensive) weight download/read below.
+    gpu_memory_fraction = _torch_gpu_memory_fraction() if dev.startswith("cuda") else None
 
     vocab_path = _get_hf_model_path(model_name, model_version, "vocab_*.txt", local_model_dir)
     config_path = _get_hf_model_path(model_name, model_version, "config_*.json", local_model_dir)
@@ -96,11 +125,9 @@ def load_text_model(
     model.load_state_dict(state_dict, strict=False)
 
     torch = importlib.import_module("torch")  # type: ignore
-    if dev.startswith("cuda"):
+    if gpu_memory_fraction is not None:
         # Optionally limit how much GPU memory this process can use.
-        fraction = os.environ.get("TRAPICHE_TORCH_GPU_MEMORY_FRACTION")
-        if fraction:
-            torch.cuda.set_per_process_memory_fraction(float(fraction))
+        torch.cuda.set_per_process_memory_fraction(gpu_memory_fraction)
     model.to(dev)
     model.eval()
 
@@ -315,6 +342,7 @@ def predict(
     split_sentences: bool = False,
     batch_size: int = 8,
     local_model_dir: str | None = None,
+    vector_params: TaxonomyToVectorParams | None = None,
 ) -> list[dict[str, float]]:
     """Predict labels for input texts.
 
@@ -329,6 +357,9 @@ def predict(
         batch_size: Maximum number of texts per inference batch.
         local_model_dir: Optional local directory to resolve the model from
             instead of downloading from Hugging Face Hub.
+        vector_params: Optional `TaxonomyToVectorParams` selecting the
+            vectorizer repo that hosts the shared biome hierarchy asset
+            (needed for fully offline use); defaults to the environment.
 
     Returns:
         list[list[str]]: Predicted labels per text.
@@ -340,7 +371,7 @@ def predict(
     # Unused tokenizer variable purposefully retained to ensure cache priming above
     _ = tokenizer  # pragma: no cover
 
-    gold_to_ammend_map, _ = load_biome_herarchy_dict()
+    gold_to_ammend_map, _ = load_biome_herarchy_dict(*shared_asset_params(vector_params))
 
     if split_sentences:
         agg = []

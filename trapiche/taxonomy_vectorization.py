@@ -313,10 +313,16 @@ def load_mgnify_c2v(
     model_name: str | None = None,
     model_version: str | None = None,
     local_model_dir: str | None = None,
+    hierarchy_model_name: str | None = None,
+    hierarchy_model_version: str | None = None,
+    hierarchy_local_model_dir: str | None = None,
 ):
     """Load MGnify sample vectors and metadata (cached).
 
-    Assets are fetched from the configured HF model repository.
+    Assets are fetched from the configured HF model repository. The biome
+    hierarchy used to amend biome labels lives in the vectorizer repository;
+    the ``hierarchy_*`` arguments select it explicitly (offline use) and
+    default to `TaxonomyToVectorParams` from the environment.
     """
     model_name, model_version = _resolve_model_params(model_name, model_version)
     _c2v_file = Path(
@@ -329,7 +335,9 @@ def load_mgnify_c2v(
             f"mgnify_sample_vectors file not found: {_c2v_file} (HF model: {model_name} version {model_version})\n"
         )
     logger.info("Loading mgnify_sample_vectors file=%s", _c2v_file)
-    biome_herarchy_dct, _ = load_biome_herarchy_dict()
+    biome_herarchy_dct, _ = load_biome_herarchy_dict(
+        hierarchy_model_name, hierarchy_model_version, hierarchy_local_model_dir
+    )
 
     __mgnify_sample_vectors = pd.read_hdf(_c2v_file, key="df")
 

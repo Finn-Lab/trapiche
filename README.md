@@ -19,7 +19,7 @@ By integrating both views, Trapiche improves accuracy and robustness in biome cl
 ## Install
 
 Requirements
-- Python 3.10+
+- Python 3.11 or 3.12 (see `requires-python` in `pyproject.toml`)
 - Linux/macOS recommended (CPU or CUDA GPU)
 
 From source
@@ -42,6 +42,11 @@ pip install .[cpu]
 # Install with GPU TensorFlow
 pip install .[gpu]
 ```
+
+For development, the repo also ships a `uv.lock` and a `Taskfile.yml`: with
+[uv](https://docs.astral.sh/uv/) and [Task](https://taskfile.dev) installed, `task setup` creates
+the environment with the dev and platform-appropriate TensorFlow extras, and `task test`,
+`task lint`, `task format` and `task run -- input.ndjson` wrap the usual commands.
 
 ## Quick start (CLI)
 
@@ -131,6 +136,19 @@ Trapiche CLI and API use Pydantic Settings. You can override defaults with envir
 - `TRAPICHE_SAMPLE_STUDY_TEXT_HEURISTIC=true|false`
 - `TRAPICHE_KEEP_TEXT_RESULTS` / `TRAPICHE_KEEP_VECTORISE_RESULTS` / `TRAPICHE_KEEP_TAXONOMY_RESULTS=true|false`
 
+Text-model settings use the `TRAPICHE_TEXT_` prefix (the un-prefixed legacy names still work as fallbacks);
+taxonomy-model settings use `TRAPICHE_TAXONOMY_`:
+
+- `TRAPICHE_TEXT_BATCH_SIZE` (default 8): texts per inference batch of the BERT classifier.
+- `TRAPICHE_TEXT_DEVICE`, `TRAPICHE_TEXT_MAX_LENGTH`, `TRAPICHE_TEXT_THRESHOLD_RULE`, `TRAPICHE_TEXT_SPLIT_SENTENCES`
+- `TRAPICHE_TAXONOMY_BATCH_SIZE` (default 200; legacy `TRAPICHE_BATCH_SIZE`): samples per deep-model chunk.
+
+Resource limits (all optional, unset = framework defaults):
+
+- `TRAPICHE_TF_NUM_THREADS`: pin TensorFlow intra-/inter-op parallelism to N threads.
+- `TRAPICHE_TF_GPU_MEMORY_LIMIT_MB`: cap TensorFlow GPU memory per device (otherwise memory growth is enabled).
+- `TRAPICHE_TORCH_GPU_MEMORY_FRACTION`: fraction in `(0, 1]` of GPU memory the text model may use.
+
 Example:
 
 ```bash
@@ -160,6 +178,11 @@ When `*_local_model_dir` is set, the corresponding assets are read from
 `<local_model_dir>/<model_version>/<file>` (mirroring the Hugging Face repo layout) instead of
 being downloaded, so no network access is required for that model.
 
+Note for fully offline runs: the biome hierarchy and tag-list files shared by the text and
+taxonomy pathways live in the **vectorizer** repo, so a text-only or taxonomy-only run still needs
+`--vector-local-model-dir` (or `TRAPICHE_VECTOR_LOCAL_MODEL_DIR`). The un-prefixed
+`TRAPICHE_LOCAL_MODEL_DIR` applies one directory to all three models at once.
+
 ```bash
 trapiche input.ndjson \
   --text-hf-model my-org/custom-text-classifier --text-model-version 2.0 \
@@ -167,8 +190,9 @@ trapiche input.ndjson \
 ```
 
 **Config file**: pass `--config path/to/trapiche.env` with a dotenv-style file (one `KEY=VALUE`
-per line, `#` comments allowed) using the same `TRAPICHE_*` variable names. The config file is
-loaded first; explicit CLI flags take precedence over it.
+per line, `#` comments allowed) using the same `TRAPICHE_*` variable names. Precedence is
+`CLI flags > exported environment variables > config file`: the file only fills in variables that
+are not already set in the environment. The CLI restores the caller's environment when it exits.
 
 ```
 # trapiche.env
@@ -184,11 +208,12 @@ From the Python API, construct the params classes directly (or call
 `trapiche.config.load_config_file(path)` to load a config file into the environment first):
 
 ```python
-from trapiche.config import TaxonomyToBiomeParams, TextToBiomeParams
+from trapiche.config import TaxonomyToBiomeParams, TaxonomyToVectorParams, TextToBiomeParams
 from trapiche.api import TrapicheWorkflowFromSequence
 
 runner = TrapicheWorkflowFromSequence(
     text_params=TextToBiomeParams(hf_model="my-org/custom-text-classifier", model_version="2.0"),
+    vectorise_params=TaxonomyToVectorParams(local_model_dir="/opt/trapiche-models/vectorizer"),
     taxonomy_params=TaxonomyToBiomeParams(local_model_dir="/opt/trapiche-models/taxonomy"),
 )
 ```

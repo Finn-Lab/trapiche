@@ -12,10 +12,10 @@ tasks:
       - uv sync --extra dev {{.TF_EXTRA_ARGS}}
 
   format:
-    desc: Format Python code with Ruff
+    desc: Format Python code with Black (the formatter enforced by pre-commit/CI)
     deps: [setup]
     cmds:
-      - uv run ruff format .
+      - uv run black .
 
   lint:
     desc: Check and automatically fix Python lint issues with Ruff
