@@ -43,10 +43,12 @@ import math
 import os
 import re
 import xml.etree.ElementTree as ET
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
+from difflib import SequenceMatcher
 from functools import lru_cache
 from pathlib import Path
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 import requests
@@ -54,34 +56,58 @@ from huggingface_hub import hf_hub_download
 
 logger = logging.getLogger(__name__)
 
+
 # --- Path helpers ---
 
 
-def _get_hf_model_path(model_name: str, model_version: str, file_pattern: str) -> Path:
-    """Resolve a versioned file path from a Hugging Face model repo.
+def _get_hf_model_path(
+    model_name: str,
+    model_version: str,
+    file_pattern: str,
+    local_model_dir: str | os.PathLike | None = None,
+) -> Path:
+    """Resolve a versioned model asset path, optionally from a local directory.
 
-    The star in file_pattern is replaced with model_version, and the file is
-    downloaded to the local HF cache if needed.
+    The star in file_pattern is replaced with model_version. When
+    ``local_model_dir`` is set, the asset is looked up under that directory
+    (mirroring the ``<version>/<file>`` layout of the HF repo) instead of
+    being downloaded; this allows fully offline/air-gapped use. Otherwise the
+    file is downloaded to the local HF cache if needed.
 
     Args:
         model_name: HF repository id.
         model_version: Semantic version or tag.
         file_pattern: Pattern with a single '*' placeholder.
+        local_model_dir: Optional local directory to resolve the asset from
+            instead of Hugging Face Hub. Expected to mirror the repo layout,
+            i.e. the file is looked up at
+            ``<local_model_dir>/<model_version>/<resolved_file_pattern>``.
 
     Returns:
         Path: Local path to the resolved file.
 
     Raises:
-        FileNotFoundError: If the asset cannot be resolved or downloaded.
+        FileNotFoundError: If the asset cannot be resolved, either because
+            the local file is missing or the HF download failed.
     """
+    filename = f"{model_version}/{file_pattern.replace('*', model_version)}"
+
+    if local_model_dir:
+        local_path = Path(local_model_dir) / filename
+        if not local_path.exists():
+            raise FileNotFoundError(
+                f"Local model file not found at {local_path} "
+                f"(local_model_dir={local_model_dir}, model_version={model_version})"
+            )
+        return local_path
+
     try:
-        filename = f"{model_version}/{file_pattern.replace('*', model_version)}"
         file_path = hf_hub_download(repo_id=model_name, filename=filename, repo_type="model")
         return Path(file_path)
     except Exception as e:
         raise FileNotFoundError(
             f"Could not find model file for {model_name} version {model_version} with pattern {file_pattern}: {e}"
-        )
+        ) from e
 
 
 # --- ---
@@ -120,10 +146,8 @@ def _open_text_auto(path: str | os.PathLike, mode: str = "rt", encoding: str = "
             finally:
                 # Close the wrapper to flush and detach properly. Underlying
                 # handle will be closed by the outer context manager as well.
-                try:
+                with suppress(Exception):
                     wrapper.close()
-                except Exception:
-                    pass
         else:
             yield handle
 
@@ -140,7 +164,7 @@ def diamond_read(f):
             if not raw:
                 continue
             # Normalize to str in case a binary iterator slipped through
-            if isinstance(raw, (bytes, bytearray)):
+            if isinstance(raw, bytes | bytearray):
                 try:
                     line = raw.decode("utf-8")
                 except Exception:
@@ -184,7 +208,6 @@ def diamond_read(f):
 
 
 def extract_taxonomic_edges_from_tsv_row(row: str):
-
     taxonomy_terms = set()
     line = row.replace("Candidatus ", "")
     # Split line and filter out any empty strings or strings representing empty nodes like 'k__'
@@ -221,7 +244,7 @@ def normalize_to_list_of_str(_content):
     """
     if isinstance(_content, str):
         return [_content]
-    elif isinstance(_content, (list, tuple)):
+    elif isinstance(_content, list | tuple):
         return [str(x) for x in _content]
     else:
         raise TypeError("Input must be a string or a list/tuple of strings.")
@@ -283,14 +306,45 @@ def tax_annotations_from_file(f):
 # --- ---
 
 
+def shared_asset_params(vector_params=None) -> tuple[str, str, str | None]:
+    """Return ``(hf_model, model_version, local_model_dir)`` for shared ontology assets.
+
+    The biome hierarchy and tag-list files used by both the text and the
+    taxonomy pathways live in the community2vec (vectorizer) repository.
+    Callers holding an explicit `TaxonomyToVectorParams` pass it here so that
+    `local_model_dir` overrides reach every loader (offline use); when
+    ``vector_params`` is None the values are read from a freshly constructed
+    `TaxonomyToVectorParams` (env vars / config file).
+
+    Args:
+        vector_params: Optional `TaxonomyToVectorParams` instance.
+
+    Returns:
+        tuple: Hashable ``(hf_model, model_version, local_model_dir)`` triple
+        suitable for the ``lru_cache``-decorated loaders.
+    """
+    if vector_params is None:
+        from .config import TaxonomyToVectorParams as _T2V
+
+        vector_params = _T2V()
+    return vector_params.hf_model, vector_params.model_version, vector_params.local_model_dir
+
+
 # Use a default sentinel to maintain backward compatibility while allowing explicit overrides.
 @lru_cache
-def load_biome_herarchy_dict(model_name: str | None = None, model_version: str | None = None):
+def load_biome_herarchy_dict(
+    model_name: str | None = None,
+    model_version: str | None = None,
+    local_model_dir: str | None = None,
+):
     """Load amended biome hierarchy mapping from HF assets (cached).
 
     Args:
         model_name: HF repository id. Defaults to TaxonomyToVectorParams.hf_model.
         model_version: Model version. Defaults to TaxonomyToVectorParams.model_version.
+        local_model_dir: Optional local directory to resolve the asset from
+            instead of Hugging Face Hub. Defaults to
+            TaxonomyToVectorParams.local_model_dir when not provided.
 
     Returns:
         tuple: (biome_herarchy_dct, biome_herarchy_dct_reversed)
@@ -301,8 +355,12 @@ def load_biome_herarchy_dict(model_name: str | None = None, model_version: str |
         _p = _T2V()
         model_name = model_name or _p.hf_model
         model_version = model_version or _p.model_version
+        if local_model_dir is None:
+            local_model_dir = _p.local_model_dir
 
-    p = _get_hf_model_path(model_name, model_version, "biome_herarchy_amended_*.json")
+    p = _get_hf_model_path(
+        model_name, model_version, "biome_herarchy_amended_*.json", local_model_dir=local_model_dir
+    )
 
     if not p.exists():
         raise FileNotFoundError(f"{p} not found")
@@ -360,7 +418,7 @@ def parse_otus_count(
         .replace("Candidatus ", "")
         for line in content
     ]
-    mix = {x.split("__")[-1] for l in se for x in l.split(";")}
+    mix = {x.split("__")[-1] for lineage in se for x in lineage.split(";")}
     return mix
 
 
@@ -381,7 +439,7 @@ def sanity_check_diamond_annot_file(filepath):
         content = list(h)
 
         # Check if the first line matches the valid headers
-        for ix, line in enumerate(content):
+        for _ix, line in enumerate(content):
             if line[0] == "#":
                 continue
             # line = line.strip().split('\t')
@@ -395,13 +453,9 @@ def sanity_check_diamond_annot_file(filepath):
         return content
 
 
-from numpy import dot
-from numpy.linalg import norm
-
-
 def cosine_similarity(a, b):
     """Return cosine similarity between two vectors."""
-    cos_sim = dot(a, b) / (norm(a) * norm(b))
+    cos_sim = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
     return cos_sim
 
 
@@ -431,7 +485,7 @@ def find_common_lineage(lineages):
         return lineages[0]
 
     # Split lineages into list of nodes
-    lineage_nodes = [l.split(":") for l in lineages]
+    lineage_nodes = [lineage.split(":") for lineage in lineages]
 
     # Define a common lineage list
     common_lineage = []
@@ -439,7 +493,10 @@ def find_common_lineage(lineages):
     # Iterate over the nodes in the first lineage
     for i, node in enumerate(lineage_nodes[0]):
         # Check if this node is present at the same position in 50% or more of the other lineages
-        if sum(i < len(l) and l[i] == node for l in lineage_nodes) >= len(lineage_nodes) / 2:
+        if (
+            sum(i < len(lineage) and lineage[i] == node for lineage in lineage_nodes)
+            >= len(lineage_nodes) / 2
+        ):
             # If so, append it to the common lineage
             common_lineage.append(node)
         else:
@@ -485,13 +542,13 @@ def split_tt(df, frac, rs, lin):
             tdf = df
             tdf["d3"] = lin
         # tdf['d3'] = tdf.lineage
-        for g, gr in tdf.groupby("d3"):
+        for _g, gr in tdf.groupby("d3"):
             expected = int(gr.shape[0] * frac)
             if gr.project.nunique() == 1:
                 test_samples.extend(gr.sample(frac=frac, random_state=rs).sample_id.values)
             else:
                 accum = 0
-                for ix, n in gr.project.value_counts().sample(frac=1, random_state=rs).items():
+                for ix, _n in gr.project.value_counts().sample(frac=1, random_state=rs).items():
                     momo = tdf[tdf.project == ix].sample_id
                     test_samples.extend(momo)
                     accum += momo.shape[0]
@@ -505,35 +562,35 @@ def split_tt(df, frac, rs, lin):
 def three_split(df, random_state=None, frac_=0.2):
     """Split a dataframe into train/val/test by non-overlapping projects."""
     gr = pd.DataFrame(df)
-    ann = lambda x: re.sub(":*$", "", ":".join((x.split(":") + [""] * 3)[:3]))
+
+    def ann(value):
+        return re.sub(":*$", "", ":".join((value.split(":") + [""] * 3)[:3]))
+
     gr["top"] = gr.lineage.map(ann)
     if gr.lineage.nunique() < 1:
         print("NOTHING\n")
         # continue
     split_tt(gr, frac_, random_state, gr["top"])
-    test_df = gr[gr.IS_TEST == True]
-    train_df = gr[gr.IS_TEST == False]
+    test_df = gr[gr.IS_TEST]
+    train_df = gr[~gr.IS_TEST]
     split_tt(train_df, frac_, random_state, gr["top"])
     train_df.IS_TEST.value_counts()
     test_df.IS_TEST.value_counts()
-    val_df = train_df[train_df.IS_TEST == True]
-    train_df = train_df[train_df.IS_TEST == False]
+    val_df = train_df[train_df.IS_TEST]
+    train_df = train_df[~train_df.IS_TEST]
     return train_df, val_df, test_df
 
 
 def subsamp(df, random_state=None, top=1200):
     """Subsample to keep at most K samples per biome label."""
     samps = []
-    for g, gr in df.groupby("lineage"):
+    for _g, gr in df.groupby("lineage"):
         if gr.shape[0] > top:
             samps.extend(gr.sample(top, random_state=random_state).sample_id.values)
         else:
             samps.extend(gr.sample_id.values)
     new_df = df[df.sample_id.isin(samps)]
     return new_df
-
-
-from difflib import SequenceMatcher
 
 
 def longest_matching_string(string1, string2):
@@ -550,11 +607,6 @@ def match_metrics(_gt, _pred):
     recall = len(gt & pred) / len(gt)
     precision = len(gt & pred) / len(pred)
     return recall, precision
-
-
-import networkx as nx
-
-"""Bayesian network of GOLD."""
 
 
 def build_bayesian_onto(onto_net):
@@ -582,10 +634,7 @@ def i_T(term, graph):
 
     If term is a string, use its ancestors; if iterable, use the set itself.
     """
-    if isinstance(term, str):
-        veT = nx.ancestors(graph, term) | {term}
-    else:
-        veT = term
+    veT = nx.ancestors(graph, term) | {term} if isinstance(term, str) else term
     _info_content = [ia_v(x, graph) for x in veT]
     return np.sum(_info_content)
 
@@ -978,7 +1027,7 @@ def obj_to_serializable(obj):
     - fallback: str(obj)
     """
     # simple primitives
-    if obj is None or isinstance(obj, (str, bool, int)):
+    if obj is None or isinstance(obj, str | bool | int):
         return obj
     if isinstance(obj, float):
         # convert NaN/inf to None to keep NDJSON parsable
@@ -991,7 +1040,7 @@ def obj_to_serializable(obj):
         return str(obj)
 
     # bytes
-    if isinstance(obj, (bytes, bytearray)):
+    if isinstance(obj, bytes | bytearray):
         try:
             return obj.decode("utf-8")
         except Exception:
@@ -1020,7 +1069,7 @@ def obj_to_serializable(obj):
         return out
 
     # iterables -> list
-    if isinstance(obj, (list, tuple, set)):
+    if isinstance(obj, list | tuple | set):
         return [obj_to_serializable(v) for v in obj]
 
     # fallback to string
@@ -1063,7 +1112,7 @@ def read_taxonomy_study_tsv_cached(path: str | os.PathLike) -> dict:
         try:
             header = next(reader)
         except StopIteration:
-            raise ValueError("File is empty.")
+            raise ValueError("File is empty.") from None
 
         if len(header) < 2:
             raise ValueError(

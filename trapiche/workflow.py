@@ -181,6 +181,7 @@ def run_text_step(
     samples: Sequence[dict[str, Any]],
     params_obj: TextToBiomeParams,
     use_heuristic: bool = False,
+    vectorise_params: TaxonomyToVectorParams | None = None,
 ) -> tuple[
     list[dict[str, float] | None],  # combined predictions (used for constraints)
     list[dict[str, float] | None],  # project text predictions
@@ -301,8 +302,11 @@ def run_text_step(
             model_version=params_obj.model_version,
             device=params_obj.device,
             max_length=params_obj.max_length,
+            batch_size=params_obj.batch_size,
             threshold_rule=params_obj.threshold_rule,
             split_sentences=params_obj.split_sentences,
+            local_model_dir=params_obj.local_model_dir,
+            vector_params=vectorise_params,
         )
 
     # Map back to samples combining with heuristic when applicable
@@ -374,10 +378,13 @@ def run_taxonomy_step(
     params: TaxonomyToBiomeParams,
     community_vectors: np.ndarray | Sequence | None = None,
     text_constraints: Sequence[dict[str, float] | None] | None = None,
+    vectorise_params: TaxonomyToVectorParams | None = None,
 ) -> Sequence[dict[str, Any] | None]:
     """Run TaxonomyToBiome using community vectors and optional text constraints.
     Returns for each sample either a dict (row-wise prediction) or None.
-    If community_vectors is None the function computes them.
+    If community_vectors is None the function computes them using
+    ``vectorise_params`` (or config defaults when not given). The same params
+    select the vectorizer repo hosting the shared biome-ontology assets.
     """
 
     logger.info(
@@ -385,9 +392,12 @@ def run_taxonomy_step(
     )
     if community_vectors is None:
         # When used from run_workflow, we pass community vectors explicitly; keep signature for compatibility.
-        _vec_p = TaxonomyToVectorParams()
+        _vec_p = vectorise_params or TaxonomyToVectorParams()
         community_vectors = c2v_mod.vectorise_samples(
-            samples, model_name=_vec_p.hf_model, model_version=_vec_p.model_version
+            samples,
+            model_name=_vec_p.hf_model,
+            model_version=_vec_p.model_version,
+            local_model_dir=_vec_p.local_model_dir,
         )
 
     # Constraints: pass text constraints as-is (list per sample) or None
@@ -399,6 +409,7 @@ def run_taxonomy_step(
         community_vectors=community_vectors,
         constrain=constrain,
         params=params,
+        vector_params=vectorise_params,
     )
 
     return results
@@ -441,7 +452,10 @@ def run_workflow(
             raw_proj_text,
             raw_samp_text,
         ) = run_text_step(
-            samples, params_obj=text_params, use_heuristic=sample_study_text_heuristic
+            samples,
+            params_obj=text_params,
+            use_heuristic=sample_study_text_heuristic,
+            vectorise_params=vectorise_params,
         )
     else:
         text_results = [None for _ in samples]
@@ -455,6 +469,7 @@ def run_workflow(
             samples,
             model_name=vectorise_params.hf_model,
             model_version=vectorise_params.model_version,
+            local_model_dir=vectorise_params.local_model_dir,
         )
     else:
         community_vectors = [None for _ in samples]
@@ -465,6 +480,7 @@ def run_workflow(
             params=taxonomy_params,
             community_vectors=community_vectors,
             text_constraints=text_results,
+            vectorise_params=vectorise_params,
         )
     else:
         taxonomy_results = [None for _ in samples]

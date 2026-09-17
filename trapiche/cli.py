@@ -10,13 +10,37 @@ import argparse
 import gzip
 import json
 import logging
+import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 from .api import TrapicheWorkflowFromSequence
-from .config import TrapicheWorkflowParams, setup_logging
+from .config import (
+    TaxonomyToBiomeParams,
+    TaxonomyToVectorParams,
+    TextToBiomeParams,
+    TrapicheWorkflowParams,
+    load_config_file,
+    setup_logging,
+)
+
+# Maps CLI dest -> env var set when the flag is provided, so that CLI
+# overrides are visible both to the params objects constructed here and to
+# any component that lazily re-reads model config from the environment
+# (e.g. the taxonomy classifier's internal model loader).
+_MODEL_ENV_VARS: dict[str, str] = {
+    "text_hf_model": "TRAPICHE_TEXT_HF_MODEL",
+    "text_model_version": "TRAPICHE_TEXT_MODEL_VERSION",
+    "text_local_model_dir": "TRAPICHE_TEXT_LOCAL_MODEL_DIR",
+    "vector_hf_model": "TRAPICHE_VECTOR_HF_MODEL",
+    "vector_model_version": "TRAPICHE_VECTOR_MODEL_VERSION",
+    "vector_local_model_dir": "TRAPICHE_VECTOR_LOCAL_MODEL_DIR",
+    "taxonomy_hf_model": "TRAPICHE_TAXONOMY_HF_MODEL",
+    "taxonomy_model_version": "TRAPICHE_TAXONOMY_MODEL_VERSION",
+    "taxonomy_local_model_dir": "TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR",
+}
 
 
 def read_ndjson(path: Path | None) -> Iterable[dict[str, Any]]:
@@ -28,7 +52,6 @@ def read_ndjson(path: Path | None) -> Iterable[dict[str, Any]]:
     Yields:
         dict: One object per line.
     """
-    fh = None
     try:
         if path is None:
             # stdin: text stream
@@ -40,20 +63,20 @@ def read_ndjson(path: Path | None) -> Iterable[dict[str, Any]]:
             return
 
         if path.suffix == ".gz":
-            fh = gzip.open(path, "rt", encoding="utf-8")
+            stream = gzip.open(path, "rt", encoding="utf-8")
         else:
-            fh = open(path, encoding="utf-8")
+            stream = path.open(encoding="utf-8")
 
-        with fh:
-            for line in fh:
+        with stream:
+            for line in stream:
                 line = line.strip()
                 if not line:
                     continue
                 yield json.loads(line)
     except json.JSONDecodeError as e:
-        raise SystemExit(f"Invalid JSON encountered: {e}")
+        raise SystemExit(f"Invalid JSON encountered: {e}") from e
     except FileNotFoundError:
-        raise SystemExit(f"Input file not found: {path}")
+        raise SystemExit(f"Input file not found: {path}") from None
 
 
 def write_ndjson(records: Iterable[dict[str, Any]], path: Path | None) -> None:
@@ -145,6 +168,91 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     p.set_defaults(disable_minimal_result=False)
 
+    # Model configuration: flags and/or config file
+    p.add_argument(
+        "--config",
+        dest="config_file",
+        default=None,
+        help=(
+            "Path to a dotenv-style config file setting TRAPICHE_* variables "
+            "(e.g. TRAPICHE_TEXT_HF_MODEL, TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR). "
+            "Loaded before any other flags/env vars are read; explicit CLI "
+            "flags below take precedence over values from this file."
+        ),
+    )
+    model_group = p.add_argument_group(
+        "model configuration",
+        "Select model repo/version, or point to a local directory to bypass "
+        "Hugging Face Hub downloads (offline use). Each can also be set via "
+        "the corresponding TRAPICHE_* environment variable or --config file.",
+    )
+    model_group.add_argument(
+        "--text-hf-model",
+        dest="text_hf_model",
+        default=None,
+        help="HF repo id for the text classifier (env: TRAPICHE_TEXT_HF_MODEL)",
+    )
+    model_group.add_argument(
+        "--text-model-version",
+        dest="text_model_version",
+        default=None,
+        help="Version/tag of the text classifier (env: TRAPICHE_TEXT_MODEL_VERSION)",
+    )
+    model_group.add_argument(
+        "--text-local-model-dir",
+        dest="text_local_model_dir",
+        default=None,
+        help=(
+            "Local directory (mirroring the HF repo layout) to load the text "
+            "classifier from instead of Hugging Face Hub "
+            "(env: TRAPICHE_TEXT_LOCAL_MODEL_DIR)"
+        ),
+    )
+    model_group.add_argument(
+        "--vector-hf-model",
+        dest="vector_hf_model",
+        default=None,
+        help="HF repo id for the community2vec vectorizer (env: TRAPICHE_VECTOR_HF_MODEL)",
+    )
+    model_group.add_argument(
+        "--vector-model-version",
+        dest="vector_model_version",
+        default=None,
+        help="Version/tag of the vectorizer (env: TRAPICHE_VECTOR_MODEL_VERSION)",
+    )
+    model_group.add_argument(
+        "--vector-local-model-dir",
+        dest="vector_local_model_dir",
+        default=None,
+        help=(
+            "Local directory (mirroring the HF repo layout) to load the "
+            "vectorizer from instead of Hugging Face Hub "
+            "(env: TRAPICHE_VECTOR_LOCAL_MODEL_DIR)"
+        ),
+    )
+    model_group.add_argument(
+        "--taxonomy-hf-model",
+        dest="taxonomy_hf_model",
+        default=None,
+        help="HF repo id for the taxonomy classifier (env: TRAPICHE_TAXONOMY_HF_MODEL)",
+    )
+    model_group.add_argument(
+        "--taxonomy-model-version",
+        dest="taxonomy_model_version",
+        default=None,
+        help="Version/tag of the taxonomy classifier (env: TRAPICHE_TAXONOMY_MODEL_VERSION)",
+    )
+    model_group.add_argument(
+        "--taxonomy-local-model-dir",
+        dest="taxonomy_local_model_dir",
+        default=None,
+        help=(
+            "Local directory (mirroring the HF repo layout) to load the "
+            "taxonomy classifier from instead of Hugging Face Hub "
+            "(env: TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR)"
+        ),
+    )
+
     # Logging option: default to trapiche.log when running via the CLI
     p.add_argument(
         "--log-file",
@@ -177,6 +285,38 @@ def main(argv: list[str] | None = None) -> int:
         int: Process exit code (0 on success).
     """
     args = parse_args(argv)
+
+    # --config and the model flags are applied through the process environment
+    # so that lazily constructed settings objects see them. Snapshot and restore
+    # the caller's environment so overrides do not leak into later in-process
+    # calls (test suites, notebooks, service wrappers).
+    env_snapshot = dict(os.environ)
+    try:
+        return _run(args)
+    finally:
+        _restore_environ(env_snapshot)
+
+
+def _restore_environ(snapshot: dict[str, str]) -> None:
+    """Reset ``os.environ`` to ``snapshot``, dropping keys added since."""
+    for key in set(os.environ) - set(snapshot):
+        os.environ.pop(key, None)
+    for key, value in snapshot.items():
+        if os.environ.get(key) != value:
+            os.environ[key] = value
+
+
+def _run(args: argparse.Namespace) -> int:
+    """Execute the workflow for parsed CLI arguments (see :func:`main`)."""
+    # Load config file (if any) before anything else reads TRAPICHE_* env
+    # vars. It does not override variables already exported by the caller;
+    # explicit CLI flags are applied afterwards and take precedence over both.
+    if args.config_file:
+        load_config_file(args.config_file)
+    for dest, env_var in _MODEL_ENV_VARS.items():
+        value = getattr(args, dest, None)
+        if value is not None:
+            os.environ[env_var] = value
 
     logfile = args.log_file
     setup_logging(logfile=logfile, level=args.log_level)
@@ -217,6 +357,12 @@ def main(argv: list[str] | None = None) -> int:
 
     workflow_params = base_params.model_copy(update=update_fields)
 
+    # Model params are constructed after the env vars above are set, so
+    # CLI flags / --config values are reflected here.
+    text_params = TextToBiomeParams()
+    vectorise_params = TaxonomyToVectorParams()
+    taxonomy_params = TaxonomyToBiomeParams()
+
     # read input
     samples = list(read_ndjson(inpath))
     if not samples:
@@ -233,8 +379,12 @@ def main(argv: list[str] | None = None) -> int:
         write_ndjson([], outpath)
         return 0
 
-    # Determine taxonomy vectorization model params from config defaults
-    runner = TrapicheWorkflowFromSequence(workflow_params=workflow_params)
+    runner = TrapicheWorkflowFromSequence(
+        workflow_params=workflow_params,
+        text_params=text_params,
+        vectorise_params=vectorise_params,
+        taxonomy_params=taxonomy_params,
+    )
     processed = runner.run(samples)
 
     # If no output path specified but an input file was used, generate

@@ -26,20 +26,32 @@ class Community2vec:
     TaxonomyToVectorParams when not provided.
     """
 
-    def __init__(self, model_name: str | None = None, model_version: str | None = None):
-        # If not provided, default to config defaults
-        if model_name is None or model_version is None:
+    def __init__(
+        self,
+        model_name: str | None = None,
+        model_version: str | None = None,
+        local_model_dir: str | None = None,
+    ):
+        # Fall back to TaxonomyToVectorParams (env vars / config file) for any
+        # field left unset.
+        if model_name is None or model_version is None or local_model_dir is None:
             from .config import TaxonomyToVectorParams as _T2V
 
             _p = _T2V()
             self.model_name = model_name or _p.hf_model
             self.model_version = model_version or _p.model_version
+            self.local_model_dir = local_model_dir or _p.local_model_dir
         else:
             self.model_name = model_name
             self.model_version = model_version
+            self.local_model_dir = local_model_dir
         logger.info(
             "Community2vec created",
-            extra={"model_name": self.model_name, "model_version": self.model_version},
+            extra={
+                "model_name": self.model_name,
+                "model_version": self.model_version,
+                "local_model_dir": self.local_model_dir,
+            },
         )
 
     def transform(self, samples_sequence: Sequence[dict[str, Any]]) -> np.ndarray:
@@ -62,7 +74,10 @@ class Community2vec:
             extra={"model_name": self.model_name, "model_version": self.model_version},
         )
         self.vectorised_samples = vectorise_samples(
-            samples_sequence, model_name=self.model_name, model_version=self.model_version
+            samples_sequence,
+            model_name=self.model_name,
+            model_version=self.model_version,
+            local_model_dir=self.local_model_dir,
         )
         return self.vectorised_samples
 
@@ -99,6 +114,7 @@ class TaxonomyToBiome:
         *,
         model_name: str | None = None,
         model_version: str | None = None,
+        vector_params: TaxonomyToVectorParams | None = None,
     ):
         """Run taxonomy-based prediction.
 
@@ -106,6 +122,9 @@ class TaxonomyToBiome:
             community_vectors: Array of shape (n_samples, dim).
             constrain: Optional per-sample candidate labels.
             params: Optional override of instance parameters.
+            vector_params: Optional vectorizer parameters selecting the repo
+                (or local directory) hosting the shared biome-ontology assets;
+                defaults to the environment-backed config.
 
         Returns:
             list[dict]: One result dict per sample with prediction keys.
@@ -120,7 +139,10 @@ class TaxonomyToBiome:
             getattr(_params, "__dict__", str(_params)),
         )
         self.results = predict_runs(
-            community_vectors=community_vectors, constrain=constrain, params=_params
+            community_vectors=community_vectors,
+            constrain=constrain,
+            params=_params,
+            vector_params=vector_params,
         )
         return self.results
 
@@ -160,12 +182,16 @@ class TextToBiome:
         self,
         texts: Sequence[str] | str,
         params: TextToBiomeParams | None = None,
+        vector_params: TaxonomyToVectorParams | None = None,
     ) -> Sequence[dict[str, float] | None] | None:
         """Run text-based biome prediction.
 
         Args:
             texts: One or more input texts.
             params: Optional override of instance parameters.
+            vector_params: Optional vectorizer parameters selecting the repo
+                (or local directory) hosting the shared biome hierarchy asset
+                used to canonicalize labels; defaults to the environment.
 
         Returns:
             list[list[str]]: Predicted labels per text.
@@ -181,8 +207,11 @@ class TextToBiome:
             model_version=_p.model_version,
             device=_p.device,
             max_length=_p.max_length,
+            batch_size=_p.batch_size,
             threshold_rule=_p.threshold_rule,
             split_sentences=_p.split_sentences,
+            local_model_dir=_p.local_model_dir,
+            vector_params=vector_params,
         )
         self.predictions_ = preds
         return preds

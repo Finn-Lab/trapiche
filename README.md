@@ -19,7 +19,7 @@ By integrating both views, Trapiche improves accuracy and robustness in biome cl
 ## Install
 
 Requirements
-- Python 3.10+
+- Python 3.11 or 3.12 (see `requires-python` in `pyproject.toml`)
 - Linux/macOS recommended (CPU or CUDA GPU)
 
 From source
@@ -43,6 +43,11 @@ pip install .[cpu]
 pip install .[gpu]
 ```
 
+For development, the repo also ships a `uv.lock` and a `Taskfile.yml`: with
+[uv](https://docs.astral.sh/uv/) and [Task](https://taskfile.dev) installed, `task setup` creates
+the environment with the dev and platform-appropriate TensorFlow extras, and `task test`,
+`task lint`, `task format` and `task run -- input.ndjson` wrap the usual commands.
+
 ## Quick start (CLI)
 
 The CLI expects NDJSON (one JSON object per line). Each object represents one sample.
@@ -62,7 +67,7 @@ Required/optional keys per sample:
 - `sample_taxonomy_paths` (required for taxonomy predictions): list of file paths.
 	- Accepted formats: .tsv, .tsv.gz (non-recursive).
 
-Optional identifiers and study-level input
+Entry identifiers and study-level input
 - `project_id` (optional): identifier to group samples into a project/study.
 - `sample_id` (optional): identifier of the sample within the study.
 - `taxonomy_study_tsv` (optional): path to a study-level taxonomy summary TSV.
@@ -74,15 +79,15 @@ Optional identifiers and study-level input
 Example input using external labels (recommended):
 
 ```json
-{"ext_text_pred_project": ["root:Environmental:Aquatic:Marine"], "sample_taxonomy_paths": ["test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_diamond.tsv.gz"]}
-{"ext_text_pred_project": ["root:Environmental:Terrestrial:Soil"], "ext_text_pred_sample": ["root:Environmental:Terrestrial:Soil:Agricultural"], "sample_taxonomy_paths": ["test/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"]}
+{"sample_id": "sample-001", "ext_text_pred_project": ["root:Environmental:Aquatic:Marine"], "sample_taxonomy_paths": ["test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv"]}
+{"sample_id": "sample-002", "ext_text_pred_project": ["root:Environmental:Terrestrial:Soil"], "ext_text_pred_sample": ["root:Environmental:Terrestrial:Soil:Agricultural"], "sample_taxonomy_paths": ["test/taxonomy_files/SRR1524511_MERGED_FASTQ_LSU_OTU.tsv"]}
 ```
 
 Example input using the fallback internal classifier:
 
 ```json
-{"project_description_text":"Effect of different fertilization treatments on soil microbiome...", "sample_taxonomy_paths":["test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_diamond.tsv.gz","test/files/taxonomy_files/ERZ34590789/ERZ34590789_FASTA_mseq.tsv"]}
-{"project_description_file_path":"test/files/text_files/PRJEB42572_project_description.txt","sample_taxonomy_paths":["test/files/taxonomy_files/ERZ19590789_FASTA_diamond.tsv.gz"]}
+{"sample_id": "sample-003", "project_description_text":"Effect of different fertilization treatments on soil microbiome...", "sample_taxonomy_paths":["test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv","test/taxonomy_files/SRR1524511_MERGED_FASTQ_LSU_OTU.tsv"]}
+{"sample_id": "sample-004", "project_description_text":"A microbial community recovered from an environmental sample.", "sample_taxonomy_paths":["test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv"]}
 ```
 
 Run the workflow
@@ -107,15 +112,19 @@ trapiche input.ndjson --no-run-text  # no text-based constraints
 # Enable/disable the sample-over-study heuristic for text predictions
 trapiche input.ndjson --sample-study-text-heuristic
 trapiche input.ndjson --no-sample-study-text-heuristic
+
 ```
 
 Flags
 - `--run-text/--no-run-text`, `--run-vectorise/--no-run-vectorise`, `--run-taxonomy/--no-run-taxonomy`
-- `--keep-text-results / --keep-vectorise-results / --keep-taxonomy-results`
 - `--disable-minimal-result` (default: false). When set, the default minimal output is disabled and
 	the final keys saved are controlled by `TrapicheWorkflowParams`. By default the CLI produces the compact/minimal
-	output (no flag required).
+	output (no flag required). There is no `--keep-*-results` CLI flag; use the
+	`TRAPICHE_KEEP_TEXT_RESULTS` / `TRAPICHE_KEEP_VECTORISE_RESULTS` / `TRAPICHE_KEEP_TAXONOMY_RESULTS`
+	environment variables (only honored when `--disable-minimal-result` is set).
 - `--sample-study-text-heuristic` (or `--no-sample-study-text-heuristic`): when both project/sample text labels are present (either external or internal), run prediction on both and keep the union of labels.
+- Model configuration flags (`--text-hf-model`, `--taxonomy-local-model-dir`, etc.) and `--config`: see
+	[Model configuration](#model-configuration-repo-version-local-path) below.
 
 ## Configuration via environment variables
 
@@ -125,6 +134,20 @@ Trapiche CLI and API use Pydantic Settings. You can override defaults with envir
 - `TRAPICHE_RUN_VECTORISE=true|false`
 - `TRAPICHE_RUN_TAXONOMY=true|false`
 - `TRAPICHE_SAMPLE_STUDY_TEXT_HEURISTIC=true|false`
+- `TRAPICHE_KEEP_TEXT_RESULTS` / `TRAPICHE_KEEP_VECTORISE_RESULTS` / `TRAPICHE_KEEP_TAXONOMY_RESULTS=true|false`
+
+Text-model settings use the `TRAPICHE_TEXT_` prefix (the un-prefixed legacy names still work as fallbacks);
+taxonomy-model settings use `TRAPICHE_TAXONOMY_`:
+
+- `TRAPICHE_TEXT_BATCH_SIZE` (default 8): texts per inference batch of the BERT classifier.
+- `TRAPICHE_TEXT_DEVICE`, `TRAPICHE_TEXT_MAX_LENGTH`, `TRAPICHE_TEXT_THRESHOLD_RULE`, `TRAPICHE_TEXT_SPLIT_SENTENCES`
+- `TRAPICHE_TAXONOMY_BATCH_SIZE` (default 200; legacy `TRAPICHE_BATCH_SIZE`): samples per deep-model chunk.
+
+Resource limits (all optional, unset = framework defaults):
+
+- `TRAPICHE_TF_NUM_THREADS`: pin TensorFlow intra-/inter-op parallelism to N threads.
+- `TRAPICHE_TF_GPU_MEMORY_LIMIT_MB`: cap TensorFlow GPU memory per device (otherwise memory growth is enabled).
+- `TRAPICHE_TORCH_GPU_MEMORY_FRACTION`: fraction in `(0, 1]` of GPU memory the text model may use.
 
 Example:
 
@@ -133,6 +156,74 @@ export TRAPICHE_RUN_TEXT=false
 export TRAPICHE_RUN_TAXONOMY=true
 trapiche input.ndjson
 ```
+
+## Model configuration (repo, version, local path)
+
+By default Trapiche downloads three sets of model assets from Hugging Face Hub on first use:
+the text classifier, the community2vec vectorizer, and the taxonomy (lineage) classifier. Each
+can be independently pointed at a different repo/version, or resolved from a local directory
+instead of Hugging Face Hub (for offline/air-gapped use), via CLI flags, environment variables,
+or a config file.
+
+CLI flags (each also settable via the listed environment variable):
+
+- `--text-hf-model` / `--text-model-version` / `--text-local-model-dir`
+  (env: `TRAPICHE_TEXT_HF_MODEL`, `TRAPICHE_TEXT_MODEL_VERSION`, `TRAPICHE_TEXT_LOCAL_MODEL_DIR`)
+- `--vector-hf-model` / `--vector-model-version` / `--vector-local-model-dir`
+  (env: `TRAPICHE_VECTOR_HF_MODEL`, `TRAPICHE_VECTOR_MODEL_VERSION`, `TRAPICHE_VECTOR_LOCAL_MODEL_DIR`)
+- `--taxonomy-hf-model` / `--taxonomy-model-version` / `--taxonomy-local-model-dir`
+  (env: `TRAPICHE_TAXONOMY_HF_MODEL`, `TRAPICHE_TAXONOMY_MODEL_VERSION`, `TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR`)
+
+When `*_local_model_dir` is set, the corresponding assets are read from
+`<local_model_dir>/<model_version>/<file>` (mirroring the Hugging Face repo layout) instead of
+being downloaded, so no network access is required for that model.
+
+Note for fully offline runs: the biome hierarchy and tag-list files shared by the text and
+taxonomy pathways live in the **vectorizer** repo, so a text-only or taxonomy-only run still needs
+`--vector-local-model-dir` (or `TRAPICHE_VECTOR_LOCAL_MODEL_DIR`). The un-prefixed
+`TRAPICHE_LOCAL_MODEL_DIR` applies one directory to all three models at once.
+
+```bash
+trapiche input.ndjson \
+  --text-hf-model my-org/custom-text-classifier --text-model-version 2.0 \
+  --taxonomy-local-model-dir /opt/trapiche-models/taxonomy
+```
+
+**Config file**: pass `--config path/to/trapiche.env` with a dotenv-style file (one `KEY=VALUE`
+per line, `#` comments allowed) using the same `TRAPICHE_*` variable names. Precedence is
+`CLI flags > exported environment variables > config file`: the file only fills in variables that
+are not already set in the environment. The CLI restores the caller's environment when it exits.
+
+```
+# trapiche.env
+TRAPICHE_TEXT_HF_MODEL=my-org/custom-text-classifier
+TRAPICHE_TAXONOMY_LOCAL_MODEL_DIR=/opt/trapiche-models/taxonomy
+```
+
+```bash
+trapiche input.ndjson --config trapiche.env
+```
+
+From the Python API, construct the params classes directly (or call
+`trapiche.config.load_config_file(path)` to load a config file into the environment first):
+
+```python
+from trapiche.config import TaxonomyToBiomeParams, TaxonomyToVectorParams, TextToBiomeParams
+from trapiche.api import TrapicheWorkflowFromSequence
+
+runner = TrapicheWorkflowFromSequence(
+    text_params=TextToBiomeParams(hf_model="my-org/custom-text-classifier", model_version="2.0"),
+    vectorise_params=TaxonomyToVectorParams(local_model_dir="/opt/trapiche-models/vectorizer"),
+    taxonomy_params=TaxonomyToBiomeParams(local_model_dir="/opt/trapiche-models/taxonomy"),
+)
+```
+
+Note: the three model classes (`TextToBiomeParams`, `TaxonomyToVectorParams`, `TaxonomyToBiomeParams`)
+each read their `hf_model`/`model_version`/`local_model_dir` from their own `TRAPICHE_TEXT_*` /
+`TRAPICHE_VECTOR_*` / `TRAPICHE_TAXONOMY_*` environment variables so that overriding one model
+does not affect the others. The un-prefixed `TRAPICHE_HF_MODEL` / `TRAPICHE_MODEL_VERSION` /
+`TRAPICHE_LOCAL_MODEL_DIR` variables still work as a fallback applied to all three when the
+model-specific variable is not set.
 
 
 ## Quick start (Python API)
@@ -162,6 +253,7 @@ from trapiche.config import TrapicheWorkflowParams
 # Recommended: supply external labels — no model download needed for the text step
 samples = [
 	{
+		"sample_id": "sample-001",
 		"ext_text_pred_project": ["root:Environmental:Aquatic:Marine"],
 		"sample_taxonomy_paths": [
 			"test/taxonomy_files/SRR1524511_MERGED_FASTQ_SSU_OTU.tsv",
@@ -252,17 +344,32 @@ One JSON object per sample in either NDJSON (CLI) or List (API), with the follow
 **Label format**: every string in `ext_text_pred_project` / `ext_text_pred_sample` must match the pattern `root:Category[:Subcategory...]` (e.g. `"root:Environmental:Aquatic:Marine"`). An invalid label raises a `ValueError` immediately.
 
 ## Output schema
+
 Output record (API and CLI workflow)
+
 One JSON object per sample in either NDJSON (CLI) or List (API), with the following keys added to the input record:
-```
- {'raw_unambiguous_prediction': ('root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin',
-   1.0),
-  'raw_refined_prediction': {'root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin': 1.0},
-  'final_selected_prediction': {'root:Engineered:Food production': 1.0},
-  'text_predictions': ['root:Engineered:Food production'],
-  'constrained_unambiguous_prediction': ('root:Engineered:Food production',
-   1.0),
-  'constrained_refined_prediction': {'root:Engineered:Food production': 1.0}}
+
+```json
+{
+  "raw_unambiguous_prediction": {
+    "root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin": 1
+  },
+  "raw_refined_prediction": {
+    "root:Host-associated:Animal:Vertebrates:Mammals:Human:Skin": 1
+  },
+  "final_selected_prediction": {
+    "root:Engineered:Food production": 1
+  },
+  "text_predictions": [
+    "root:Engineered:Food production"
+  ],
+  "constrained_unambiguous_prediction": {
+    "root:Engineered:Food production": 1
+  },
+  "constrained_refined_prediction": {
+    "root:Engineered:Food production": 1
+  }
+}
 ```
 
 Best prediction is in `final_selected_prediction`.
@@ -367,6 +474,11 @@ results = runner.run(samples)
 `predict_biomes_from_text` uses the bundled GOLD ecosystem taxonomy and prompt
 template to guide the LLM, then validates every returned label against the
 `root:Category:...` format before passing it back.
+
+`to_trapiche_samples` uses `sample_id` to join predictions back to samples.
+When `base_samples` is passed (as above), its `sample_id` and `project_id`
+values are retained. When `base_samples` is omitted, minimal dicts are built
+from `enriched` with `sample_id` and the `ext_text_pred_*` keys.
 
 ## Tests
 

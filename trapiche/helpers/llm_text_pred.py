@@ -19,6 +19,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+from .config import LLMTextPredConfig
+
 logger = logging.getLogger(__name__)
 
 _PROMPTS = files("trapiche.helpers.prompts")
@@ -258,8 +260,6 @@ def predict_biomes_from_text(
         ImportError: If ``litellm`` is not installed (normal mode only).
         ValueError: If the LLM response cannot be parsed.
     """
-    from trapiche.helpers.config import LLMTextPredConfig
-
     if config is None:
         config = LLMTextPredConfig()
 
@@ -479,8 +479,8 @@ def to_trapiche_samples(
         base_samples: Optional list of existing sample dicts (matched by
             ``sample_id``). When provided, the external prediction keys are
             merged into the corresponding base dict; unmatched samples are
-            left as-is. When omitted, minimal dicts are built from the
-            enriched structure.
+            left as-is. When omitted, minimal dicts are built from the enriched
+            structure.
 
     Returns:
         list[dict]: Per-sample dicts with ``ext_text_pred_project`` and
