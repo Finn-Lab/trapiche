@@ -18,6 +18,19 @@ from .workflow import run_workflow
 setup_logging(logfile=None)
 logger = logging.getLogger(__name__)
 
+# Keys added by run_workflow that are *not* taxonomy predictions. Anything else
+# the workflow adds on top of the input sample keys is treated as a taxonomy key.
+_NON_TAXONOMY_RESULT_KEYS: frozenset[str] = frozenset(
+    {
+        "text_predictions",
+        "text_predictions_project",
+        "text_predictions_sample",
+        "_raw_ext_text_pred_project",
+        "_raw_ext_text_pred_sample",
+        "community_vector",
+    }
+)
+
 
 class Community2vec:
     """Vectorise taxonomy annotations into community embeddings.
@@ -291,20 +304,22 @@ class TrapicheWorkflowFromSequence:
                 logger.warning("Failed to build study summary: %s", e)
 
         # process which keys to keep according to config
-        keep_keys = set()
-        sample_keys = set(samples[0].keys()) if samples else set()
-        all_keys = set(result[0].keys()) if result else set()
         if self.workflow_params.output_keys:
             keep_keys = set(self.workflow_params.output_keys)
         else:
-            keep_keys = set(result[0].keys()) if result else set()
+            # Derive the key set from the union over *all* records, not just
+            # the first one: a sample without a taxonomy result (empty or
+            # unparsable taxonomy file) has no taxonomy keys, and using it as
+            # the template would strip those keys from every other sample.
+            sample_keys: set[str] = set().union(*(s.keys() for s in samples))
+            keep_keys = set().union(*(r.keys() for r in result))
             if not self.workflow_params.keep_text_results:
                 keep_keys.discard("text_predictions")
             if not self.workflow_params.keep_vectorise_results:
                 keep_keys.discard("community_vector")
             if not self.workflow_params.keep_taxonomy_results:
                 # TODO: add a tag to the taxonomy results dict to identify its keys
-                taxonomy_keys = all_keys - ({"text_predictions", "community_vector"} | sample_keys)
+                taxonomy_keys = keep_keys - (_NON_TAXONOMY_RESULT_KEYS | sample_keys)
                 keep_keys -= taxonomy_keys
 
         self.filtered = []

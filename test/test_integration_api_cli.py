@@ -543,6 +543,61 @@ class TestBiomeLabelNormalization(unittest.TestCase):
             self.assertEqual(result, [])
 
 
+class TestOutputKeyFiltering(unittest.TestCase):
+    """Key filtering in TrapicheWorkflowFromSequence.run (output_keys=None)."""
+
+    SAMPLES = [
+        {"sample_id": "a", "project_description_text": "x"},
+        {"sample_id": "b", "project_description_text": "x", "sample_taxonomy_paths": ["f.tsv"]},
+    ]
+    # First record has no taxonomy result (e.g. empty taxonomy file); second does.
+    RESULT = [
+        {"sample_id": "a", "project_description_text": "x", "text_predictions": {"root:A": 0.9}},
+        {
+            "sample_id": "b",
+            "project_description_text": "x",
+            "sample_taxonomy_paths": ["f.tsv"],
+            "text_predictions": {"root:A": 0.9},
+            "text_predictions_project": {"root:A": 0.9},
+            "community_vector": [0.1, 0.2],
+            "final_selected_prediction": "root:A",
+            "final_selected_prediction_GOLD": "root:A",
+        },
+    ]
+
+    def _run(self, **params):
+        from unittest.mock import patch
+
+        from trapiche.api import TrapicheWorkflowFromSequence
+        from trapiche.config import TrapicheWorkflowParams
+
+        wp = TrapicheWorkflowParams(output_keys=None, run_study_summary=False, **params)
+        with patch("trapiche.api.run_workflow", return_value=self.RESULT):
+            return TrapicheWorkflowFromSequence(workflow_params=wp).run(self.SAMPLES)
+
+    def test_keys_not_derived_from_first_record_only(self):
+        out = self._run()
+        self.assertNotIn("final_selected_prediction", out[0])
+        self.assertIn("final_selected_prediction", out[1])
+        self.assertIn("final_selected_prediction_GOLD", out[1])
+        self.assertIn("text_predictions", out[1])
+        self.assertNotIn("community_vector", out[1])  # keep_vectorise_results=False
+
+    def test_drop_taxonomy_keeps_text_side_keys(self):
+        out = self._run(keep_taxonomy_results=False)
+        self.assertNotIn("final_selected_prediction", out[1])
+        self.assertNotIn("final_selected_prediction_GOLD", out[1])
+        self.assertIn("text_predictions", out[1])
+        self.assertIn("text_predictions_project", out[1])
+        self.assertIn("sample_taxonomy_paths", out[1])
+
+    def test_drop_text_and_keep_vectors(self):
+        out = self._run(keep_text_results=False, keep_vectorise_results=True)
+        self.assertNotIn("text_predictions", out[1])
+        self.assertIn("community_vector", out[1])
+        self.assertIn("final_selected_prediction", out[1])
+
+
 class TestExternalRawLabelPreservation(unittest.TestCase):
     """Tests for raw label preservation in the external pathway."""
 
