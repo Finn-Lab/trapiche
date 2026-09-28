@@ -207,6 +207,15 @@ def diamond_read(f):
     return list(edges)
 
 
+def _taxon_name(name: str) -> str:
+    """Normalise a taxon name: underscores to spaces, then drop the "Candidatus " prefix.
+
+    The prefix must be stripped after the underscore conversion because MGnify files
+    write e.g. ``Candidatus_Obscuribacter``; otherwise the genus becomes "Candidatus".
+    """
+    return name.replace("_", " ").replace("Candidatus ", "")
+
+
 def extract_taxonomic_edges_from_tsv_row(row: str):
     taxonomy_terms = set()
     line = row.replace("Candidatus ", "")
@@ -225,8 +234,8 @@ def extract_taxonomic_edges_from_tsv_row(row: str):
             item1, item2 = item.split("__")
             taxonomy_terms.add(
                 (
-                    prev1 + "__" + prev2.split("__")[-1].replace("_", " "),
-                    item1 + "__" + item2.split("__")[-1].replace("_", " "),
+                    prev1 + "__" + _taxon_name(prev2.split("__")[-1]),
+                    item1 + "__" + _taxon_name(item2.split("__")[-1]),
                 )
             )
         prev = item

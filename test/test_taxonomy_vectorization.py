@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from trapiche.taxonomy_vectorization import vectorise_samples
+from trapiche.taxonomy_vectorization import genus_from_edges_subgraph, vectorise_samples
+from trapiche.utils import extract_taxonomic_edges_from_tsv_row, krona_read
 
 
 class TestVectoriseSamples(unittest.TestCase):
@@ -74,6 +75,32 @@ class TestVectoriseSamples(unittest.TestCase):
             model_version="test-version",
             local_model_dir=None,
         )
+
+
+class TestCandidatusParsing(unittest.TestCase):
+    ROW = (
+        "251837\t21.0\tsk__Bacteria;k__;p__Candidatus_Melainabacteria;c__;"
+        "o__Candidatus_Obscuribacterales;f__;g__Candidatus_Obscuribacter;"
+        "s__Candidatus_Obscuribacter_phosphatis"
+    )
+
+    def test_candidatus_prefix_stripped_from_underscored_names(self):
+        edges = extract_taxonomic_edges_from_tsv_row(self.ROW)
+
+        self.assertIn(("o__Obscuribacterales", "g__Obscuribacter"), edges)
+        self.assertFalse(any("Candidatus" in node for edge in edges for node in edge))
+
+    def test_candidatus_genus_resolves_to_real_genus(self):
+        edges = krona_read([self.ROW])
+
+        self.assertEqual(genus_from_edges_subgraph(edges), {"Obscuribacter"})
+
+    def test_candidatus_prefix_stripped_from_spaced_names(self):
+        edges = extract_taxonomic_edges_from_tsv_row(
+            "1\t1.0\tsk__Bacteria;o__Obscuribacterales;g__Candidatus Obscuribacter"
+        )
+
+        self.assertIn(("o__Obscuribacterales", "g__Obscuribacter"), edges)
 
 
 if __name__ == "__main__":
