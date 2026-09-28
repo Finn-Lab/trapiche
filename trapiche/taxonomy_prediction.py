@@ -552,6 +552,14 @@ def full_stack_prediction(
             }
         else:
             _top_dominant_const = None
+        # Default to the unadjusted constrained prediction; the block below only
+        # refines it (harmonic mean) when a text-derived label textually matches
+        # the top constrained term. Without this default, `top_dominant_const`
+        # was only ever assigned inside the nested `if matching_keys:` below, so
+        # a sample with no matching key left it unset, causing either an
+        # UnboundLocalError (if first in its 200-sample sub-batch) or silently
+        # reusing an unrelated earlier sample's prediction (if not first).
+        top_dominant_const = _top_dominant_const
         # Correct probability to be harmonic mean of top_dominant_const and the constrained term that matched
         if _top_dominant_const is not None and constrain:
             top_dominant_const_term, top_dominant_const_score = list(_top_dominant_const.items())[0]
