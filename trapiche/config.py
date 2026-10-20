@@ -109,7 +109,7 @@ class TextToBiomeParams(BaseSettings):
         validation_alias=AliasChoices("TRAPICHE_TEXT_SPLIT_SENTENCES", "TRAPICHE_SPLIT_SENTENCES"),
     )
     hf_model: str = Field(
-        default="SantiagoSanchezF/trapiche-biome-classifier-text",
+        default="microbiome-informatics/trapiche-biome-classifier-text",
         validation_alias=AliasChoices("TRAPICHE_TEXT_HF_MODEL", "TRAPICHE_HF_MODEL"),
     )
     model_version: str = Field(
@@ -138,7 +138,7 @@ class TaxonomyToVectorParams(BaseSettings):
     )
 
     hf_model: str = Field(
-        default="SantiagoSanchezF/trapiche-biome-vectorizer-taxonomy",
+        default="microbiome-informatics/trapiche-biome-vectorizer-taxonomy",
         validation_alias=AliasChoices("TRAPICHE_VECTOR_HF_MODEL", "TRAPICHE_HF_MODEL"),
     )
     model_version: str = Field(
@@ -180,7 +180,7 @@ class TaxonomyToBiomeParams(BaseSettings):
     top_prob_diff_threshold: float = 0.05
     top_prob_ratio_threshold: float = 0.9
     hf_model: str = Field(
-        default="SantiagoSanchezF/trapiche-biome-classifier-taxonomy",
+        default="microbiome-informatics/trapiche-biome-classifier-taxonomy",
         validation_alias=AliasChoices("TRAPICHE_TAXONOMY_HF_MODEL", "TRAPICHE_HF_MODEL"),
     )
     model_version: str = Field(
